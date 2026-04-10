@@ -1,0 +1,58 @@
+{"abbr": "TNBC", "expansion": "Triple Negative Breast Cancer"}
+{"abbr": "NSCLC", "expansion": "Non-Small Cell Lung Cancer"}
+{"abbr": "SCLC", "expansion": "Small Cell Lung Cancer"}
+{"abbr": "mCRPC", "expansion": "Metastatic Castration-Resistant Prostate Cancer"}
+{"abbr": "HER2", "expansion": "Human Epidermal Growth Factor Receptor 2"}
+{"abbr": "EGFR", "expansion": "Epidermal Growth Factor Receptor"}
+{"abbr": "ALK", "expansion": "Anaplastic Lymphoma Kinase"}
+{"abbr": "BRCA", "expansion": "Breast Cancer Gene"}
+{"abbr": "BRCA1", "expansion": "Breast Cancer Gene 1"}
+{"abbr": "BRCA2", "expansion": "Breast Cancer Gene 2"}
+{"abbr": "PD-L1", "expansion": "Programmed Death-Ligand 1"}
+{"abbr": "PD-1", "expansion": "Programmed Cell Death Protein 1"}
+{"abbr": "ECOG", "expansion": "Eastern Cooperative Oncology Group"}
+{"abbr": "KPS", "expansion": "Karnofsky Performance Status"}
+{"abbr": "ANC", "expansion": "Absolute Neutrophil Count"}
+{"abbr": "ALT", "expansion": "Alanine Aminotransferase"}
+{"abbr": "AST", "expansion": "Aspartate Aminotransferase"}
+{"abbr": "CrCl", "expansion": "Creatinine Clearance"}
+{"abbr": "ULN", "expansion": "Upper Limit of Normal"}
+{"abbr": "LLN", "expansion": "Lower Limit of Normal"}
+{"abbr": "WBC", "expansion": "White Blood Cell Count"}
+{"abbr": "CNS", "expansion": "Central Nervous System"}
+{"abbr": "GFR", "expansion": "Glomerular Filtration Rate"}
+{"abbr": "INR", "expansion": "International Normalized Ratio"}
+{"abbr": "CBC", "expansion": "Complete Blood Count"}
+{"abbr": "RECIST", "expansion": "Response Evaluation Criteria in Solid Tumors"}
+{"abbr": "CR", "expansion": "Complete Response"}
+{"abbr": "PR", "expansion": "Partial Response"}
+{"abbr": "SD", "expansion": "Stable Disease"}
+{"abbr": "PD", "expansion": "Progressive Disease"}
+{"abbr": "DLT", "expansion": "Dose Limiting Toxicity"}
+{"abbr": "MTD", "expansion": "Maximum Tolerated Dose"}
+{"abbr": "ORR", "expansion": "Objective Response Rate"}
+{"abbr": "OS", "expansion": "Overall Survival"}
+{"abbr": "PFS", "expansion": "Progression Free Survival"}
+{"abbr": "TPS", "expansion": "Tumor Proportion Score"}
+{"abbr": "CPS", "expansion": "Combined Positive Score"}
+{"abbr": "MSI", "expansion": "Microsatellite Instability"}
+{"abbr": "TMB", "expansion": "Tumor Mutational Burden"}
+{"abbr": "FISH", "expansion": "Fluorescence In Situ Hybridization"}
+{"abbr": "IHC", "expansion": "Immunohistochemistry"}
+{"abbr": "RAS", "expansion": "Rat Sarcoma Viral Oncogene"}
+{"abbr": "KRAS", "expansion": "Kirsten Rat Sarcoma Viral Oncogene"}
+{"abbr": "BRAF", "expansion": "B-Raf Proto-Oncogene"}
+{"abbr": "NTRK", "expansion": "Neurotrophic Tyrosine Receptor Kinase"}
+{"abbr": "ROS1", "expansion": "ROS Proto-Oncogene 1"}
+{"abbr": "MET", "expansion": "Mesenchymal-Epithelial Transition Factor"}
+{"abbr": "FGFR", "expansion": "Fibroblast Growth Factor Receptor"}
+{"abbr": "PIK3CA", "expansion": "Phosphatidylinositol-4,5-Bisphosphate 3-Kinase Catalytic Subunit Alpha"}
+{"abbr": "AML", "expansion": "Acute Myeloid Leukemia"}
+{"abbr": "CLL", "expansion": "Chronic Lymphocytic Leukemia"}
+{"abbr": "DLBCL", "expansion": "Diffuse Large B-Cell Lymphoma"}
+{"abbr": "RCC", "expansion": "Renal Cell Carcinoma"}
+{"abbr": "HCC", "expansion": "Hepatocellular Carcinoma"}
+{"abbr": "GIST", "expansion": "Gastrointestinal Stromal Tumor"}
+{"abbr": "GBM", "expansion": "Glioblastoma Multiforme"}
+{"abbr": "CRC", "expansion": "Colorectal Cancer"}
+{"abbr": "HNSCC", "expansion": "Head and Neck Squamous Cell Carcinoma"}
