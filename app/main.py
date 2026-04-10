@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.routes import trials
 from app.config import settings
 
 
@@ -17,6 +18,8 @@ app = FastAPI(
     version=settings.pipeline_version,
     lifespan=lifespan,
 )
+
+app.include_router(trials.router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")
