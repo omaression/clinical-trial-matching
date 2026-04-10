@@ -1,0 +1,4 @@
+{"label": "PERF_SCALE", "pattern": "ECOG"}
+{"label": "PERF_SCALE", "pattern": [{"LOWER": "ecog"}, {"LOWER": "performance"}, {"LOWER": "status"}]}
+{"label": "PERF_SCALE", "pattern": "Karnofsky"}
+{"label": "PERF_SCALE", "pattern": "KPS"}

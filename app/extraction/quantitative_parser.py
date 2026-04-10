@@ -50,7 +50,7 @@ class QuantitativeParser:
         text = text.strip()
 
         # Try scientific notation first (most specific)
-        m = _SCI_NOTATION.match(text)
+        m = _SCI_NOTATION.search(text)
         if m:
             exp = _parse_superscript(m.group("exp_raw") or "⁹")
             val = float(m.group("val")) * (10 ** exp)
@@ -86,7 +86,7 @@ class QuantitativeParser:
             )
 
         # Try simple comparison
-        m = _COMPARISON.match(text)
+        m = _COMPARISON.search(text)
         if m:
             unit = m.group("unit").strip()
             # Handle "× ULN" style relative units

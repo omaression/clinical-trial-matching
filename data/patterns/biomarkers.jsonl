@@ -1,0 +1,15 @@
+{"label": "BIOMARKER", "pattern": "HER2"}
+{"label": "BIOMARKER", "pattern": "HER-2"}
+{"label": "BIOMARKER", "pattern": [{"LOWER": "her2"}, {"LOWER": "positive"}]}
+{"label": "BIOMARKER", "pattern": [{"LOWER": "her2"}, {"LOWER": "negative"}]}
+{"label": "BIOMARKER", "pattern": "PD-L1"}
+{"label": "BIOMARKER", "pattern": "EGFR"}
+{"label": "BIOMARKER", "pattern": "ALK"}
+{"label": "BIOMARKER", "pattern": "BRCA1"}
+{"label": "BIOMARKER", "pattern": "BRCA2"}
+{"label": "BIOMARKER", "pattern": "BRAF"}
+{"label": "BIOMARKER", "pattern": "KRAS"}
+{"label": "BIOMARKER", "pattern": "ROS1"}
+{"label": "BIOMARKER", "pattern": "NTRK"}
+{"label": "BIOMARKER", "pattern": "MSI"}
+{"label": "BIOMARKER", "pattern": "TMB"}

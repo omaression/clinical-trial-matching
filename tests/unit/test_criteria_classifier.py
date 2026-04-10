@@ -1,0 +1,109 @@
+import pytest
+from app.extraction.criteria_classifier import RuleBasedClassifier
+from app.extraction.types import Entity, ClassifiedCriterion
+
+
+@pytest.fixture
+def classifier():
+    return RuleBasedClassifier()
+
+
+class TestCategoryAssignment:
+    def test_age_criterion(self, classifier):
+        result = classifier.classify(
+            "Age >= 18 years",
+            [Entity(text="18 years", label="MEASURE", start=7, end=15)],
+        )
+        assert result.category == "age"
+        assert result.operator == "gte"
+        assert result.value_low == 18
+        assert result.unit == "years"
+
+    def test_diagnosis_criterion(self, classifier):
+        result = classifier.classify(
+            "Histologically confirmed breast cancer",
+            [Entity(text="breast cancer", label="DISEASE", start=25, end=38)],
+        )
+        assert result.category == "diagnosis"
+
+    def test_biomarker_criterion(self, classifier):
+        result = classifier.classify(
+            "HER2-positive",
+            [Entity(text="HER2", label="BIOMARKER", start=0, end=4)],
+        )
+        assert result.category == "biomarker"
+        assert result.value_text == "positive"
+
+    def test_lab_value_criterion(self, classifier):
+        result = classifier.classify(
+            "ANC ≥ 1500 cells/μL",
+            [
+                Entity(text="ANC", label="LAB_TEST", start=0, end=3),
+                Entity(text="1500 cells/μL", label="MEASURE", start=6, end=19),
+            ],
+        )
+        assert result.category == "lab_value"
+        assert result.operator == "gte"
+
+    def test_performance_status(self, classifier):
+        result = classifier.classify(
+            "ECOG performance status 0-1",
+            [
+                Entity(text="ECOG", label="PERF_SCALE", start=0, end=4),
+                Entity(text="0-1", label="MEASURE", start=24, end=27),
+            ],
+        )
+        assert result.category == "performance_status"
+        assert result.operator == "range"
+        assert result.value_low == 0
+        assert result.value_high == 1
+
+    def test_prior_therapy_with_temporal(self, classifier):
+        result = classifier.classify(
+            "No prior chemotherapy within 28 days of enrollment",
+            [
+                Entity(text="chemotherapy", label="DRUG", start=9, end=21),
+                Entity(text="28 days", label="TIMEFRAME", start=29, end=36),
+            ],
+        )
+        assert result.category == "prior_therapy"
+        assert result.negated is True
+        assert result.timeframe_operator == "within"
+        assert result.timeframe_value == 28
+        assert result.timeframe_unit == "days"
+
+    def test_line_of_therapy(self, classifier):
+        result = classifier.classify(
+            "Failed at least 1 prior line of systemic therapy",
+            [Entity(text="1", label="MEASURE", start=16, end=17)],
+        )
+        assert result.category == "line_of_therapy"
+
+    def test_cns_metastases(self, classifier):
+        result = classifier.classify(
+            "No active brain metastases",
+            [Entity(text="brain metastases", label="DISEASE", start=10, end=26)],
+        )
+        assert result.category == "cns_metastases"
+        assert result.negated is True
+
+
+class TestComplexityRouting:
+    def test_complex_flagged_for_review(self, classifier):
+        result = classifier.classify(
+            "No prior treatment with trastuzumab, unless administered in the adjuvant setting > 6 months ago, or pertuzumab",
+            [
+                Entity(text="trastuzumab", label="DRUG", start=28, end=39),
+                Entity(text="pertuzumab", label="DRUG", start=98, end=108),
+            ],
+        )
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
+
+class TestUnparsedPreservation:
+    def test_unparsed_when_no_entities(self, classifier):
+        result = classifier.classify("Adequate renal function as determined by investigator", [])
+        assert result.parse_status in ("unparsed", "partial")
+        assert result.original_text == "Adequate renal function as determined by investigator"
+        assert result.review_required is True

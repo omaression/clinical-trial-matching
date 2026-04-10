@@ -1,0 +1,19 @@
+{"label": "DISEASE", "pattern": [{"LOWER": "breast"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "lung"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "prostate"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "colorectal"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "pancreatic"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "ovarian"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "brain"}, {"LOWER": "metastases"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "brain"}, {"LOWER": "metastasis"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": "melanoma"}
+{"label": "DISEASE", "pattern": "lymphoma"}
+{"label": "DISEASE", "pattern": "leukemia"}
+{"label": "DISEASE", "pattern": "sarcoma"}
+{"label": "DISEASE", "pattern": "glioblastoma"}
+{"label": "DISEASE", "pattern": "mesothelioma"}
+{"label": "DISEASE", "pattern": "myeloma"}
+{"label": "DISEASE", "pattern": "NSCLC"}
+{"label": "DISEASE", "pattern": "SCLC"}
+{"label": "DISEASE", "pattern": "TNBC"}
