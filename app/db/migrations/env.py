@@ -18,9 +18,8 @@ if config.config_file_name is not None:
 from app.models.database import Base  # noqa: E402
 from app.config import settings  # noqa: E402
 
-# Override sqlalchemy.url from app settings if not set in alembic.ini
-if not config.get_main_option("sqlalchemy.url", fallback=None):
-    config.set_main_option("sqlalchemy.url", settings.database_url)
+# Set sqlalchemy.url from app settings
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 
