@@ -1,6 +1,18 @@
-import uuid
+import docker
+import pytest
 
 from app.models.database import ExtractedCriterion, PipelineRun, Trial
+
+
+def _docker_available():
+    try:
+        docker.from_env().ping()
+        return True
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _docker_available(), reason="Docker not available")
 
 
 def test_create_trial(db_session):
