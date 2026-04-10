@@ -1,0 +1,56 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT04567890",
+      "briefTitle": "A Study of Drug X in HER2-Positive Breast Cancer",
+      "officialTitle": "A Phase 3, Randomized, Double-Blind Study of Drug X Versus Placebo in HER2-Positive Breast Cancer"
+    },
+    "statusModule": {
+      "overallStatus": "RECRUITING",
+      "startDateStruct": {"date": "2024-01-15"},
+      "primaryCompletionDateStruct": {"date": "2026-12-31"}
+    },
+    "sponsorCollaboratorsModule": {
+      "leadSponsor": {
+        "name": "Pharma Corp",
+        "class": "INDUSTRY"
+      }
+    },
+    "designModule": {
+      "phases": ["PHASE3"],
+      "studyType": "INTERVENTIONAL"
+    },
+    "conditionsModule": {
+      "conditions": ["HER2-positive Breast Cancer", "Metastatic Breast Cancer"]
+    },
+    "armsInterventionsModule": {
+      "interventions": [
+        {
+          "type": "DRUG",
+          "name": "Drug X",
+          "description": "Experimental treatment"
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n1. Age >= 18 years\n2. Histologically confirmed HER2-positive breast cancer\n3. ECOG performance status 0-1\n4. ANC >= 1500 cells/uL\n\nExclusion Criteria:\n1. Active brain metastases\n2. Prior treatment with trastuzumab within 28 days\n3. Known hypersensitivity to study drug",
+      "healthyVolunteers": "No",
+      "sex": "ALL",
+      "minimumAge": "18 Years",
+      "maximumAge": "75 Years",
+      "stdAges": ["ADULT", "OLDER_ADULT"]
+    },
+    "contactsLocationsModule": {
+      "locations": [
+        {
+          "facility": "University Medical Center",
+          "city": "Boston",
+          "state": "Massachusetts",
+          "country": "United States",
+          "zip": "02115",
+          "status": "RECRUITING"
+        }
+      ]
+    }
+  }
+}
