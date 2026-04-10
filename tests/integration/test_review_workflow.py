@@ -1,3 +1,5 @@
+import uuid
+
 import docker
 import pytest
 from app.models.database import Trial, PipelineRun, ExtractedCriterion
@@ -16,8 +18,9 @@ pytestmark = pytest.mark.skipif(not _docker_available(), reason="Docker not avai
 
 @pytest.fixture
 def seeded_criterion(db_session):
+    unique_nct = f"NCT{uuid.uuid4().hex[:8].upper()}"
     trial = Trial(
-        nct_id="NCT99999999", raw_json={}, content_hash="test",
+        nct_id=unique_nct, raw_json={}, content_hash="test",
         brief_title="Review Test", status="RECRUITING",
     )
     db_session.add(trial)
