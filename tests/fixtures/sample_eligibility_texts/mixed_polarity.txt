@@ -1,0 +1,7 @@
+Inclusion Criteria:
+1. Age >= 18 years
+2. Confirmed breast cancer diagnosis
+3. Patients must NOT have received prior immunotherapy
+
+Exclusion Criteria:
+1. Known hypersensitivity to study drug

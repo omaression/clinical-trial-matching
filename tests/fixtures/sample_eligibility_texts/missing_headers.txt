@@ -1,0 +1,5 @@
+Patients must be at least 18 years old.
+Histologically confirmed diagnosis of NSCLC.
+Patients must NOT have active CNS disease.
+No prior systemic chemotherapy for metastatic disease.
+Must have adequate organ function.
