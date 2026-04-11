@@ -23,6 +23,10 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "corneal"}, {"LOWER": "disease"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "dry"}, {"LOWER": "eye"}, {"LOWER": "syndrome"}]}
 {"label": "DISEASE", "pattern": "blepharitis"}
+{"label": "DISEASE", "pattern": [{"LOWER": "non"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "non"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "carcinoma"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "carcinoma"}]}
 {"label": "DISEASE", "pattern": "NSCLC"}
 {"label": "DISEASE", "pattern": "SCLC"}
 {"label": "DISEASE", "pattern": "TNBC"}

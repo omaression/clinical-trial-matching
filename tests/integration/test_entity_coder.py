@@ -36,6 +36,18 @@ def seed_lookups(db_session):
                       synonyms=["nsclc", "non-small cell lung cancer"]),
         CodingLookup(system="mesh", code="D055752", display="Small Cell Lung Carcinoma",
                       synonyms=["sclc", "small cell lung cancer"]),
+        CodingLookup(system="mesh", code="D015658", display="HIV Infections",
+                      synonyms=["hiv infection", "human immunodeficiency virus infection"]),
+        CodingLookup(system="mesh", code="D007153", display="Immunologic Deficiency Syndromes",
+                      synonyms=["immunodeficiency", "immune deficiency"]),
+        CodingLookup(system="mesh", code="D017563", display="Lung Diseases, Interstitial",
+                      synonyms=["interstitial lung disease", "ild", "pneumonitis interstitial"]),
+        CodingLookup(system="mesh", code="D003316", display="Corneal Diseases",
+                      synonyms=["corneal disease", "corneal diseases"]),
+        CodingLookup(system="mesh", code="D015352", display="Dry Eye Syndromes",
+                      synonyms=["dry eye syndrome", "dry eye"]),
+        CodingLookup(system="mesh", code="D001762", display="Blepharitis",
+                      synonyms=["blepharitis", "meibomian gland disease"]),
         CodingLookup(system="nci_thesaurus", code="C1647", display="Trastuzumab",
                       synonyms=["herceptin"]),
         CodingLookup(system="loinc", code="751-8", display="Neutrophils [#/volume] in Blood",
@@ -156,3 +168,33 @@ class TestDeterministicResolution:
         entity = Entity(text="lung cancer", label="DISEASE", start=0, end=11)
         result = coder.code_entity(entity)
         assert result.concepts == []
+
+    def test_rejects_conflicting_negated_subtype_candidates(self, coder):
+        entity = Entity(text="non-small cell lung cancer", label="DISEASE", start=0, end=27)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "mesh"
+        assert result.concepts[0].code == "D002289"
+        assert result.concepts[0].display == "Carcinoma, Non-Small-Cell Lung"
+
+    def test_rejects_conflicting_positive_subtype_candidates(self, coder):
+        entity = Entity(text="small cell lung cancer", label="DISEASE", start=0, end=22)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "mesh"
+        assert result.concepts[0].code == "D055752"
+        assert result.concepts[0].display == "Small Cell Lung Carcinoma"
+
+    def test_codes_infectious_pulmonary_and_ophthalmology_terms(self, coder):
+        cases = [
+            ("HIV infection", "D015658"),
+            ("immunodeficiency", "D007153"),
+            ("interstitial lung disease", "D017563"),
+            ("corneal disease", "D003316"),
+            ("dry eye syndrome", "D015352"),
+            ("blepharitis", "D001762"),
+        ]
+
+        for text, expected_code in cases:
+            entity = Entity(text=text, label="DISEASE", start=0, end=len(text))
+            result = coder.code_entity(entity)
+            assert result.concepts[0].system == "mesh"
+            assert result.concepts[0].code == expected_code

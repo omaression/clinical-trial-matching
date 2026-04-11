@@ -12,9 +12,47 @@ from app.extraction.types import ClassifiedCriterion, CodedConcept, Entity, Pipe
 from app.ingestion.ctgov_client import SearchStudiesResult
 from app.ingestion.hasher import content_hash
 from app.ingestion.service import IngestionResult, IngestionService, SearchIngestTrialResult
-from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
+from app.models.database import CodingLookup, ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
+
+NSCLC_DIAGNOSIS_TEXT = (
+    "* Has histologically or cytologically confirmed diagnosis of advanced or metastatic "
+    "non-squamous non-small cell lung cancer (NSCLC)"
+)
+KRAS_G12C_TEXT = (
+    "* Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates "
+    "the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to cysteine "
+    "at codon 12 (G12C) mutations"
+)
+PD1_THERAPY_TEXT = (
+    "* Has documented disease progression after receiving 1-2 prior lines of programmed cell "
+    "death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based "
+    "chemotherapy"
+)
+HIV_TEXT = (
+    "* Participants with human immunodeficiency virus (HIV) infection must have well-controlled "
+    "HIV on antiretroviral therapy (ART) per protocol"
+)
+OPHTHALMOLOGY_TEXT = (
+    "* Has one or more of the following ophthalmological conditions: a) Clinically significant "
+    "corneal disease b) history of documented severe dry eye syndrome, severe Meibomian gland "
+    "disease and/or blepharitis"
+)
+VACCINE_TEXT = (
+    "* Has received a live or live-attenuated vaccine within 30 days before the first dose of "
+    "study intervention"
+)
+IMMUNODEFICIENCY_TEXT = (
+    "* Has a diagnosis of immunodeficiency or is receiving chronic systemic steroid therapy or "
+    "any other form of immunosuppressive therapy within 7 days prior to the first dose of study "
+    "intervention"
+)
+ILD_TEXT = (
+    "* Has history of (noninfectious) pneumonitis/ interstitial lung disease (ILD) that required "
+    "steroids or has current pneumonitis/ILD"
+)
+ACTIVE_INFECTION_TEXT = "* Has an active infection requiring systemic therapy"
 
 
 def _docker_available():
@@ -39,6 +77,13 @@ def _unique_mock_response():
 def _mock_response_from_file(filename: str):
     data = json.loads((MOCK_DIR / filename).read_text())
     nct_id = data["protocolSection"]["identificationModule"]["nctId"]
+    return nct_id, data
+
+
+def _unique_mock_response_from_file(filename: str):
+    data = json.loads((MOCK_DIR / filename).read_text())
+    nct_id = f"NCT{uuid.uuid4().hex[:8].upper()}"
+    data["protocolSection"]["identificationModule"]["nctId"] = nct_id
     return nct_id, data
 
 
@@ -179,7 +224,7 @@ class TestIngestSingleTrial:
         assert criterion.confidence == 0.30
 
     def test_nct07286149_regression_blocks_known_absurd_codes(self, service, db_session):
-        nct_id, mock_resp = _mock_response_from_file("NCT07286149.json")
+        nct_id, mock_resp = _unique_mock_response_from_file("NCT07286149.json")
         with patch.object(service._client, "fetch_study", return_value=mock_resp):
             service.ingest(nct_id)
 
@@ -195,36 +240,97 @@ class TestIngestSingleTrial:
                 if isinstance(concept, dict)
             }
 
-        assert ("loinc", "718-7") not in coded_keys(
-            "* Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to cysteine at codon 12 (G12C) mutations"
+        assert ("loinc", "718-7") not in coded_keys(KRAS_G12C_TEXT)
+        assert ("loinc", "718-7") not in coded_keys(PD1_THERAPY_TEXT)
+        assert ("loinc", "1742-6") not in coded_keys(HIV_TEXT)
+        assert ("loinc", "6301-6") not in coded_keys(OPHTHALMOLOGY_TEXT)
+        assert ("mesh", "D015266") not in coded_keys(VACCINE_TEXT)
+        assert ("mesh", "D015266") not in coded_keys(IMMUNODEFICIENCY_TEXT)
+        assert ("mesh", "D015451") not in coded_keys(ILD_TEXT)
+        assert criteria_by_text[NSCLC_DIAGNOSIS_TEXT].category == "diagnosis"
+        assert criteria_by_text[KRAS_G12C_TEXT].category == "molecular_alteration"
+        assert criteria_by_text[ACTIVE_INFECTION_TEXT].category == "diagnosis"
+
+    def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
+        db_session.add_all(
+            [
+                CodingLookup(
+                    system="mesh",
+                    code="D002289",
+                    display="Carcinoma, Non-Small-Cell Lung",
+                    synonyms=["nsclc", "non-small cell lung cancer", "non-small-cell lung cancer"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D015658",
+                    display="HIV Infections",
+                    synonyms=["hiv infection", "human immunodeficiency virus infection", "well-controlled hiv"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D007153",
+                    display="Immunologic Deficiency Syndromes",
+                    synonyms=["immunodeficiency", "immune deficiency"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D017563",
+                    display="Lung Diseases, Interstitial",
+                    synonyms=["interstitial lung disease", "ild"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D003316",
+                    display="Corneal Diseases",
+                    synonyms=["corneal disease", "corneal diseases"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D015352",
+                    display="Dry Eye Syndromes",
+                    synonyms=["dry eye syndrome", "dry eye"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D001762",
+                    display="Blepharitis",
+                    synonyms=["blepharitis", "meibomian gland disease", "meibomian gland dysfunction"],
+                ),
+                CodingLookup(
+                    system="nci_thesaurus",
+                    code="C126815",
+                    display="KRAS Mutation Positive",
+                    synonyms=["kras", "kras g12c", "kras g12c mutation"],
+                ),
+            ]
         )
-        assert ("loinc", "718-7") not in coded_keys(
-            "* Has documented disease progression after receiving 1-2 prior lines of programmed cell death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based chemotherapy"
-        )
-        assert ("loinc", "1742-6") not in coded_keys(
-            "* Participants with human immunodeficiency virus (HIV) infection must have well-controlled HIV on antiretroviral therapy (ART) per protocol"
-        )
-        assert ("loinc", "6301-6") not in coded_keys(
-            "* Has one or more of the following ophthalmological conditions: a) Clinically significant corneal disease b) history of documented severe dry eye syndrome, severe Meibomian gland disease and/or blepharitis"
-        )
-        assert ("mesh", "D015266") not in coded_keys(
-            "* Has received a live or live-attenuated vaccine within 30 days before the first dose of study intervention"
-        )
-        assert ("mesh", "D015266") not in coded_keys(
-            "* Has a diagnosis of immunodeficiency or is receiving chronic systemic steroid therapy or any other form of immunosuppressive therapy within 7 days prior to the first dose of study intervention"
-        )
-        assert ("mesh", "D015451") not in coded_keys(
-            "* Has history of (noninfectious) pneumonitis/ interstitial lung disease (ILD) that required steroids or has current pneumonitis/ILD"
-        )
-        assert criteria_by_text[
-            "* Has histologically or cytologically confirmed diagnosis of advanced or metastatic non-squamous non-small cell lung cancer (NSCLC)"
-        ].category == "diagnosis"
-        assert criteria_by_text[
-            "* Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to cysteine at codon 12 (G12C) mutations"
-        ].category == "molecular_alteration"
-        assert criteria_by_text[
-            "* Has an active infection requiring systemic therapy"
-        ].category == "diagnosis"
+        db_session.flush()
+
+        nct_id, mock_resp = _unique_mock_response_from_file("NCT07286149.json")
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).all()
+        criteria_by_text = {criterion.original_text: criterion for criterion in criteria}
+
+        def coded_keys(text: str) -> set[tuple[str, str]]:
+            criterion = criteria_by_text[text]
+            return {
+                (concept["system"], concept["code"])
+                for concept in (criterion.coded_concepts or [])
+                if isinstance(concept, dict)
+            }
+
+        assert ("mesh", "D002289") in coded_keys(NSCLC_DIAGNOSIS_TEXT)
+        assert ("nci_thesaurus", "C126815") in coded_keys(KRAS_G12C_TEXT)
+        assert ("mesh", "D015658") in coded_keys(HIV_TEXT)
+        assert ("mesh", "D007153") in coded_keys(IMMUNODEFICIENCY_TEXT)
+        assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
+        ophthalmology_codes = coded_keys(OPHTHALMOLOGY_TEXT)
+        assert ("mesh", "D003316") in ophthalmology_codes
+        assert ("mesh", "D015352") in ophthalmology_codes
+        assert ("mesh", "D001762") in ophthalmology_codes
 
 
 class TestIdempotency:

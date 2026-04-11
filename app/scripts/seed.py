@@ -33,6 +33,28 @@ MESH_DISEASES = [
     ("D064129", "Prostatic Neoplasms, Castration-Resistant", ["mcrpc", "castration-resistant prostate cancer", "crpc"]),
     ("D001859", "Brain Neoplasms", ["brain cancer", "brain tumor", "brain metastases", "brain metastasis"]),
     ("D055756", "Leptomeningeal Carcinomatosis", ["leptomeningeal disease", "leptomeningeal metastases"]),
+    (
+        "D015658",
+        "HIV Infections",
+        ["hiv infection", "hiv infections", "human immunodeficiency virus infection", "well-controlled hiv"],
+    ),
+    (
+        "D007153",
+        "Immunologic Deficiency Syndromes",
+        ["immunodeficiency", "immunologic deficiency", "immunological deficiency", "immune deficiency"],
+    ),
+    (
+        "D017563",
+        "Lung Diseases, Interstitial",
+        ["interstitial lung disease", "interstitial lung diseases", "ild", "pneumonitis interstitial"],
+    ),
+    ("D003316", "Corneal Diseases", ["corneal disease", "corneal diseases"]),
+    ("D015352", "Dry Eye Syndromes", ["dry eye syndrome", "dry eye", "dry eyes"]),
+    (
+        "D001762",
+        "Blepharitis",
+        ["blepharitis", "meibomitis", "meibomian gland disease", "meibomian gland dysfunction"],
+    ),
     ("D013274", "Stomach Neoplasms", ["gastric cancer", "stomach cancer"]),
     ("D014571", "Urinary Bladder Neoplasms", ["bladder cancer", "urothelial carcinoma"]),
     ("D002051", "Burkitt Lymphoma", ["burkitt lymphoma"]),

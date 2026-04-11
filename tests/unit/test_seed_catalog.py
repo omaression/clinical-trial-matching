@@ -22,6 +22,9 @@ def test_seed_catalog_includes_common_disease_alias_variants():
 
     assert "triple-negative breast cancer" in synonyms["Triple Negative Breast Neoplasms"]
     assert "non-small-cell lung cancer" in synonyms["Carcinoma, Non-Small-Cell Lung"]
+    assert "hiv infection" in synonyms["HIV Infections"]
+    assert "interstitial lung disease" in synonyms["Lung Diseases, Interstitial"]
+    assert "meibomian gland dysfunction" in synonyms["Blepharitis"]
 
 
 def test_seed_catalog_includes_common_biomarker_alias_variants():

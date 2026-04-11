@@ -187,8 +187,8 @@ class EntityCoder:
         )
 
     def _fuzzy_match(self, variants: list[str], systems: tuple[str, ...]) -> CodingResult | None:
-        for text in variants:
-            normalized = _normalize_text(text)
+        for variant in variants:
+            normalized = _normalize_text(variant)
             try:
                 result = self._pg_trgm_fuzzy_match(normalized, systems)
                 if result:
@@ -197,8 +197,8 @@ class EntityCoder:
                 self._db.rollback()
 
         lookups = self._candidate_lookups(systems)
-        for text in variants:
-            result = self._fallback_fuzzy_match(_normalize_text(text), lookups)
+        for variant in variants:
+            result = self._fallback_fuzzy_match(_normalize_text(variant), lookups)
             if result:
                 return result
         return None
@@ -435,12 +435,12 @@ def _is_viable_fuzzy_candidate(text: str, display: str, synonyms: list[str] | No
     if not source_tokens:
         return False
 
-    candidate_token_sets = [_informative_tokens(display)]
-    for synonym in synonyms or []:
-        candidate_token_sets.append(_informative_tokens(synonym))
-
+    candidate_texts = [display, *(synonyms or [])]
     viable_overlap = False
-    for tokens in candidate_token_sets:
+    for candidate_text in candidate_texts:
+        if _has_modifier_conflict(text, candidate_text):
+            continue
+        tokens = _informative_tokens(candidate_text)
         if not tokens:
             continue
         overlap = source_tokens.intersection(tokens)
@@ -451,6 +451,48 @@ def _is_viable_fuzzy_candidate(text: str, display: str, synonyms: list[str] | No
             viable_overlap = True
             break
     return viable_overlap
+
+
+def _has_modifier_conflict(source_text: str, candidate_text: str) -> bool:
+    source = _normalize_text(source_text)
+    candidate = _normalize_text(candidate_text)
+    source_negated = _negated_phrases(source)
+    candidate_negated = _negated_phrases(candidate)
+
+    for phrase in source_negated:
+        if _contains_phrase(candidate, phrase) and phrase not in candidate_negated:
+            return True
+    for phrase in candidate_negated:
+        if _contains_phrase(source, phrase) and phrase not in source_negated:
+            return True
+    return False
+
+
+def _negated_phrases(text: str) -> set[str]:
+    tokens = text.split()
+    phrases: set[str] = set()
+    for index, token in enumerate(tokens):
+        if token == "non":
+            for width in (1, 2, 3):
+                end = index + 1 + width
+                if end > len(tokens):
+                    break
+                phrase_tokens = tokens[index + 1:end]
+                if any(part not in _FUZZY_STOPWORDS for part in phrase_tokens):
+                    phrases.add(" ".join(phrase_tokens))
+            continue
+        if token.startswith("non") and len(token) > 4:
+            base = token[3:]
+            if base and base not in _FUZZY_STOPWORDS:
+                phrases.add(base)
+    return phrases
+
+
+def _contains_phrase(text: str, phrase: str) -> bool:
+    if not phrase:
+        return False
+    escaped = re.escape(phrase)
+    return re.search(rf"\b{escaped}\b", text) is not None
 
 
 def _normalized_sql_text(column):

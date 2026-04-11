@@ -1,5 +1,7 @@
-import pytest
 from pathlib import Path
+
+import pytest
+
 from app.extraction.pipeline import ExtractionPipeline
 from app.extraction.types import PipelineResult
 
@@ -78,3 +80,16 @@ class TestNct07286149Signals:
         result = pipeline.extract(text)
         assert result.criteria_count == 1
         assert result.criteria[0].category == "diagnosis"
+
+    def test_active_infection_line_routes_to_diagnosis_not_prior_therapy(self, pipeline):
+        text = "Has an active infection requiring systemic therapy"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "diagnosis"
+
+    def test_non_small_cell_line_keeps_specific_disease_entity(self, pipeline):
+        text = "Has histologically confirmed metastatic non-small cell lung cancer"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        disease_entities = [entity for entity in result.criteria[0].entities if entity.label == "DISEASE"]
+        assert any("non-small cell lung cancer" in entity.text.lower() for entity in disease_entities)

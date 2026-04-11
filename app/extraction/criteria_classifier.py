@@ -52,6 +52,18 @@ _CURRENT_CONDITION_PATTERN = re.compile(
     r"pulmonary illnesses?)\b",
     re.I,
 )
+_EXPLICIT_DIAGNOSIS_PATTERN = re.compile(
+    r"\b(?:diagnosis|diagnosed with)\b",
+    re.I,
+)
+_CONFIRMED_DISEASE_PATTERN = re.compile(
+    r"\b(?:confirmed|histologically|cytologically|pathologically)\b",
+    re.I,
+)
+_NUMERIC_STAGE_PATTERN = re.compile(
+    r"\bstage\s+[0-9ivx]+[a-c]?(?:\s+or\s+[0-9ivx]+[a-c]?)?\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(
     r"\b(?:unless|except|provided that|other than|whichever\s+is\s+(?:longer|shorter)|"
     r"including\s+but\s+not\s+limited\s+to)\b",
@@ -235,29 +247,52 @@ class RuleBasedClassifier:
             return "line_of_therapy"
         if "BIOMARKER" in labels and _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
-        if "DISEASE" in labels or _CURRENT_CONDITION_PATTERN.search(text):
+        if _CURRENT_CONDITION_PATTERN.search(text):
             return "diagnosis"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
             return "prior_therapy"
         if "DRUG" in labels:
             return "prior_therapy"
         if _STAGE_PATTERN.search(text):
+            if _NUMERIC_STAGE_PATTERN.search(text) or _TNM_STAGE_PATTERN.search(text):
+                return "disease_stage"
+            if (
+                "DISEASE" in labels
+                and (
+                    _EXPLICIT_DIAGNOSIS_PATTERN.search(text)
+                    or (
+                        _CONFIRMED_DISEASE_PATTERN.search(text)
+                        and self._has_specific_disease_phrase(entities)
+                    )
+                )
+            ):
+                return "diagnosis"
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
             return "histology"
-        if _MOLECULAR_PATTERN.search(text):
-            return "molecular_alteration"
         if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
             return "concomitant_medication"
         if "PERF_SCALE" in labels:
             return "performance_status"
         if "BIOMARKER" in labels:
             return "biomarker"
+        if _MOLECULAR_PATTERN.search(text):
+            return "molecular_alteration"
         if "LAB_TEST" in labels:
             return "lab_value"
         if "DISEASE" in labels:
             return "diagnosis"
         return self._assign_category_from_text(text)
+
+    def _has_specific_disease_phrase(self, entities: list[Entity]) -> bool:
+        for entity in entities:
+            if entity.label != "DISEASE":
+                continue
+            source = entity.expanded_text or entity.text
+            tokens = re.findall(r"[a-z0-9]+", source.casefold())
+            if len(tokens) >= 3:
+                return True
+        return False
 
     def _assign_category_from_text(self, text: str) -> str:
         """Fallback: classify by text patterns when no entities."""
