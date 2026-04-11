@@ -1,0 +1,10 @@
+[
+  {
+    "original_text": "No prior treatment with trastuzumab, pertuzumab, or lapatinib",
+    "type": "exclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "negated": true,
+    "logic_operator": "OR"
+  }
+]

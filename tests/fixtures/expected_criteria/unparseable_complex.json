@@ -1,0 +1,11 @@
+[
+  {
+    "original_text": "Adequate renal function as determined by the investigator per institutional standards",
+    "type": "inclusion",
+    "category": "other",
+    "parse_status": "unparsed",
+    "negated": false,
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

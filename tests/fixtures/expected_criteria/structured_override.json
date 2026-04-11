@@ -1,0 +1,22 @@
+[
+  {
+    "original_text": "Age >= 18 years",
+    "type": "inclusion",
+    "category": "age",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 18.0,
+    "unit": "years",
+    "raw_expression": "Age >= 18 years",
+    "negated": false
+  },
+  {
+    "original_text": "Female patients only",
+    "type": "inclusion",
+    "category": "other",
+    "parse_status": "unparsed",
+    "negated": false,
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

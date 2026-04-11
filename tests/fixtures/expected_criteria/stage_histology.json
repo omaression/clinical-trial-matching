@@ -1,0 +1,19 @@
+[
+  {
+    "original_text": "Stage III or IV unresectable melanoma",
+    "type": "inclusion",
+    "category": "disease_stage",
+    "parse_status": "parsed",
+    "negated": false,
+    "logic_operator": "OR"
+  },
+  {
+    "original_text": "Histologically confirmed adenocarcinoma",
+    "type": "inclusion",
+    "category": "histology",
+    "parse_status": "partial",
+    "negated": false,
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]
