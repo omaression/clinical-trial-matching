@@ -11,3 +11,5 @@ dist/
 .ctm-dev/
 .conda-pkgs/
 .conda-env/
+frontend/node_modules/
+frontend/.next/

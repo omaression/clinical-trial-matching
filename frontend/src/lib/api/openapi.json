@@ -1,0 +1,5217 @@
+{
+  "components": {
+    "schemas": {
+      "CodedConceptResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display"
+          },
+          "match_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Type"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "system",
+          "code"
+        ],
+        "title": "CodedConceptResponse",
+        "type": "object"
+      },
+      "CodedConceptUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display"
+          },
+          "match_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Type"
+          },
+          "system": {
+            "minLength": 1,
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "system",
+          "code"
+        ],
+        "title": "CodedConceptUpdate",
+        "type": "object"
+      },
+      "CriteriaListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResponse"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "criteria",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "CriteriaListResponse",
+        "type": "object"
+      },
+      "CriteriaSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "review_pending": {
+            "title": "Review Pending",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "review_pending"
+        ],
+        "title": "CriteriaSummary",
+        "type": "object"
+      },
+      "CriterionCorrectionData": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "coded_concepts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CodedConceptUpdate"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coded Concepts"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "logic_group_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logic Group Id"
+          },
+          "logic_operator": {
+            "anyOf": [
+              {
+                "enum": [
+                  "AND",
+                  "OR"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logic Operator"
+          },
+          "negated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negated"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator"
+          },
+          "parse_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "parsed",
+                  "partial",
+                  "unparsed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Status"
+          },
+          "raw_expression": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Expression"
+          },
+          "timeframe_operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe Operator"
+          },
+          "timeframe_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe Unit"
+          },
+          "timeframe_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe Value"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "inclusion",
+                  "exclusion"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value High"
+          },
+          "value_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Low"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          }
+        },
+        "title": "CriterionCorrectionData",
+        "type": "object"
+      },
+      "CriterionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptResponse"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "logic_group_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logic Group Id"
+          },
+          "logic_operator": {
+            "title": "Logic Operator",
+            "type": "string"
+          },
+          "negated": {
+            "title": "Negated",
+            "type": "boolean"
+          },
+          "operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operator"
+          },
+          "original_extracted": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Extracted"
+          },
+          "original_text": {
+            "title": "Original Text",
+            "type": "string"
+          },
+          "parse_status": {
+            "title": "Parse Status",
+            "type": "string"
+          },
+          "pipeline_run_id": {
+            "format": "uuid",
+            "title": "Pipeline Run Id",
+            "type": "string"
+          },
+          "pipeline_version": {
+            "title": "Pipeline Version",
+            "type": "string"
+          },
+          "raw_expression": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Expression"
+          },
+          "review_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Notes"
+          },
+          "review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Reason"
+          },
+          "review_required": {
+            "title": "Review Required",
+            "type": "boolean"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "reviewed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed By"
+          },
+          "timeframe_operator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe Operator"
+          },
+          "timeframe_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe Unit"
+          },
+          "timeframe_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe Value"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value High"
+          },
+          "value_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Low"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          }
+        },
+        "required": [
+          "id",
+          "trial_id",
+          "type",
+          "category",
+          "parse_status",
+          "original_text",
+          "negated",
+          "logic_operator",
+          "confidence",
+          "review_required",
+          "pipeline_version",
+          "pipeline_run_id"
+        ],
+        "title": "CriterionResponse",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "database": {
+            "title": "Database",
+            "type": "string"
+          },
+          "pipeline_version": {
+            "title": "Pipeline Version",
+            "type": "string"
+          },
+          "spacy_model": {
+            "title": "Spacy Model",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "healthy",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "pipeline_version",
+          "database",
+          "spacy_model"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "IngestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "nct_id": {
+            "maxLength": 11,
+            "minLength": 11,
+            "pattern": "^NCT\\d{8}$",
+            "title": "Nct Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nct_id"
+        ],
+        "title": "IngestRequest",
+        "type": "object"
+      },
+      "IngestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria_count": {
+            "title": "Criteria Count",
+            "type": "integer"
+          },
+          "nct_id": {
+            "title": "Nct Id",
+            "type": "string"
+          },
+          "review_count": {
+            "title": "Review Count",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "boolean"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nct_id",
+          "trial_id",
+          "criteria_count",
+          "review_count",
+          "skipped"
+        ],
+        "title": "IngestResponse",
+        "type": "object"
+      },
+      "MatchCriterionResultResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "criterion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criterion Id"
+          },
+          "criterion_text": {
+            "title": "Criterion Text",
+            "type": "string"
+          },
+          "criterion_type": {
+            "title": "Criterion Type",
+            "type": "string"
+          },
+          "evidence_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Payload"
+          },
+          "explanation_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation Text"
+          },
+          "explanation_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation Type"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "matched",
+              "not_matched",
+              "unknown",
+              "requires_review",
+              "not_triggered",
+              "triggered"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "pipeline_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline Run Id"
+          },
+          "source_label": {
+            "title": "Source Label",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_type",
+          "source_label",
+          "criterion_type",
+          "category",
+          "criterion_text",
+          "outcome"
+        ],
+        "title": "MatchCriterionResultResponse",
+        "type": "object"
+      },
+      "MatchResultDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/MatchCriterionResultResponse"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "favorable_count": {
+            "title": "Favorable Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "match_run_id": {
+            "format": "uuid",
+            "title": "Match Run Id",
+            "type": "string"
+          },
+          "overall_status": {
+            "enum": [
+              "eligible",
+              "possible",
+              "ineligible"
+            ],
+            "title": "Overall Status",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "requires_review_count": {
+            "title": "Requires Review Count",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "summary_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Explanation"
+          },
+          "trial_brief_title": {
+            "title": "Trial Brief Title",
+            "type": "string"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          },
+          "trial_nct_id": {
+            "title": "Trial Nct Id",
+            "type": "string"
+          },
+          "unfavorable_count": {
+            "title": "Unfavorable Count",
+            "type": "integer"
+          },
+          "unknown_count": {
+            "title": "Unknown Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "match_run_id",
+          "patient_id",
+          "trial_id",
+          "trial_nct_id",
+          "trial_brief_title",
+          "overall_status",
+          "score",
+          "favorable_count",
+          "unfavorable_count",
+          "unknown_count",
+          "requires_review_count"
+        ],
+        "title": "MatchResultDetail",
+        "type": "object"
+      },
+      "MatchResultListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MatchResultSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "MatchResultListResponse",
+        "type": "object"
+      },
+      "MatchResultSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "favorable_count": {
+            "title": "Favorable Count",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "match_run_id": {
+            "format": "uuid",
+            "title": "Match Run Id",
+            "type": "string"
+          },
+          "overall_status": {
+            "enum": [
+              "eligible",
+              "possible",
+              "ineligible"
+            ],
+            "title": "Overall Status",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "requires_review_count": {
+            "title": "Requires Review Count",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "summary_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary Explanation"
+          },
+          "trial_brief_title": {
+            "title": "Trial Brief Title",
+            "type": "string"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          },
+          "trial_nct_id": {
+            "title": "Trial Nct Id",
+            "type": "string"
+          },
+          "unfavorable_count": {
+            "title": "Unfavorable Count",
+            "type": "integer"
+          },
+          "unknown_count": {
+            "title": "Unknown Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "match_run_id",
+          "patient_id",
+          "trial_id",
+          "trial_nct_id",
+          "trial_brief_title",
+          "overall_status",
+          "score",
+          "favorable_count",
+          "unfavorable_count",
+          "unknown_count",
+          "requires_review_count"
+        ],
+        "title": "MatchResultSummary",
+        "type": "object"
+      },
+      "MatchRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "eligible_trials": {
+            "title": "Eligible Trials",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ineligible_trials": {
+            "title": "Ineligible Trials",
+            "type": "integer"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "possible_trials": {
+            "title": "Possible Trials",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/MatchResultSummary"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_trials_evaluated": {
+            "title": "Total Trials Evaluated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "status",
+          "total_trials_evaluated",
+          "eligible_trials",
+          "possible_trials",
+          "ineligible_trials"
+        ],
+        "title": "MatchRunResponse",
+        "type": "object"
+      },
+      "PatientBiomarkerInput": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptUpdate"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "PatientBiomarkerInput",
+        "type": "object"
+      },
+      "PatientBiomarkerResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptResponse"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "PatientBiomarkerResponse",
+        "type": "object"
+      },
+      "PatientConditionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptUpdate"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "PatientConditionInput",
+        "type": "object"
+      },
+      "PatientConditionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptResponse"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "PatientConditionResponse",
+        "type": "object"
+      },
+      "PatientCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "biomarkers": {
+            "items": {
+              "$ref": "#/components/schemas/PatientBiomarkerInput"
+            },
+            "title": "Biomarkers",
+            "type": "array"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/PatientConditionInput"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "ecog_status": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecog Status"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "is_healthy_volunteer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Healthy Volunteer"
+          },
+          "labs": {
+            "items": {
+              "$ref": "#/components/schemas/PatientLabInput"
+            },
+            "title": "Labs",
+            "type": "array"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "medications": {
+            "items": {
+              "$ref": "#/components/schemas/PatientMedicationInput"
+            },
+            "title": "Medications",
+            "type": "array"
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "enum": [
+                  "male",
+                  "female",
+                  "other",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "therapies": {
+            "items": {
+              "$ref": "#/components/schemas/PatientTherapyInput"
+            },
+            "title": "Therapies",
+            "type": "array"
+          }
+        },
+        "title": "PatientCreateRequest",
+        "type": "object"
+      },
+      "PatientDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "biomarkers": {
+            "items": {
+              "$ref": "#/components/schemas/PatientBiomarkerResponse"
+            },
+            "title": "Biomarkers",
+            "type": "array"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/PatientConditionResponse"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "ecog_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecog Status"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_healthy_volunteer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Healthy Volunteer"
+          },
+          "labs": {
+            "items": {
+              "$ref": "#/components/schemas/PatientLabResponse"
+            },
+            "title": "Labs",
+            "type": "array"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "medications": {
+            "items": {
+              "$ref": "#/components/schemas/PatientMedicationResponse"
+            },
+            "title": "Medications",
+            "type": "array"
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "therapies": {
+            "items": {
+              "$ref": "#/components/schemas/PatientTherapyResponse"
+            },
+            "title": "Therapies",
+            "type": "array"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "PatientDetail",
+        "type": "object"
+      },
+      "PatientLabInput": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptUpdate"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_numeric": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Numeric"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "PatientLabInput",
+        "type": "object"
+      },
+      "PatientLabResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptResponse"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value_numeric": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Numeric"
+          },
+          "value_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Text"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "PatientLabResponse",
+        "type": "object"
+      },
+      "PatientListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PatientSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "PatientListResponse",
+        "type": "object"
+      },
+      "PatientMedicationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptUpdate"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "PatientMedicationInput",
+        "type": "object"
+      },
+      "PatientMedicationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptResponse"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "active"
+        ],
+        "title": "PatientMedicationResponse",
+        "type": "object"
+      },
+      "PatientSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "ecog_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecog Status"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_healthy_volunteer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Healthy Volunteer"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "PatientSummary",
+        "type": "object"
+      },
+      "PatientTherapyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptUpdate"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "completed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "line_of_therapy": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Of Therapy"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "PatientTherapyInput",
+        "type": "object"
+      },
+      "PatientTherapyResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "coded_concepts": {
+            "items": {
+              "$ref": "#/components/schemas/CodedConceptResponse"
+            },
+            "title": "Coded Concepts",
+            "type": "array"
+          },
+          "completed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "line_of_therapy": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Of Therapy"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "PatientTherapyResponse",
+        "type": "object"
+      },
+      "PatientUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "biomarkers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientBiomarkerInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Biomarkers"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "conditions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientConditionInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "ecog_status": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecog Status"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "is_healthy_volunteer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Healthy Volunteer"
+          },
+          "labs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientLabInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labs"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "medications": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientMedicationInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medications"
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "enum": [
+                  "male",
+                  "female",
+                  "other",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sex"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "therapies": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientTherapyInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Therapies"
+          }
+        },
+        "title": "PatientUpdateRequest",
+        "type": "object"
+      },
+      "PipelineRunListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "PipelineRunListResponse",
+        "type": "object"
+      },
+      "PipelineRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria_extracted_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criteria Extracted Count"
+          },
+          "diff_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff Summary"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "pipeline_version": {
+            "title": "Pipeline Version",
+            "type": "string"
+          },
+          "review_required_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Required Count"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trial_id",
+          "pipeline_version",
+          "status"
+        ],
+        "title": "PipelineRunResponse",
+        "type": "object"
+      },
+      "PipelineStatusResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "review_pending": {
+            "title": "Review Pending",
+            "type": "integer"
+          },
+          "total_criteria": {
+            "title": "Total Criteria",
+            "type": "integer"
+          },
+          "total_runs": {
+            "title": "Total Runs",
+            "type": "integer"
+          },
+          "total_trials": {
+            "title": "Total Trials",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "total_runs",
+          "completed",
+          "failed",
+          "total_trials",
+          "total_criteria",
+          "review_pending"
+        ],
+        "title": "PipelineStatusResponse",
+        "type": "object"
+      },
+      "ReExtractResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria_count": {
+            "title": "Criteria Count",
+            "type": "integer"
+          },
+          "diff_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff Summary"
+          },
+          "review_count": {
+            "title": "Review Count",
+            "type": "integer"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trial_id",
+          "criteria_count",
+          "review_count"
+        ],
+        "title": "ReExtractResponse",
+        "type": "object"
+      },
+      "ReviewQueueResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdown_by_reason": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Breakdown By Reason",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page",
+          "breakdown_by_reason"
+        ],
+        "title": "ReviewQueueResponse",
+        "type": "object"
+      },
+      "ReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "accept",
+              "correct",
+              "reject"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "corrected_data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriterionCorrectionData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "review_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Notes"
+          },
+          "reviewed_by": {
+            "minLength": 1,
+            "title": "Reviewed By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "reviewed_by"
+        ],
+        "title": "ReviewRequest",
+        "type": "object"
+      },
+      "SearchIngestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "limit": {
+            "default": 25,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "page_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Token"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "SearchIngestRequest",
+        "type": "object"
+      },
+      "SearchIngestResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted": {
+            "title": "Attempted",
+            "type": "integer"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "ingested": {
+            "title": "Ingested",
+            "type": "integer"
+          },
+          "next_page_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Page Token"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count"
+          },
+          "trials": {
+            "items": {
+              "$ref": "#/components/schemas/SearchIngestTrialResponse"
+            },
+            "title": "Trials",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attempted",
+          "returned",
+          "ingested",
+          "skipped",
+          "failed",
+          "trials"
+        ],
+        "title": "SearchIngestResponse",
+        "type": "object"
+      },
+      "SearchIngestTrialResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria_count": {
+            "title": "Criteria Count",
+            "type": "integer"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "nct_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nct Id"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "ingested",
+              "skipped",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "trial_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Id"
+          }
+        },
+        "required": [
+          "criteria_count",
+          "skipped",
+          "status"
+        ],
+        "title": "SearchIngestTrialResponse",
+        "type": "object"
+      },
+      "TrialDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "accepts_healthy": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepts Healthy"
+          },
+          "brief_title": {
+            "title": "Brief Title",
+            "type": "string"
+          },
+          "conditions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions"
+          },
+          "criteria_summary": {
+            "$ref": "#/components/schemas/CriteriaSummary"
+          },
+          "eligibility_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Text"
+          },
+          "eligible_max_age": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligible Max Age"
+          },
+          "eligible_min_age": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligible Min Age"
+          },
+          "eligible_sex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligible Sex"
+          },
+          "extraction_status": {
+            "title": "Extraction Status",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingested At"
+          },
+          "interventions": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interventions"
+          },
+          "nct_id": {
+            "title": "Nct Id",
+            "type": "string"
+          },
+          "official_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official Title"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "sponsor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sponsor"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nct_id",
+          "brief_title",
+          "status",
+          "extraction_status",
+          "criteria_summary"
+        ],
+        "title": "TrialDetail",
+        "type": "object"
+      },
+      "TrialListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TrialSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "TrialListResponse",
+        "type": "object"
+      },
+      "TrialSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_title": {
+            "title": "Brief Title",
+            "type": "string"
+          },
+          "extraction_status": {
+            "title": "Extraction Status",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingested At"
+          },
+          "nct_id": {
+            "title": "Nct Id",
+            "type": "string"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nct_id",
+          "brief_title",
+          "status",
+          "extraction_status"
+        ],
+        "title": "TrialSummary",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "title": "Clinical Trial Matching",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/criteria/{criterion_id}": {
+      "get": {
+        "operationId": "get_criterion_api_v1_criteria__criterion_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "criterion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Criterion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Criterion"
+      }
+    },
+    "/api/v1/criteria/{criterion_id}/review": {
+      "patch": {
+        "operationId": "review_criterion_api_v1_criteria__criterion_id__review_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "criterion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Criterion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "conflict",
+                  "detail": "Criterion review has already been resolved",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request conflicts with current resource state"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Review Criterion"
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Health Check"
+      }
+    },
+    "/api/v1/matches/{match_id}": {
+      "get": {
+        "operationId": "get_match_result_api_v1_matches__match_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "match_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Match Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchResultDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Match Result"
+      }
+    },
+    "/api/v1/patients": {
+      "get": {
+        "operationId": "list_patients_api_v1_patients_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Patients"
+      },
+      "post": {
+        "operationId": "create_patient_api_v1_patients_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Create Patient"
+      }
+    },
+    "/api/v1/patients/{patient_id}": {
+      "get": {
+        "operationId": "get_patient_api_v1_patients__patient_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Patient"
+      },
+      "patch": {
+        "operationId": "update_patient_api_v1_patients__patient_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Update Patient"
+      }
+    },
+    "/api/v1/patients/{patient_id}/match": {
+      "post": {
+        "operationId": "match_patient_api_v1_patients__patient_id__match_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Match Patient"
+      }
+    },
+    "/api/v1/patients/{patient_id}/matches": {
+      "get": {
+        "operationId": "list_patient_matches_api_v1_patients__patient_id__matches_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchResultListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Patient Matches"
+      }
+    },
+    "/api/v1/pipeline/runs": {
+      "get": {
+        "operationId": "list_pipeline_runs_api_v1_pipeline_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "trial_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trial Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pipeline_version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pipeline Version"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRunListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Pipeline Runs"
+      }
+    },
+    "/api/v1/pipeline/runs/{run_id}": {
+      "get": {
+        "operationId": "get_pipeline_run_api_v1_pipeline_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Pipeline Run"
+      }
+    },
+    "/api/v1/pipeline/status": {
+      "get": {
+        "operationId": "pipeline_status_api_v1_pipeline_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Pipeline Status"
+      }
+    },
+    "/api/v1/review": {
+      "get": {
+        "operationId": "get_review_queue_api_v1_review_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          },
+          {
+            "in": "query",
+            "name": "trial_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trial Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewQueueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Review Queue"
+      }
+    },
+    "/api/v1/trials": {
+      "get": {
+        "operationId": "list_trials_api_v1_trials_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "condition",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Condition"
+            }
+          },
+          {
+            "in": "query",
+            "name": "phase",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phase"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "List Trials"
+      }
+    },
+    "/api/v1/trials/ingest": {
+      "post": {
+        "operationId": "ingest_trial_api_v1_trials_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "rate_limit_exceeded",
+                  "detail": "Operational request rate limit exceeded",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Operational rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "service_unavailable",
+                  "detail": "Extraction pipeline unavailable",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Required backend dependency unavailable"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Ingest Trial"
+      }
+    },
+    "/api/v1/trials/nct/{nct_id}": {
+      "get": {
+        "operationId": "get_trial_by_nct_api_v1_trials_nct__nct_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "nct_id",
+            "required": true,
+            "schema": {
+              "title": "Nct Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Trial By Nct"
+      }
+    },
+    "/api/v1/trials/search-ingest": {
+      "post": {
+        "operationId": "search_and_ingest_api_v1_trials_search_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchIngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "rate_limit_exceeded",
+                  "detail": "Operational request rate limit exceeded",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Operational rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "service_unavailable",
+                  "detail": "Extraction pipeline unavailable",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Required backend dependency unavailable"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Search And Ingest"
+      }
+    },
+    "/api/v1/trials/{trial_id}": {
+      "get": {
+        "operationId": "get_trial_api_v1_trials__trial_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trial_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trial Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Trial"
+      }
+    },
+    "/api/v1/trials/{trial_id}/criteria": {
+      "get": {
+        "operationId": "get_trial_criteria_api_v1_trials__trial_id__criteria_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trial_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trial Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "review_required",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review Required"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriteriaListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Trial Criteria"
+      }
+    },
+    "/api/v1/trials/{trial_id}/fhir": {
+      "get": {
+        "operationId": "get_trial_fhir_api_v1_trials__trial_id__fhir_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trial_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trial Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Trial Fhir"
+      }
+    },
+    "/api/v1/trials/{trial_id}/re-extract": {
+      "post": {
+        "operationId": "re_extract_trial_api_v1_trials__trial_id__re_extract_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trial_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trial Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReExtractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "rate_limit_exceeded",
+                  "detail": "Operational request rate limit exceeded",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Operational rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "service_unavailable",
+                  "detail": "Extraction pipeline unavailable",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Required backend dependency unavailable"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Re Extract Trial"
+      }
+    }
+  }
+}
