@@ -8,7 +8,7 @@ import docker
 import pytest
 from fastapi.testclient import TestClient
 
-from app.ingestion.service import SearchIngestTrialResult
+from app.ingestion.service import SearchIngestBatchResult, SearchIngestTrialResult
 from app.main import app
 from app.models.database import ExtractedCriterion, PipelineRun, Trial
 
@@ -295,39 +295,47 @@ class TestSearchIngestEndpoint:
     def test_search_ingest_reports_attempted_skipped_and_failed(self, client):
         success_trial = Trial(id=uuid.uuid4(), nct_id="NCTGOOD001")
         skipped_trial = Trial(id=uuid.uuid4(), nct_id="NCTSKIP001")
-        service_results = [
-            SearchIngestTrialResult(
-                nct_id="NCTGOOD001",
-                trial=success_trial,
-                criteria_count=5,
-            ),
-            SearchIngestTrialResult(
-                nct_id="NCTSKIP001",
-                trial=skipped_trial,
-                skipped=True,
-            ),
-            SearchIngestTrialResult(
-                nct_id="NCTFAIL001",
-                error_message="boom",
-            ),
-            SearchIngestTrialResult(
-                nct_id=None,
-                error_message="Search result missing NCT ID",
-            ),
-        ]
+        service_results = SearchIngestBatchResult(
+            results=[
+                SearchIngestTrialResult(
+                    nct_id="NCTGOOD001",
+                    trial=success_trial,
+                    criteria_count=5,
+                ),
+                SearchIngestTrialResult(
+                    nct_id="NCTSKIP001",
+                    trial=skipped_trial,
+                    skipped=True,
+                ),
+                SearchIngestTrialResult(
+                    nct_id="NCTFAIL001",
+                    error_message="boom",
+                ),
+                SearchIngestTrialResult(
+                    nct_id=None,
+                    error_message="Search result missing NCT ID",
+                ),
+            ],
+            returned_count=4,
+            total_count=57,
+            next_page_token="cursor-2",
+        )
 
         with patch("app.api.routes.trials.IngestionService.search_and_ingest", return_value=service_results):
             response = client.post(
                 "/api/v1/trials/search-ingest",
-                json={"condition": "breast cancer", "limit": 4},
+                json={"condition": "breast cancer", "limit": 4, "page_token": "cursor-1"},
             )
 
         assert response.status_code == 201
         data = response.json()
         assert data["attempted"] == 4
+        assert data["returned"] == 4
         assert data["ingested"] == 1
         assert data["skipped"] == 1
         assert data["failed"] == 2
+        assert data["total_count"] == 57
+        assert data["next_page_token"] == "cursor-2"
         assert data["trials"][0]["status"] == "ingested"
         assert data["trials"][0]["trial_id"] == str(success_trial.id)
         assert data["trials"][1]["status"] == "skipped"

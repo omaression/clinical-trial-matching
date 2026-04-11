@@ -58,15 +58,30 @@ def search_and_ingest(request: SearchIngestRequest, db: Session = Depends(get_db
         status=request.status,
         phase=request.phase,
         limit=request.limit,
+        page_token=request.page_token,
     )
-    ingested = sum(1 for result in results if result.trial and not result.skipped and not result.error_message)
-    skipped = sum(1 for result in results if result.skipped and not result.error_message)
-    failed = sum(1 for result in results if result.error_message)
+    if isinstance(results, list):
+        batch_results = results
+        returned = len(results)
+        total_count = None
+        next_page_token = None
+    else:
+        batch_results = results.results
+        returned = results.returned_count
+        total_count = results.total_count
+        next_page_token = results.next_page_token
+
+    ingested = sum(1 for result in batch_results if result.trial and not result.skipped and not result.error_message)
+    skipped = sum(1 for result in batch_results if result.skipped and not result.error_message)
+    failed = sum(1 for result in batch_results if result.error_message)
     return SearchIngestResponse(
-        attempted=len(results),
+        attempted=len(batch_results),
+        returned=returned,
         ingested=ingested,
         skipped=skipped,
         failed=failed,
+        total_count=total_count,
+        next_page_token=next_page_token,
         trials=[
             SearchIngestTrialResponse(
                 nct_id=result.nct_id,
@@ -80,7 +95,7 @@ def search_and_ingest(request: SearchIngestRequest, db: Session = Depends(get_db
                 ),
                 error_message=result.error_message,
             )
-            for result in results
+            for result in batch_results
         ],
     )
 

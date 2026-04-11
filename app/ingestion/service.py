@@ -37,6 +37,14 @@ class SearchIngestTrialResult:
     error_message: str | None = None
 
 
+@dataclass
+class SearchIngestBatchResult:
+    results: list[SearchIngestTrialResult]
+    returned_count: int
+    total_count: int | None = None
+    next_page_token: str | None = None
+
+
 class IngestionService:
     def __init__(self, db: Session):
         self._db = db
@@ -174,11 +182,21 @@ class IngestionService:
         status: str | None = None,
         phase: str | None = None,
         limit: int = 25,
-    ) -> list[SearchIngestTrialResult]:
+        page_token: str | None = None,
+    ) -> SearchIngestBatchResult:
         """Search ClinicalTrials.gov and ingest matching studies."""
-        studies = self._client.search_studies(
-            condition=condition, status=status, phase=phase, limit=limit,
+        search_result = self._client.search_studies(
+            condition=condition, status=status, phase=phase, limit=limit, page_token=page_token,
         )
+        if isinstance(search_result, list):
+            studies = search_result
+            total_count = None
+            next_page_token = None
+        else:
+            studies = search_result.studies
+            total_count = search_result.total_count
+            next_page_token = search_result.next_page_token
+
         results: list[SearchIngestTrialResult] = []
         for study in studies:
             nct_id = study.get("protocolSection", {}).get("identificationModule", {}).get("nctId")
@@ -209,7 +227,12 @@ class IngestionService:
                         error_message=str(exc),
                     )
                 )
-        return results
+        return SearchIngestBatchResult(
+            results=results,
+            returned_count=len(studies),
+            total_count=total_count,
+            next_page_token=next_page_token,
+        )
 
     def _content_hash_material(self, raw_json: dict) -> dict:
         protocol = raw_json.get("protocolSection", {})

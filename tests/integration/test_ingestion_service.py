@@ -9,6 +9,7 @@ import pytest
 
 from app.extraction.coding.entity_coder import CodingResult
 from app.extraction.types import ClassifiedCriterion, CodedConcept, Entity, PipelineResult
+from app.ingestion.ctgov_client import SearchStudiesResult
 from app.ingestion.hasher import content_hash
 from app.ingestion.service import IngestionResult, IngestionService
 from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
@@ -320,12 +321,16 @@ class TestContentHash:
 
 class TestSearchAndIngest:
     def test_search_and_ingest_keeps_partial_batch_outcomes(self, service):
-        studies = [
-            {"protocolSection": {"identificationModule": {"nctId": "NCTGOOD001"}}},
-            {"protocolSection": {"identificationModule": {"nctId": "NCTSKIP001"}}},
-            {"protocolSection": {"identificationModule": {"nctId": "NCTFAIL001"}}},
-            {"protocolSection": {"identificationModule": {}}},
-        ]
+        search_result = SearchStudiesResult(
+            studies=[
+                {"protocolSection": {"identificationModule": {"nctId": "NCTGOOD001"}}},
+                {"protocolSection": {"identificationModule": {"nctId": "NCTSKIP001"}}},
+                {"protocolSection": {"identificationModule": {"nctId": "NCTFAIL001"}}},
+                {"protocolSection": {"identificationModule": {}}},
+            ],
+            total_count=42,
+            next_page_token="cursor-2",
+        )
         ingest_results = {
             "NCTGOOD001": IngestionResult(trial=Trial(id=uuid.uuid4(), nct_id="NCTGOOD001"), criteria_count=4),
             "NCTSKIP001": IngestionResult(
@@ -341,22 +346,32 @@ class TestSearchAndIngest:
             return ingest_results[nct_id]
 
         with (
-            patch.object(service._client, "search_studies", return_value=studies),
+            patch.object(service._client, "search_studies", return_value=search_result) as search_studies,
             patch.object(service, "ingest", side_effect=_ingest),
             patch.object(service._db, "rollback") as rollback,
         ):
-            results = service.search_and_ingest(condition="breast cancer", limit=4)
+            batch = service.search_and_ingest(condition="breast cancer", limit=4, page_token="cursor-1")
 
-        assert len(results) == 4
-        assert [result.nct_id for result in results] == ["NCTGOOD001", "NCTSKIP001", "NCTFAIL001", None]
-        assert results[0].trial is not None
-        assert results[0].criteria_count == 4
-        assert results[0].skipped is False
-        assert results[0].error_message is None
-        assert results[1].trial is not None
-        assert results[1].skipped is True
-        assert results[2].trial is None
-        assert results[2].error_message == "boom"
-        assert results[3].trial is None
-        assert results[3].error_message == "Search result missing NCT ID"
+        assert batch.returned_count == 4
+        assert batch.total_count == 42
+        assert batch.next_page_token == "cursor-2"
+        assert len(batch.results) == 4
+        assert [result.nct_id for result in batch.results] == ["NCTGOOD001", "NCTSKIP001", "NCTFAIL001", None]
+        assert batch.results[0].trial is not None
+        assert batch.results[0].criteria_count == 4
+        assert batch.results[0].skipped is False
+        assert batch.results[0].error_message is None
+        assert batch.results[1].trial is not None
+        assert batch.results[1].skipped is True
+        assert batch.results[2].trial is None
+        assert batch.results[2].error_message == "boom"
+        assert batch.results[3].trial is None
+        assert batch.results[3].error_message == "Search result missing NCT ID"
         rollback.assert_called_once()
+        search_studies.assert_called_once_with(
+            condition="breast cancer",
+            status=None,
+            phase=None,
+            limit=4,
+            page_token="cursor-1",
+        )

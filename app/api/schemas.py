@@ -17,6 +17,7 @@ class SearchIngestRequest(APIModel):
     condition: str | None = None
     status: str | None = None
     phase: str | None = None
+    page_token: str | None = None
     limit: int = Field(default=25, ge=1, le=100)
 
 
@@ -87,9 +88,12 @@ class SearchIngestTrialResponse(APIModel):
 
 class SearchIngestResponse(APIModel):
     attempted: int
+    returned: int
     ingested: int
     skipped: int
     failed: int
+    total_count: int | None = None
+    next_page_token: str | None = None
     trials: list[SearchIngestTrialResponse]
 
 
