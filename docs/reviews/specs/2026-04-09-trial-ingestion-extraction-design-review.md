@@ -198,6 +198,8 @@ The implementation and validation work on top of this spec has used official ext
 - ClinicalTrials.gov study records were used to derive and validate real eligibility-text fixtures:
   - `NCT03872596` for a CYP3A4 inhibitor/inducer washout restriction
   - `NCT07084584` for a CYP3A4 exception-clause restriction
+  - `NCT03605602` for unresectable stage-plus-variant eligibility language without false negation
+  - `NCT02713828` for mixed stage, age, ECOG, and renal-function inclusion criteria
 - ClinicalTrials.gov data-API documentation and study-data structure pages were used when validating ingestion and search semantics for the V2 API.
 - NCI Drug Dictionary pages were used to validate seeded NCIt drug identifiers and synonym coverage, including carboplatin, docetaxel, and capecitabine.
 
