@@ -8,6 +8,7 @@ _AGE_PATTERN = re.compile(r"\b(?:age|years?\s+old)\b", re.I)
 _LINE_PATTERN = re.compile(r"\b(?:line|first.line|second.line|third.line|prior\s+line)\b", re.I)
 _CNS_PATTERN = re.compile(r"\b(?:cns|brain|central nervous system|leptomeningeal)\b", re.I)
 _STAGE_PATTERN = re.compile(r"\b(?:stage\s+[IViv]+|unresectable|metastatic|locally advanced)\b", re.I)
+_TNM_STAGE_PATTERN = re.compile(r"\b(?:[tcnm][0-4](?:mi|[a-c])?)\b", re.I)
 _HISTOLOGY_PATTERN = re.compile(r"\b(?:adenocarcinoma|squamous|histolog|histopatholog)\b", re.I)
 _MOLECULAR_PATTERN = re.compile(
     r"(?:\b(?:mutation|rearrangement|amplification|fusion|alteration|wild.?type)\b|"
@@ -51,6 +52,8 @@ _COMPLEXITY_SIGNALS = re.compile(
     re.I,
 )
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
+_INCLUDING_PATTERN = re.compile(r"\bincluding\b", re.I)
+_AT_LEAST_COUNT_PATTERN = re.compile(r"\bat\s+least\s+[\d.]+\b", re.I)
 
 
 class RuleBasedClassifier:
@@ -63,18 +66,33 @@ class RuleBasedClassifier:
         self._logic = LogicGrouper()
 
     def classify(self, criterion_text: str, entities: list[Entity]) -> ClassifiedCriterion:
+        labels = {entity.label for entity in entities}
         category_hint = (
             self._assign_category(criterion_text, entities)
             if entities
             else self._assign_category_from_text(criterion_text)
         )
+        has_mixed_stage_biomarker = self._has_mixed_stage_biomarker_signals(
+            criterion_text,
+            labels,
+        )
+        has_nested_therapy_requirements = self._has_nested_therapy_requirements(
+            criterion_text,
+            category_hint,
+        )
 
         # Complexity check — flag complex criteria for review
         is_complex = bool(_COMPLEXITY_SIGNALS.search(criterion_text))
-        if is_complex and (
-            not entities
-            or len(entities) > 1
-            or category_hint in {"concomitant_medication", "molecular_alteration"}
+        if (
+            has_mixed_stage_biomarker
+            or has_nested_therapy_requirements
+            or (
+                is_complex and (
+                    not entities
+                    or len(entities) > 1
+                    or category_hint in {"concomitant_medication", "molecular_alteration"}
+                )
+            )
         ):
             neg_result = self._negation.resolve(criterion_text, entities)
             temporal = self._temporal.parse(neg_result.exception_text or criterion_text)
@@ -260,6 +278,18 @@ class RuleBasedClassifier:
         if category == "other":
             return category, "unparsed", 0.0, True, "complex_criteria"
         return category, "partial", 0.3, True, "complex_criteria"
+
+    def _has_mixed_stage_biomarker_signals(self, text: str, labels: set[str]) -> bool:
+        has_biomarker_signal = "BIOMARKER" in labels or _MOLECULAR_PATTERN.search(text)
+        has_stage_signal = _STAGE_PATTERN.search(text) or _TNM_STAGE_PATTERN.search(text)
+        return bool(has_biomarker_signal and has_stage_signal)
+
+    def _has_nested_therapy_requirements(self, text: str, category_hint: str) -> bool:
+        if category_hint not in {"prior_therapy", "line_of_therapy"}:
+            return False
+        if not _INCLUDING_PATTERN.search(text):
+            return False
+        return len(_AT_LEAST_COUNT_PATTERN.findall(text)) >= 2
 
     def _age_quant_from_temporal(
         self, temporal, criterion_text: str

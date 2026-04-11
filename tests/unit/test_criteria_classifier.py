@@ -239,6 +239,36 @@ class TestCategoryAssignment:
         assert result.review_required is True
         assert result.review_reason == "complex_criteria"
 
+    def test_stage_and_biomarker_constraint_becomes_reviewable_partial(self, classifier):
+        result = classifier.classify(
+            (
+                "Participants with unresectable locally advanced or metastatic breast cancer "
+                "and HER2-positive expression."
+            ),
+            [Entity(text="HER2", label="BIOMARKER", start=76, end=80)],
+        )
+        assert result.category == "disease_stage"
+        assert result.parse_status == "partial"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
+    def test_nested_prior_therapy_thresholds_become_reviewable_partial(self, classifier):
+        result = classifier.classify(
+            (
+                "Have received at least 3 targeted therapies for locally advanced or metastatic "
+                "disease, including disease progression after receiving at least 1 trastuzumab-containing treatment."
+            ),
+            [
+                Entity(text="3", label="CARDINAL", start=24, end=25),
+                Entity(text="1", label="CARDINAL", start=132, end=133),
+                Entity(text="trastuzumab", label="DRUG", start=134, end=145),
+            ],
+        )
+        assert result.category == "prior_therapy"
+        assert result.parse_status == "partial"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):
