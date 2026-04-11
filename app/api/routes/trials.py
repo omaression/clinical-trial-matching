@@ -157,6 +157,8 @@ def get_trial_by_nct(nct_id: str, db: Session = Depends(get_db)):
 @router.get("/trials/{trial_id}/criteria", response_model=CriteriaListResponse)
 def get_trial_criteria(
     trial_id: UUID,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     type: str | None = None,
     category: str | None = None,
     review_required: bool | None = None,
@@ -171,8 +173,19 @@ def get_trial_criteria(
     if review_required is not None:
         query = query.filter(ExtractedCriterion.review_required == review_required)
 
-    criteria = query.order_by(ExtractedCriterion.created_at.asc(), ExtractedCriterion.id.asc()).all()
-    return CriteriaListResponse(criteria=[_criterion_detail(c) for c in criteria])
+    total = query.count()
+    criteria = (
+        query.order_by(ExtractedCriterion.created_at.asc(), ExtractedCriterion.id.asc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    return CriteriaListResponse(
+        criteria=[_criterion_detail(c) for c in criteria],
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
 
 
 @router.get("/criteria/{criterion_id}", response_model=CriterionResponse)

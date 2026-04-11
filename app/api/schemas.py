@@ -174,6 +174,9 @@ class CriterionResponse(APIModel):
 
 class CriteriaListResponse(APIModel):
     criteria: list[CriterionResponse]
+    total: int
+    page: int
+    per_page: int
 
 
 class ReviewQueueResponse(APIModel):

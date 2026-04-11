@@ -144,16 +144,19 @@ def _add_completed_run(db_session, trial, criteria_payloads):
 
     created = []
     for payload in criteria_payloads:
-        criterion = ExtractedCriterion(
-            trial_id=trial.id,
-            parse_status="parsed",
-            negated=False,
-            confidence=0.95,
-            review_required=False,
-            coded_concepts=[],
-            pipeline_version="0.1.0",
-            pipeline_run_id=run.id,
+        criterion_payload = {
+            "trial_id": trial.id,
+            "parse_status": "parsed",
+            "negated": False,
+            "confidence": 0.95,
+            "review_required": False,
+            "coded_concepts": [],
+            "pipeline_version": "0.1.0",
+            "pipeline_run_id": run.id,
             **payload,
+        }
+        criterion = ExtractedCriterion(
+            **criterion_payload,
         )
         db_session.add(criterion)
         created.append(criterion)
@@ -353,15 +356,55 @@ class TestGetCriteria:
         response = client.get(f"/api/v1/trials/{trial.id}/criteria")
         assert response.status_code == 200
         data = response.json()
+        assert data["total"] == 2
+        assert data["page"] == 1
+        assert data["per_page"] == 50
         assert len(data["criteria"]) == 2
         categories = {c["category"] for c in data["criteria"]}
         assert "age" in categories
         assert "cns_metastases" in categories
 
+    def test_get_trial_criteria_paginates(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "inclusion",
+                    "category": "age",
+                    "original_text": "Age >= 18 years",
+                    "operator": "gte",
+                    "value_low": 18,
+                    "unit": "years",
+                },
+                {
+                    "type": "inclusion",
+                    "category": "performance_status",
+                    "original_text": "ECOG performance status 0 to 1",
+                },
+                {
+                    "type": "exclusion",
+                    "category": "prior_therapy",
+                    "original_text": "No prior chemotherapy within 28 days",
+                    "negated": True,
+                },
+            ],
+        )
+
+        response = client.get(f"/api/v1/trials/{trial.id}/criteria?page=1&per_page=2")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 3
+        assert data["page"] == 1
+        assert data["per_page"] == 2
+        assert len(data["criteria"]) == 2
+
     def test_filter_by_type(self, client, db_session):
         trial, _, _, _ = _seed_trial(db_session)
         response = client.get(f"/api/v1/trials/{trial.id}/criteria?type=inclusion")
         assert response.status_code == 200
+        assert response.json()["total"] == 1
         for c in response.json()["criteria"]:
             assert c["type"] == "inclusion"
 
@@ -369,6 +412,7 @@ class TestGetCriteria:
         trial, _, _, _ = _seed_trial(db_session)
         response = client.get(f"/api/v1/trials/{trial.id}/criteria?category=age")
         assert response.status_code == 200
+        assert response.json()["total"] == 1
         assert len(response.json()["criteria"]) == 1
         assert response.json()["criteria"][0]["category"] == "age"
 
@@ -376,6 +420,7 @@ class TestGetCriteria:
         trial, _, _, _ = _seed_trial(db_session)
         response = client.get(f"/api/v1/trials/{trial.id}/criteria?review_required=true")
         assert response.status_code == 200
+        assert response.json()["total"] == 1
         for c in response.json()["criteria"]:
             assert c["review_required"] is True
 
@@ -413,6 +458,7 @@ class TestGetCriteria:
         response = client.get(f"/api/v1/trials/{trial.id}/criteria")
         assert response.status_code == 200
         data = response.json()
+        assert data["total"] == 1
         assert len(data["criteria"]) == 1
         assert data["criteria"][0]["category"] == "line_of_therapy"
         assert "pipeline_run_id" in data["criteria"][0]
