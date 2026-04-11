@@ -9,7 +9,7 @@ The design is solid for an MVP: the system boundary is clear, the pipeline is co
 
 ## Recommended Spec Changes
 
-### 1. Persist CT.gov structured eligibility fields separately from free text
+### 1. Persist ClinicalTrials.gov structured eligibility fields separately from free text
 
 ClinicalTrials.gov already provides structured eligibility attributes such as age, sex, and healthy-volunteer status. These should be stored as source-of-truth fields on the trial record rather than forcing NLP to recover them from `eligibility_text`.
 
@@ -17,7 +17,7 @@ ClinicalTrials.gov already provides structured eligibility attributes such as ag
 
 - Add explicit columns or a dedicated JSONB subdocument for source eligibility fields.
 - Use extracted criteria to augment these fields, not replace them.
-- Document precedence rules: CT.gov structured values win when present; NLP-derived values fill gaps only.
+- Document precedence rules: ClinicalTrials.gov structured values win when present; NLP-derived values fill gaps only.
 
 **Why**
 
@@ -117,7 +117,7 @@ The current categories are a good start, but oncology trials often depend on fac
 
 ### 6. Define ingestion idempotency and update behavior
 
-The spec should be explicit about what happens when the same NCT ID is ingested multiple times or when CT.gov updates a study.
+The spec should be explicit about what happens when the same NCT ID is ingested multiple times or when ClinicalTrials.gov updates a study.
 
 **Recommendation**
 
