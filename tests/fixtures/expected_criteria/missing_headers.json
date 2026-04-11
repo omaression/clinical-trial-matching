@@ -35,8 +35,7 @@
     "original_text": "Must have adequate organ function.",
     "type": "inclusion",
     "category": "organ_function",
-    "parse_status": "partial",
-    "review_required": true,
-    "review_reason": "complex_criteria"
+    "parse_status": "parsed",
+    "review_required": false
   }
 ]

@@ -28,6 +28,10 @@ _SEX_ONLY_PATTERN = re.compile(
     r"\b(female|male)\s+(?:patients?|subjects?|participants?)\s+only\b",
     re.I,
 )
+_ORGAN_FUNCTION_COMPLEXITY_PATTERN = re.compile(
+    r"\b(?:as\s+determined\s+by|per\s+institutional|investigator)\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(r"\b(?:unless|except|provided that|other than)\b", re.I)
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 
@@ -221,6 +225,8 @@ class RuleBasedClassifier:
         if category == "histology":
             return category, "parsed", 0.6, False, None
         if category == "concomitant_medication":
+            return category, "parsed", 0.6, False, None
+        if category == "organ_function" and not _ORGAN_FUNCTION_COMPLEXITY_PATTERN.search(text):
             return category, "parsed", 0.6, False, None
         if _HYPERSENSITIVITY_PATTERN.search(text):
             return category, "partial", 0.6, False, None

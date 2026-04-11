@@ -165,6 +165,15 @@ class TestCategoryAssignment:
         assert result.parse_status == "parsed"
         assert result.review_required is False
 
+    def test_simple_organ_function_becomes_parsed_without_review(self, classifier):
+        result = classifier.classify(
+            "Must have adequate organ function.",
+            [],
+        )
+        assert result.category == "organ_function"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):
