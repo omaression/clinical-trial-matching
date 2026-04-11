@@ -47,7 +47,6 @@ ensure_backend_port() {
   fi
 
   if backend_is_ctm; then
-    echo "Reusing existing CTM backend on ${BACKEND_HEALTH_URL}"
     return 0
   fi
 
@@ -92,20 +91,31 @@ require_command lsof
 require_path "${ROOT_DIR}/frontend/package.json"
 require_path "${ROOT_DIR}/frontend/node_modules"
 
-if [[ "${CTM_SKIP_MIGRATIONS:-0}" != "1" ]]; then
-  echo "Running database migrations..."
-  (
-    cd "${ROOT_DIR}"
-    alembic upgrade head
-  )
-fi
-
 ensure_backend_port
 ensure_frontend_port
 
 if backend_is_ctm; then
+  echo "Reusing existing CTM backend on ${BACKEND_HEALTH_URL}"
+  REUSE_BACKEND=1
   BACKEND_PID=""
 else
+  REUSE_BACKEND=0
+fi
+
+if [[ "${REUSE_BACKEND}" == "0" && "${CTM_SKIP_MIGRATIONS:-0}" != "1" ]]; then
+  echo "Running database migrations..."
+  if ! (
+    cd "${ROOT_DIR}"
+    alembic upgrade head
+  ); then
+    echo "Database migration failed." >&2
+    echo "Check CTM_DATABASE_URL and make sure PostgreSQL is reachable from this shell." >&2
+    echo "If you already have a healthy CTM backend running, start the launcher with CTM_SKIP_MIGRATIONS=1." >&2
+    exit 1
+  fi
+fi
+
+if [[ "${REUSE_BACKEND}" == "0" ]]; then
   echo "Starting backend: http://${BACKEND_HOST}:${BACKEND_PORT}"
   (
     cd "${ROOT_DIR}"
