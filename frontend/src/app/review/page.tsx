@@ -55,7 +55,7 @@ export default async function ReviewPage({
               eyebrow={`${criterion.category} · ${criterion.review_reason ?? "pending"}`}
               right={<StatusPill value={criterion.review_status ?? "pending"} />}
             >
-              <form action={reviewCriterionAction} className="grid gap-4 lg:grid-cols-[0.6fr_0.6fr_1.2fr_auto]">
+              <form action={reviewCriterionAction} className="grid gap-4 lg:grid-cols-[0.55fr_0.55fr_1fr_1fr_auto]">
                 <input name="criterion_id" type="hidden" value={criterion.id} />
                 <input
                   className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
@@ -73,6 +73,12 @@ export default async function ReviewPage({
                   <option value="reject">Reject</option>
                   <option value="correct">Correct</option>
                 </select>
+                <textarea
+                  className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
+                  defaultValue=""
+                  name="review_notes"
+                  placeholder="Optional review notes"
+                />
                 <textarea
                   className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
                   defaultValue=""

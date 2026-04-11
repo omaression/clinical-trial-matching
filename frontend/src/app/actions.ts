@@ -54,6 +54,11 @@ function safeNumber(value?: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function optionalFormString(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : undefined;
+}
+
 export async function createPatientAction(formData: FormData) {
   const parsed = createPatientSchema.parse(Object.fromEntries(formData.entries()));
 
@@ -156,8 +161,8 @@ export async function reviewCriterionAction(formData: FormData) {
   const criterionId = z.string().uuid().parse(formData.get("criterion_id"));
   const action = z.enum(["accept", "reject", "correct"]).parse(formData.get("action"));
   const reviewedBy = z.string().min(1).parse(formData.get("reviewed_by"));
-  const reviewNotes = z.string().optional().parse(formData.get("review_notes"));
-  const correctedJson = z.string().optional().parse(formData.get("corrected_data"));
+  const reviewNotes = z.string().optional().parse(optionalFormString(formData, "review_notes"));
+  const correctedJson = z.string().optional().parse(optionalFormString(formData, "corrected_data"));
 
   const payload: Record<string, unknown> = {
     action,
