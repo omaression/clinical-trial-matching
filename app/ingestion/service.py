@@ -1,4 +1,5 @@
 import logging
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -377,7 +378,10 @@ class IngestionService:
             for entity in criterion.entities:
                 if not self._should_code_entity(criterion.category, entity):
                     continue
-                coding_result = self._coder.code_entity(entity)
+                coding_result = self._coder.code_entity(
+                    entity,
+                    context_variants=self._coding_context_variants(criterion, entity),
+                )
                 coded_concepts.extend(coding_result.concepts)
                 if coding_result.review_required:
                     if coding_result.review_reason:
@@ -464,6 +468,45 @@ class IngestionService:
         source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
         normalized = " ".join(source.split())
         return normalized in _GENERIC_TREATMENT_CLASS_TERMS
+
+    def _coding_context_variants(self, criterion, entity: Entity) -> list[str]:
+        if entity.label not in {"DISEASE", "DRUG", "BIOMARKER"}:
+            return []
+
+        variants: list[str] = []
+        for peer in criterion.entities:
+            if peer is entity or peer.label != entity.label:
+                continue
+            if not self._entities_share_alias_context(criterion.original_text, entity, peer):
+                continue
+            for value in (peer.expanded_text, peer.text):
+                if value and value not in variants:
+                    variants.append(value)
+        return variants
+
+    def _entities_share_alias_context(self, criterion_text: str, entity: Entity, peer: Entity) -> bool:
+        candidate_pairs = []
+        for left in (entity.text, entity.expanded_text):
+            if not left:
+                continue
+            for right in (peer.text, peer.expanded_text):
+                if not right or left == right:
+                    continue
+                candidate_pairs.append((left, right))
+
+        for left, right in candidate_pairs:
+            if self._has_alias_separator(criterion_text, left, right):
+                return True
+        return False
+
+    def _has_alias_separator(self, criterion_text: str, left: str, right: str) -> bool:
+        patterns = (
+            rf"{re.escape(left)}\s*/\s*{re.escape(right)}",
+            rf"{re.escape(right)}\s*/\s*{re.escape(left)}",
+            rf"{re.escape(left)}\s*\(\s*{re.escape(right)}\s*\)",
+            rf"{re.escape(right)}\s*\(\s*{re.escape(left)}\s*\)",
+        )
+        return any(re.search(pattern, criterion_text, re.I) for pattern in patterns)
 
     def _latest_completed_run(self, trial_id) -> PipelineRun | None:
         return (

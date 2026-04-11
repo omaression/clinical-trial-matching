@@ -67,7 +67,7 @@ class EntityCoder:
     def __init__(self, db: Session):
         self._db = db
 
-    def code_entity(self, entity: Entity) -> CodingResult:
+    def code_entity(self, entity: Entity, context_variants: list[str] | None = None) -> CodingResult:
         systems = _SYSTEMS_BY_LABEL.get(entity.label)
         if not systems:
             return CodingResult(
@@ -76,7 +76,7 @@ class EntityCoder:
                 review_required=False,
                 review_reason=None,
             )
-        lookup_variants = _lookup_variants(entity)
+        lookup_variants = _lookup_variants(entity, context_variants=context_variants)
         if not lookup_variants:
             return CodingResult(
                 concepts=[],
@@ -409,9 +409,9 @@ def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", normalized).strip()
 
 
-def _lookup_variants(entity: Entity) -> list[str]:
+def _lookup_variants(entity: Entity, context_variants: list[str] | None = None) -> list[str]:
     variants: list[str] = []
-    for value in (entity.text, entity.expanded_text):
+    for value in (entity.text, entity.expanded_text, *(context_variants or [])):
         if not value:
             continue
         normalized = value.strip()

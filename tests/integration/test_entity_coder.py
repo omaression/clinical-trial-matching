@@ -198,3 +198,9 @@ class TestDeterministicResolution:
             result = coder.code_entity(entity)
             assert result.concepts[0].system == "mesh"
             assert result.concepts[0].code == expected_code
+
+    def test_context_variants_help_code_alias_paired_entities(self, coder):
+        entity = Entity(text="pneumonitis", label="DISEASE", start=0, end=11)
+        result = coder.code_entity(entity, context_variants=["interstitial lung disease"])
+        assert result.concepts[0].system == "mesh"
+        assert result.concepts[0].code == "D017563"

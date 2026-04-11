@@ -13,6 +13,7 @@ from app.ingestion.ctgov_client import SearchStudiesResult
 from app.ingestion.hasher import content_hash
 from app.ingestion.service import IngestionResult, IngestionService, SearchIngestTrialResult
 from app.models.database import CodingLookup, ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
+from app.scripts.seed import _merge_synonyms
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
 
@@ -337,76 +338,101 @@ class TestIngestSingleTrial:
         assert criterion.review_required is False
         assert criterion.coded_concepts == []
 
-    def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
-        db_session.add_all(
-            [
-                CodingLookup(
-                    system="mesh",
-                    code="D002289",
-                    display="Carcinoma, Non-Small-Cell Lung",
-                    synonyms=["nsclc", "non-small cell lung cancer", "non-small-cell lung cancer"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D015658",
-                    display="HIV Infections",
-                    synonyms=["hiv infection", "human immunodeficiency virus infection", "well-controlled hiv"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D007153",
-                    display="Immunologic Deficiency Syndromes",
-                    synonyms=["immunodeficiency", "immune deficiency"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D017563",
-                    display="Lung Diseases, Interstitial",
-                    synonyms=["interstitial lung disease", "ild"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D003316",
-                    display="Corneal Diseases",
-                    synonyms=["corneal disease", "corneal diseases"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D015352",
-                    display="Dry Eye Syndromes",
-                    synonyms=["dry eye syndrome", "dry eye"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D001762",
-                    display="Blepharitis",
-                    synonyms=["blepharitis", "meibomian gland disease", "meibomian gland dysfunction"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D012514",
-                    display="Sarcoma, Kaposi",
-                    synonyms=["kaposi sarcoma", "kaposi's sarcoma"],
-                ),
-                CodingLookup(
-                    system="mesh",
-                    code="D005871",
-                    display="Castleman Disease",
-                    synonyms=[
-                        "castleman disease",
-                        "castleman's disease",
-                        "multicentric castleman disease",
-                        "multicentric castleman's disease",
+    def test_alias_paired_disease_mentions_use_peer_context_for_coding(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text=(
+                        "Has history of noninfectious pneumonitis / interstitial lung disease (ILD)"
+                    ),
+                    type="exclusion",
+                    category="diagnosis",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[
+                        Entity(text="pneumonitis", label="DISEASE", start=26, end=37),
+                        Entity(text="interstitial lung disease", label="DISEASE", start=40, end=65),
+                        Entity(text="ILD", label="ORG", start=67, end=70),
                     ],
-                ),
-                CodingLookup(
-                    system="nci_thesaurus",
-                    code="C126815",
-                    display="KRAS Mutation Positive",
-                    synonyms=["kras", "kras g12c", "kras g12c mutation"],
-                ),
-            ]
+                )
+            ],
+            pipeline_version="0.1.0",
         )
+        db_session.add(
+            CodingLookup(
+                system="mesh",
+                code="D017563",
+                display="Lung Diseases, Interstitial",
+                synonyms=["interstitial lung disease", "ild"],
+            )
+        )
+        db_session.flush()
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+        coded_keys = {
+            (concept["system"], concept["code"])
+            for concept in (criterion.coded_concepts or [])
+            if isinstance(concept, dict)
+        }
+
+        assert result.review_count == 0
+        assert criterion.review_required is False
+        assert coded_keys == {("mesh", "D017563")}
+
+    def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
+        for system, code, display, synonyms in [
+            (
+                "mesh",
+                "D002289",
+                "Carcinoma, Non-Small-Cell Lung",
+                ["nsclc", "non-small cell lung cancer", "non-small-cell lung cancer"],
+            ),
+            (
+                "mesh",
+                "D015658",
+                "HIV Infections",
+                ["hiv infection", "human immunodeficiency virus infection", "well-controlled hiv"],
+            ),
+            ("mesh", "D007153", "Immunologic Deficiency Syndromes", ["immunodeficiency", "immune deficiency"]),
+            ("mesh", "D017563", "Lung Diseases, Interstitial", ["interstitial lung disease", "ild"]),
+            ("mesh", "D003316", "Corneal Diseases", ["corneal disease", "corneal diseases"]),
+            ("mesh", "D015352", "Dry Eye Syndromes", ["dry eye syndrome", "dry eye"]),
+            (
+                "mesh",
+                "D001762",
+                "Blepharitis",
+                ["blepharitis", "meibomian gland disease", "meibomian gland dysfunction"],
+            ),
+            ("mesh", "D012514", "Sarcoma, Kaposi", ["kaposi sarcoma", "kaposi's sarcoma"]),
+            (
+                "mesh",
+                "D005871",
+                "Castleman Disease",
+                [
+                    "castleman disease",
+                    "castleman's disease",
+                    "multicentric castleman disease",
+                    "multicentric castleman's disease",
+                ],
+            ),
+            ("nci_thesaurus", "C126815", "KRAS Mutation Positive", ["kras", "kras g12c", "kras g12c mutation"]),
+        ]:
+            existing = db_session.query(CodingLookup).filter_by(system=system, code=code).first()
+            if existing:
+                existing.display = display
+                existing.synonyms = _merge_synonyms(existing.synonyms, synonyms)
+            else:
+                db_session.add(
+                    CodingLookup(system=system, code=code, display=display, synonyms=synonyms)
+                )
         db_session.flush()
 
         nct_id, mock_resp = _unique_mock_response_from_file("NCT07286149.json")
@@ -430,6 +456,7 @@ class TestIngestSingleTrial:
         assert ("mesh", "D015658") in coded_keys(HIV_TEXT)
         assert ("mesh", "D007153") in coded_keys(IMMUNODEFICIENCY_TEXT)
         assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
+        assert criteria_by_text[ILD_TEXT].review_required is False
         assert coded_keys(KRAS_TARGETING_THERAPY_TEXT) == set()
         kaposi_castleman_codes = coded_keys(
             "* HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease"
