@@ -1,8 +1,20 @@
-from app.scripts.seed import LOINC_LABS, MESH_DISEASES, NCI_BIOMARKERS, NCI_DRUGS
+from collections import Counter
+
+from app.scripts.seed import LOINC_LABS, MESH_DISEASES, NCI_BIOMARKERS, NCI_DRUGS, NCI_SCALES
 
 
 def _synonyms_by_display(rows):
     return {display: set(synonyms) for _, display, synonyms in rows}
+
+
+def _catalog_rows():
+    for system, rows in (
+        ("mesh", MESH_DISEASES),
+        ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
+        ("loinc", LOINC_LABS),
+    ):
+        for code, display, _synonyms in rows:
+            yield system, code, display
 
 
 def test_seed_catalog_includes_common_disease_alias_variants():
@@ -29,3 +41,18 @@ def test_seed_catalog_includes_common_drug_and_lab_alias_variants():
     assert "5 fluorouracil" in drug_synonyms["Fluorouracil"]
     assert "absolute neutrophils" in lab_synonyms["Neutrophils [#/volume] in Blood"]
     assert "serum creatinine level" in lab_synonyms["Creatinine [Mass/volume] in Serum"]
+
+
+def test_seed_catalog_uses_unique_codes_within_each_system():
+    counts = Counter((system, code) for system, code, _display in _catalog_rows())
+    duplicates = [key for key, count in counts.items() if count > 1]
+
+    assert duplicates == []
+
+
+def test_seed_catalog_keeps_expected_nci_drug_codes():
+    codes = {display: code for code, display, _synonyms in NCI_DRUGS}
+
+    assert codes["Carboplatin"] == "C1282"
+    assert codes["Docetaxel"] == "C1526"
+    assert codes["Capecitabine"] == "C1794"

@@ -76,7 +76,7 @@ NCI_DRUGS = [
     ("C1874", "Durvalumab", ["imfinzi"]),
     ("C1875", "Ipilimumab", ["yervoy"]),
     ("C1671", "Paclitaxel", ["taxol"]),
-    ("C1282", "Docetaxel", ["taxotere"]),
+    ("C1526", "Docetaxel", ["taxotere"]),
     ("C408", "Cisplatin", ["platinol"]),
     ("C1282", "Carboplatin", ["paraplatin"]),
     ("C1512", "Gemcitabine", ["gemzar"]),
@@ -105,7 +105,7 @@ NCI_DRUGS = [
     ("C62563", "Trametinib", ["mekinist"]),
     ("C62564", "Vemurafenib", ["zelboraf"]),
     ("C62565", "Encorafenib", ["braftovi"]),
-    ("C1282b", "Capecitabine", ["xeloda"]),
+    ("C1794", "Capecitabine", ["xeloda"]),
     ("C1900", "Irinotecan", ["camptosar"]),
     ("C510", "Fluorouracil", ["5-fu", "5fu", "5 fluorouracil"]),
 ]
