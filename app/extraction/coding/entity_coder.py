@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass, field
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.extraction.types import CodedConcept, Entity
@@ -40,19 +41,20 @@ class EntityCoder:
                 review_required=True,
                 review_reason="uncoded_entity",
             )
-        lookups = self._candidate_lookups(entity.label)
+        systems = _SYSTEMS_BY_LABEL.get(entity.label, _SYSTEM_PRIORITY)
 
         # Tier 1: Exact match on display
-        result = self._exact_match(lookup_text, lookups)
+        result = self._exact_match(lookup_text, systems)
         if result:
             return result
 
         # Tier 2: Synonym match
-        result = self._synonym_match(lookup_text, lookups)
+        result = self._synonym_match(entity.lookup_text, systems)
         if result:
             return result
 
         # Tier 3: Fuzzy match
+        lookups = self._candidate_lookups(systems)
         result = self._fuzzy_match(lookup_text, lookups)
         if result:
             return result
@@ -65,8 +67,7 @@ class EntityCoder:
             review_reason="uncoded_entity",
         )
 
-    def _candidate_lookups(self, label: str) -> list[CodingLookup]:
-        systems = _SYSTEMS_BY_LABEL.get(label, _SYSTEM_PRIORITY)
+    def _candidate_lookups(self, systems: tuple[str, ...]) -> list[CodingLookup]:
         lookups = (
             self._db.query(CodingLookup)
             .filter(CodingLookup.system.in_(systems))
@@ -81,12 +82,16 @@ class EntityCoder:
             ),
         )
 
-    def _exact_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
-        matches = [
-            lookup
-            for lookup in lookups
-            if _normalize_text(lookup.display) == text
-        ]
+    def _exact_match(self, text: str, systems: tuple[str, ...]) -> CodingResult | None:
+        matches = self._ordered_matches(
+            self._db.query(CodingLookup)
+            .filter(
+                CodingLookup.system.in_(systems),
+                _normalized_sql_text(CodingLookup.display) == text,
+            )
+            .all(),
+            systems,
+        )
         if matches:
             lookup = matches[0]
             return CodingResult(
@@ -100,13 +105,19 @@ class EntityCoder:
             )
         return None
 
-    def _synonym_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
-        matches = []
-        for lookup in lookups:
-            synonyms = lookup.synonyms or []
-            if any(_normalize_text(synonym) == text for synonym in synonyms):
-                matches.append(lookup)
-
+    def _synonym_match(self, raw_text: str, systems: tuple[str, ...]) -> CodingResult | None:
+        synonym_variants = sorted(_sql_synonym_variants(raw_text))
+        if not synonym_variants:
+            return None
+        matches = self._ordered_matches(
+            self._db.query(CodingLookup)
+            .filter(
+                CodingLookup.system.in_(systems),
+                or_(*(CodingLookup.synonyms.any(variant) for variant in synonym_variants)),
+            )
+            .all(),
+            systems,
+        )
         if matches:
             lookup = matches[0]
             return CodingResult(
@@ -119,6 +130,18 @@ class EntityCoder:
                 review_reason=None,
             )
         return None
+
+    def _ordered_matches(
+        self, lookups: list[CodingLookup], systems: tuple[str, ...]
+    ) -> list[CodingLookup]:
+        return sorted(
+            lookups,
+            key=lambda lookup: (
+                _system_rank(lookup.system, systems),
+                lookup.display.casefold(),
+                lookup.code.casefold(),
+            ),
+        )
 
     def _fuzzy_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
         best_match: CodingLookup | None = None
@@ -158,6 +181,32 @@ def _normalize_text(text: str) -> str:
     normalized = normalized.replace("_", " ")
     normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
     return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _normalized_sql_text(column):
+    expression = func.lower(column)
+    expression = func.replace(expression, "+", " positive ")
+    expression = func.replace(expression, "/", " ")
+    expression = func.replace(expression, "_", " ")
+    expression = func.regexp_replace(expression, r"[^a-z0-9]+", " ", "g")
+    expression = func.regexp_replace(expression, r"\s+", " ", "g")
+    return func.trim(expression)
+
+
+def _sql_synonym_variants(text: str) -> set[str]:
+    stripped = text.strip()
+    if not stripped:
+        return set()
+    variants = {
+        stripped,
+        stripped.casefold(),
+        _normalize_text(text),
+    }
+    collapsed = re.sub(r"\s+", " ", stripped.replace("/", " ").replace("_", " ").strip())
+    if collapsed:
+        variants.add(collapsed)
+        variants.add(collapsed.casefold())
+    return {variant for variant in variants if variant}
 
 
 def _system_rank(system: str, allowed_systems: tuple[str, ...]) -> int:
