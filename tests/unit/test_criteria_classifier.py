@@ -97,6 +97,16 @@ class TestCategoryAssignment:
         assert result.parse_status == "partial"
         assert result.review_required is True
 
+    def test_hypersensitivity_text_only_becomes_partial_not_unparsed(self, classifier):
+        result = classifier.classify(
+            "Known hypersensitivity to study drug",
+            [],
+        )
+        assert result.category == "other"
+        assert result.parse_status == "partial"
+        assert result.review_required is False
+        assert result.review_reason is None
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):

@@ -14,6 +14,10 @@ _CONCOMITANT_PATTERN = re.compile(
     r"\b(?:concurrent|concomitant)\b.*\b(?:medications?|drugs?|treatments?|inhibitors?|inducers?|substrates?)\b",
     re.I,
 )
+_HYPERSENSITIVITY_PATTERN = re.compile(
+    r"\b(?:hypersensitiv(?:ity|e)|allerg(?:y|ic)|anaphylaxis|intoleran(?:ce|t))\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(r"\b(?:unless|except|provided that|other than)\b", re.I)
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 
@@ -44,15 +48,17 @@ class RuleBasedClassifier:
 
         # No entities → unparsed
         if not entities:
-            category = self._assign_category_from_text(criterion_text)
+            category, parse_status, confidence, review_required, review_reason = self._classify_text_only(
+                criterion_text
+            )
             return ClassifiedCriterion(
                 original_text=criterion_text,
                 type="inclusion",
                 category=category,
-                parse_status="unparsed" if category == "other" else "partial",
-                confidence=0.0 if category == "other" else 0.3,
-                review_required=True,
-                review_reason="complex_criteria",
+                parse_status=parse_status,
+                confidence=confidence,
+                review_required=review_required,
+                review_reason=review_reason,
             )
 
         # Negation
@@ -153,3 +159,11 @@ class RuleBasedClassifier:
         if re.search(r"\borgan function\b", text, re.I):
             return "organ_function"
         return "other"
+
+    def _classify_text_only(self, text: str) -> tuple[str, str, float, bool, str | None]:
+        category = self._assign_category_from_text(text)
+        if _HYPERSENSITIVITY_PATTERN.search(text):
+            return category, "partial", 0.6, False, None
+        if category == "other":
+            return category, "unparsed", 0.0, True, "complex_criteria"
+        return category, "partial", 0.3, True, "complex_criteria"

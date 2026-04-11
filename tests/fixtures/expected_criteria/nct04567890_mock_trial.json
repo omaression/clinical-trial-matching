@@ -61,9 +61,8 @@
     "original_text": "Known hypersensitivity to study drug",
     "type": "exclusion",
     "category": "other",
-    "parse_status": "unparsed",
+    "parse_status": "partial",
     "negated": false,
-    "review_required": true,
-    "review_reason": "complex_criteria"
+    "review_required": false
   }
 ]
