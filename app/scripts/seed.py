@@ -36,7 +36,14 @@ MESH_DISEASES = [
     (
         "D015658",
         "HIV Infections",
-        ["hiv infection", "hiv infections", "human immunodeficiency virus infection", "well-controlled hiv"],
+        [
+            "hiv",
+            "hiv infection",
+            "hiv infections",
+            "human immunodeficiency virus",
+            "human immunodeficiency virus infection",
+            "well-controlled hiv",
+        ],
     ),
     (
         "D007153",
@@ -54,6 +61,17 @@ MESH_DISEASES = [
         "D001762",
         "Blepharitis",
         ["blepharitis", "meibomitis", "meibomian gland disease", "meibomian gland dysfunction"],
+    ),
+    ("D012514", "Sarcoma, Kaposi", ["kaposi sarcoma", "kaposi's sarcoma"]),
+    (
+        "D005871",
+        "Castleman Disease",
+        [
+            "castleman disease",
+            "castleman's disease",
+            "multicentric castleman disease",
+            "multicentric castleman's disease",
+        ],
     ),
     ("D013274", "Stomach Neoplasms", ["gastric cancer", "stomach cancer"]),
     ("D014571", "Urinary Bladder Neoplasms", ["bladder cancer", "urothelial carcinoma"]),
@@ -170,29 +188,65 @@ NCI_SCALES = [
 def seed():
     db = SessionLocal()
     try:
-        count = 0
+        inserted = 0
+        updated = 0
 
-        for code, display, synonyms in MESH_DISEASES:
-            if not db.query(CodingLookup).filter_by(system="mesh", code=code).first():
-                db.add(CodingLookup(system="mesh", code=code, display=display, synonyms=synonyms))
-                count += 1
-
-        for code, display, synonyms in NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES:
-            if not db.query(CodingLookup).filter_by(system="nci_thesaurus", code=code).first():
-                db.add(CodingLookup(system="nci_thesaurus", code=code, display=display, synonyms=synonyms))
-                count += 1
-
-        for code, display, synonyms in LOINC_LABS:
-            if not db.query(CodingLookup).filter_by(system="loinc", code=code).first():
-                db.add(CodingLookup(system="loinc", code=code, display=display, synonyms=synonyms))
-                count += 1
+        for system, rows in (
+            ("mesh", MESH_DISEASES),
+            ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
+            ("loinc", LOINC_LABS),
+        ):
+            for code, display, synonyms in rows:
+                created, changed = _upsert_lookup(
+                    db=db,
+                    system=system,
+                    code=code,
+                    display=display,
+                    synonyms=synonyms,
+                )
+                inserted += int(created)
+                updated += int(changed)
 
         db.commit()
-        print(f"Seeded {count} coding lookups.")
+        print(f"Seeded {inserted} coding lookups.")
+        print(f"Updated {updated} coding lookups.")
         total = db.query(CodingLookup).count()
         print(f"Total coding lookups in database: {total}")
     finally:
         db.close()
+
+
+def _upsert_lookup(db, system: str, code: str, display: str, synonyms: list[str]) -> tuple[bool, bool]:
+    existing = db.query(CodingLookup).filter_by(system=system, code=code).first()
+    normalized_synonyms = _merge_synonyms([], synonyms)
+    if existing is None:
+        db.add(CodingLookup(system=system, code=code, display=display, synonyms=normalized_synonyms))
+        return True, False
+
+    changed = False
+    if existing.display != display:
+        existing.display = display
+        changed = True
+
+    merged_synonyms = _merge_synonyms(existing.synonyms or [], synonyms)
+    if merged_synonyms != (existing.synonyms or []):
+        existing.synonyms = merged_synonyms
+        changed = True
+
+    return False, changed
+
+
+def _merge_synonyms(current: list[str], desired: list[str]) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for value in [*current, *desired]:
+        normalized = value.strip()
+        key = normalized.casefold()
+        if not normalized or key in seen:
+            continue
+        merged.append(normalized)
+        seen.add(key)
+    return merged
 
 
 if __name__ == "__main__":

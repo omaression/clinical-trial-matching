@@ -25,6 +25,12 @@
 {"label": "DISEASE", "pattern": "blepharitis"}
 {"label": "DISEASE", "pattern": [{"LOWER": "meibomian"}, {"LOWER": "gland"}, {"LOWER": "disease"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "meibomian"}, {"LOWER": "gland"}, {"LOWER": "dysfunction"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "kaposi"}, {"LOWER": "sarcoma"}]}
+{"label": "DISEASE", "pattern": "Kaposi's sarcoma"}
+{"label": "DISEASE", "pattern": [{"LOWER": "castleman"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "multicentric"}, {"LOWER": "castleman"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": "Castleman's disease"}
+{"label": "DISEASE", "pattern": "Multicentric Castleman's Disease"}
 {"label": "DISEASE", "pattern": [{"LOWER": "non"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "non"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "small"}, {"LOWER": "cell"}, {"LOWER": "lung"}, {"LOWER": "carcinoma"}]}

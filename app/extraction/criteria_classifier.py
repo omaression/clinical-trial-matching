@@ -21,6 +21,14 @@ _PRIOR_THERAPY_TEXT_PATTERN = re.compile(
     r"biologic(?:al)?\s+therapy)\b",
     re.I,
 )
+_TARGETED_EXPOSURE_PATTERN = re.compile(
+    r"\b(?:received|receiving|treated|treatment|therapy|agent|drug|inhibitor|antibody)\b.*"
+    r"\b(?:targeting|targeted|directed\s+against)\b"
+    r"|"
+    r"\b(?:targeting|targeted|directed\s+against)\b.*"
+    r"\b(?:agent|drug|inhibitor|antibody|therapy|treatment)\b",
+    re.I,
+)
 _CONCOMITANT_PATTERN = re.compile(
     r"\b(?:concurrent|concomitant)\b.*\b(?:medications?|drugs?|treatments?|inhibitors?|inducers?|substrates?)\b",
     re.I,
@@ -271,6 +279,8 @@ class RuleBasedClassifier:
             return "molecular_alteration"
         if _CURRENT_CONDITION_PATTERN.search(text):
             return "diagnosis"
+        if "BIOMARKER" in labels and _TARGETED_EXPOSURE_PATTERN.search(text):
+            return "prior_therapy"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
             return "prior_therapy"
         if "DRUG" in labels:

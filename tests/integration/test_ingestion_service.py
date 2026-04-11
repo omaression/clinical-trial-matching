@@ -30,6 +30,7 @@ PD1_THERAPY_TEXT = (
     "death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based "
     "chemotherapy"
 )
+KRAS_TARGETING_THERAPY_TEXT = "* Has received previous treatment with an agent targeting KRAS"
 HIV_TEXT = (
     "* Participants with human immunodeficiency virus (HIV) infection must have well-controlled "
     "HIV on antiretroviral therapy (ART) per protocol"
@@ -251,6 +252,7 @@ class TestIngestSingleTrial:
         assert criteria_by_text[KRAS_G12C_TEXT].category == "molecular_alteration"
         assert criteria_by_text[ACTIVE_INFECTION_TEXT].category == "diagnosis"
         assert criteria_by_text[VACCINE_TEXT].category == "concomitant_medication"
+        assert criteria_by_text[KRAS_TARGETING_THERAPY_TEXT].category == "prior_therapy"
         assert criteria_by_text[VACCINE_TEXT].review_required is True
 
     def test_prior_therapy_coding_skips_biomarker_entities_even_when_catalog_matches(self, service, db_session):
@@ -258,14 +260,14 @@ class TestIngestSingleTrial:
         pipeline_result = PipelineResult(
             criteria=[
                 ClassifiedCriterion(
-                    original_text="Prior PD-L1 therapy and platinum-based chemotherapy",
+                    original_text="Prior PD-L1 therapy and trastuzumab treatment",
                     type="inclusion",
                     category="prior_therapy",
                     parse_status="parsed",
                     confidence=0.85,
                     entities=[
                         Entity(text="PD-L1", label="BIOMARKER", start=6, end=11),
-                        Entity(text="chemotherapy", label="DRUG", start=31, end=43),
+                        Entity(text="trastuzumab", label="DRUG", start=23, end=34),
                     ],
                 )
             ],
@@ -281,9 +283,9 @@ class TestIngestSingleTrial:
                 ),
                 CodingLookup(
                     system="nci_thesaurus",
-                    code="C0006826",
-                    display="Chemotherapy",
-                    synonyms=["chemotherapy"],
+                    code="C1647",
+                    display="Trastuzumab",
+                    synonyms=["trastuzumab", "herceptin"],
                 ),
             ]
         )
@@ -303,8 +305,37 @@ class TestIngestSingleTrial:
             if isinstance(concept, dict)
         }
 
-        assert ("nci_thesaurus", "C0006826") in coded_keys
+        assert ("nci_thesaurus", "C1647") in coded_keys
         assert ("nci_thesaurus", "C128839") not in coded_keys
+
+    def test_generic_therapy_class_mentions_do_not_force_review(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Prior platinum-based chemotherapy for metastatic disease",
+                    type="inclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[Entity(text="chemotherapy", label="DRUG", start=21, end=33)],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.review_count == 0
+        assert criterion.review_required is False
+        assert criterion.coded_concepts == []
 
     def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
         db_session.add_all(
@@ -352,6 +383,23 @@ class TestIngestSingleTrial:
                     synonyms=["blepharitis", "meibomian gland disease", "meibomian gland dysfunction"],
                 ),
                 CodingLookup(
+                    system="mesh",
+                    code="D012514",
+                    display="Sarcoma, Kaposi",
+                    synonyms=["kaposi sarcoma", "kaposi's sarcoma"],
+                ),
+                CodingLookup(
+                    system="mesh",
+                    code="D005871",
+                    display="Castleman Disease",
+                    synonyms=[
+                        "castleman disease",
+                        "castleman's disease",
+                        "multicentric castleman disease",
+                        "multicentric castleman's disease",
+                    ],
+                ),
+                CodingLookup(
                     system="nci_thesaurus",
                     code="C126815",
                     display="KRAS Mutation Positive",
@@ -382,10 +430,19 @@ class TestIngestSingleTrial:
         assert ("mesh", "D015658") in coded_keys(HIV_TEXT)
         assert ("mesh", "D007153") in coded_keys(IMMUNODEFICIENCY_TEXT)
         assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
+        assert coded_keys(KRAS_TARGETING_THERAPY_TEXT) == set()
+        kaposi_castleman_codes = coded_keys(
+            "* HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease"
+        )
+        assert ("mesh", "D012514") in kaposi_castleman_codes
+        assert ("mesh", "D005871") in kaposi_castleman_codes
         ophthalmology_codes = coded_keys(OPHTHALMOLOGY_TEXT)
         assert ("mesh", "D003316") in ophthalmology_codes
         assert ("mesh", "D015352") in ophthalmology_codes
         assert ("mesh", "D001762") in ophthalmology_codes
+        assert len(criteria_by_text[NSCLC_DIAGNOSIS_TEXT].coded_concepts) == 1
+        assert len(criteria_by_text[HIV_TEXT].coded_concepts) == 1
+        assert len(criteria_by_text[OPHTHALMOLOGY_TEXT].coded_concepts) == 3
 
 
 class TestIdempotency:

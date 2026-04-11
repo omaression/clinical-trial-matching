@@ -87,6 +87,12 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         assert result.criteria[0].category == "diagnosis"
 
+    def test_biomarker_targeting_therapy_line_routes_to_prior_therapy(self, pipeline):
+        text = "Has received previous treatment with an agent targeting KRAS"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "prior_therapy"
+
     def test_live_vaccine_line_becomes_reviewable_concomitant_medication(self, pipeline):
         text = "Has received a live-attenuated vaccine within 30 days before the first dose"
         result = pipeline.extract(text)
@@ -101,3 +107,11 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         disease_entities = [entity for entity in result.criteria[0].entities if entity.label == "DISEASE"]
         assert any("non-small cell lung cancer" in entity.text.lower() for entity in disease_entities)
+
+    def test_kaposi_and_castleman_line_keeps_specific_disease_entities(self, pipeline):
+        text = "HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        disease_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DISEASE"]
+        assert any("kaposi" in entity and "sarcoma" in entity for entity in disease_entities)
+        assert any("castleman" in entity and "disease" in entity for entity in disease_entities)

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.config import settings
 from app.extraction.coding.entity_coder import EntityCoder
 from app.extraction.pipeline import ExtractionPipeline
+from app.extraction.types import Entity
 from app.fhir.mapper import FHIRMapper
 from app.ingestion.ctgov_client import CTGovClient
 from app.ingestion.hasher import content_hash
@@ -35,6 +36,23 @@ _CODABLE_ENTITY_LABELS_BY_CATEGORY = {
     "biomarker": {"BIOMARKER"},
     "lab_value": {"LAB_TEST"},
     "performance_status": {"PERF_SCALE"},
+}
+_GENERIC_TREATMENT_CLASS_TERMS = {
+    "chemotherapy",
+    "platinum based chemotherapy",
+    "systemic therapy",
+    "targeted therapy",
+    "immunotherapy",
+    "antiretroviral therapy",
+    "steroid therapy",
+    "immunosuppressive therapy",
+    "hormonal therapy",
+    "endocrine therapy",
+}
+_MATCH_TYPE_PRIORITY = {
+    "exact": 0,
+    "synonym": 1,
+    "fuzzy": 2,
 }
 
 
@@ -357,7 +375,7 @@ class IngestionService:
             coding_review_reasons = set()
 
             for entity in criterion.entities:
-                if not self._should_code_entity(criterion.category, entity.label):
+                if not self._should_code_entity(criterion.category, entity):
                     continue
                 coding_result = self._coder.code_entity(entity)
                 coded_concepts.extend(coding_result.concepts)
@@ -365,6 +383,8 @@ class IngestionService:
                     if coding_result.review_reason:
                         coding_review_reasons.add(coding_result.review_reason)
                     confidence = min(confidence, coding_result.confidence)
+
+            coded_concepts = self._deduplicate_coded_concepts(coded_concepts)
 
             if coding_review_reasons and not review_required:
                 review_required = True
@@ -411,11 +431,39 @@ class IngestionService:
             return next(iter(normalized))
         return "mixed_coding_review"
 
-    def _should_code_entity(self, category: str, label: str) -> bool:
+    def _deduplicate_coded_concepts(self, concepts):
+        unique: dict[tuple[str, str], object] = {}
+        for concept in concepts:
+            key = (concept.system, concept.code)
+            existing = unique.get(key)
+            if existing is None or self._coded_concept_sort_key(concept) < self._coded_concept_sort_key(existing):
+                unique[key] = concept
+        return list(unique.values())
+
+    def _coded_concept_sort_key(self, concept) -> tuple[int, str]:
+        return (
+            _MATCH_TYPE_PRIORITY.get(concept.match_type or "", len(_MATCH_TYPE_PRIORITY)),
+            concept.display.casefold(),
+        )
+
+    def _should_code_entity(self, category: str, entity: Entity) -> bool:
         allowed_labels = _CODABLE_ENTITY_LABELS_BY_CATEGORY.get(category)
         if allowed_labels is None:
             return False
-        return label in allowed_labels
+        if entity.label not in allowed_labels:
+            return False
+        if (
+            category in {"prior_therapy", "concomitant_medication"}
+            and entity.label == "DRUG"
+            and self._is_generic_treatment_entity(entity)
+        ):
+            return False
+        return True
+
+    def _is_generic_treatment_entity(self, entity: Entity) -> bool:
+        source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
+        normalized = " ".join(source.split())
+        return normalized in _GENERIC_TREATMENT_CLASS_TERMS
 
     def _latest_completed_run(self, trial_id) -> PipelineRun | None:
         return (

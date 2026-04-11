@@ -147,6 +147,13 @@ class TestCategoryAssignment:
         assert result.category == "prior_therapy"
         assert result.negated is True
 
+    def test_biomarker_targeting_exposure_stays_prior_therapy(self, classifier):
+        result = classifier.classify(
+            "Has received previous treatment with an agent targeting KRAS",
+            [Entity(text="KRAS", label="BIOMARKER", start=56, end=60)],
+        )
+        assert result.category == "prior_therapy"
+
     def test_disease_with_stage_modifier_stays_diagnosis_primary(self, classifier):
         result = classifier.classify(
             "Histologically confirmed metastatic non-small cell lung cancer",

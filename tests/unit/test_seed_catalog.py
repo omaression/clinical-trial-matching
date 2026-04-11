@@ -1,6 +1,13 @@
 from collections import Counter
 
-from app.scripts.seed import LOINC_LABS, MESH_DISEASES, NCI_BIOMARKERS, NCI_DRUGS, NCI_SCALES
+from app.scripts.seed import (
+    LOINC_LABS,
+    MESH_DISEASES,
+    NCI_BIOMARKERS,
+    NCI_DRUGS,
+    NCI_SCALES,
+    _merge_synonyms,
+)
 
 
 def _synonyms_by_display(rows):
@@ -25,6 +32,8 @@ def test_seed_catalog_includes_common_disease_alias_variants():
     assert "hiv infection" in synonyms["HIV Infections"]
     assert "interstitial lung disease" in synonyms["Lung Diseases, Interstitial"]
     assert "meibomian gland dysfunction" in synonyms["Blepharitis"]
+    assert "kaposi's sarcoma" in synonyms["Sarcoma, Kaposi"]
+    assert "multicentric castleman disease" in synonyms["Castleman Disease"]
 
 
 def test_seed_catalog_includes_common_biomarker_alias_variants():
@@ -60,3 +69,17 @@ def test_seed_catalog_keeps_expected_nci_drug_codes():
     assert codes["Carboplatin"] == "C1282"
     assert codes["Docetaxel"] == "C1526"
     assert codes["Capecitabine"] == "C1794"
+
+
+def test_merge_synonyms_is_case_insensitive_and_append_only():
+    merged = _merge_synonyms(
+        ["KRAS mutant", "hiv infection"],
+        ["kras mutant", "KRAS G12C mutation", "HIV Infection", "  well-controlled HIV  "],
+    )
+
+    assert merged == [
+        "KRAS mutant",
+        "hiv infection",
+        "KRAS G12C mutation",
+        "well-controlled HIV",
+    ]
