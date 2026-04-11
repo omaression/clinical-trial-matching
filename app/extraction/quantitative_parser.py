@@ -65,7 +65,7 @@ class QuantitativeParser:
             )
 
         # Try range
-        m = _RANGE.match(text)
+        m = _RANGE.search(text)
         if m:
             return QuantitativeValue(
                 operator="range",

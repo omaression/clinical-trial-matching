@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.schemas import IngestRequest, ReviewRequest, SearchIngestRequest
@@ -9,7 +10,7 @@ from app.config import settings
 from app.db.session import get_db
 from app.fhir.mapper import FHIRMapper
 from app.ingestion.service import IngestionService
-from app.models.database import ExtractedCriterion, PipelineRun, Trial
+from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
 
 router = APIRouter()
 fhir_mapper = FHIRMapper()
@@ -60,11 +61,17 @@ def list_trials(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     status: str | None = None,
+    condition: str | None = None,
+    phase: str | None = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(Trial)
     if status:
         query = query.filter(Trial.status == status)
+    if condition:
+        query = query.filter(Trial.conditions.any(condition))
+    if phase:
+        query = query.filter(Trial.phase.ilike(f"%{phase}%"))
     total = query.count()
     trials = query.offset((page - 1) * per_page).limit(per_page).all()
     return {
@@ -80,7 +87,7 @@ def get_trial(trial_id: UUID, db: Session = Depends(get_db)):
     trial = db.query(Trial).filter(Trial.id == trial_id).first()
     if not trial:
         raise HTTPException(status_code=404, detail="Trial not found")
-    return _trial_detail(trial)
+    return _trial_detail(trial, db)
 
 
 @router.get("/trials/nct/{nct_id}")
@@ -88,14 +95,25 @@ def get_trial_by_nct(nct_id: str, db: Session = Depends(get_db)):
     trial = db.query(Trial).filter(Trial.nct_id == nct_id).first()
     if not trial:
         raise HTTPException(status_code=404, detail="Trial not found")
-    return _trial_detail(trial)
+    return _trial_detail(trial, db)
 
 
 @router.get("/trials/{trial_id}/criteria")
-def get_trial_criteria(trial_id: UUID, db: Session = Depends(get_db)):
-    criteria = db.query(ExtractedCriterion).filter(
-        ExtractedCriterion.trial_id == trial_id
-    ).all()
+def get_trial_criteria(
+    trial_id: UUID,
+    type: str | None = None,
+    category: str | None = None,
+    review_required: bool | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(ExtractedCriterion).filter(ExtractedCriterion.trial_id == trial_id)
+    if type:
+        query = query.filter(ExtractedCriterion.type == type)
+    if category:
+        query = query.filter(ExtractedCriterion.category == category)
+    if review_required is not None:
+        query = query.filter(ExtractedCriterion.review_required == review_required)
+    criteria = query.all()
     return {"criteria": [_criterion_detail(c) for c in criteria]}
 
 
@@ -119,7 +137,11 @@ def get_trial_fhir(trial_id: UUID, db: Session = Depends(get_db)):
     criteria = db.query(ExtractedCriterion).filter(
         ExtractedCriterion.trial_id == trial_id
     ).all()
-    return fhir_mapper.to_research_study(trial, criteria)
+    resource = fhir_mapper.to_research_study(trial, criteria)
+    return Response(
+        content=_json_dumps(resource),
+        media_type="application/fhir+json",
+    )
 
 
 # --- Review ---
@@ -128,19 +150,36 @@ def get_trial_fhir(trial_id: UUID, db: Session = Depends(get_db)):
 def get_review_queue(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    reason: str | None = None,
+    trial_id: UUID | None = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(ExtractedCriterion).filter(
         ExtractedCriterion.review_required == True,  # noqa: E712
         ExtractedCriterion.review_status == "pending",
     )
+    if reason:
+        query = query.filter(ExtractedCriterion.review_reason == reason)
+    if trial_id:
+        query = query.filter(ExtractedCriterion.trial_id == trial_id)
     total = query.count()
     criteria = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    # Breakdown by reason
+    breakdown_query = db.query(
+        ExtractedCriterion.review_reason, func.count(ExtractedCriterion.id)
+    ).filter(
+        ExtractedCriterion.review_required == True,  # noqa: E712
+        ExtractedCriterion.review_status == "pending",
+    ).group_by(ExtractedCriterion.review_reason)
+    breakdown_by_reason = {row[0] or "unknown": row[1] for row in breakdown_query.all()}
+
     return {
         "items": [_criterion_detail(c) for c in criteria],
         "total": total,
         "page": page,
         "per_page": per_page,
+        "breakdown_by_reason": breakdown_by_reason,
     }
 
 
@@ -160,7 +199,6 @@ def review_criterion(
         criterion.review_status = "accepted"
         criterion.review_required = False
     elif request.action == "correct":
-        # Snapshot original before correction
         criterion.original_extracted = {
             "coded_concepts": criterion.coded_concepts,
             "confidence": criterion.confidence,
@@ -170,7 +208,6 @@ def review_criterion(
             "value_high": criterion.value_high,
             "unit": criterion.unit,
         }
-        # Apply corrections
         if request.corrected_data:
             for key, value in request.corrected_data.items():
                 if hasattr(criterion, key):
@@ -200,11 +237,20 @@ def pipeline_status(db: Session = Depends(get_db)):
     total_runs = db.query(PipelineRun).count()
     completed = db.query(PipelineRun).filter(PipelineRun.status == "completed").count()
     failed = db.query(PipelineRun).filter(PipelineRun.status == "failed").count()
+    total_trials = db.query(Trial).count()
+    total_criteria = db.query(ExtractedCriterion).count()
+    review_pending = db.query(ExtractedCriterion).filter(
+        ExtractedCriterion.review_required == True,  # noqa: E712
+        ExtractedCriterion.review_status == "pending",
+    ).count()
     return {
         "version": settings.pipeline_version,
         "total_runs": total_runs,
         "completed": completed,
         "failed": failed,
+        "total_trials": total_trials,
+        "total_criteria": total_criteria,
+        "review_pending": review_pending,
     }
 
 
@@ -212,13 +258,22 @@ def pipeline_status(db: Session = Depends(get_db)):
 def list_pipeline_runs(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    trial_id: UUID | None = None,
+    pipeline_version: str | None = None,
+    status: str | None = None,
     db: Session = Depends(get_db),
 ):
     query = db.query(PipelineRun).order_by(PipelineRun.started_at.desc())
+    if trial_id:
+        query = query.filter(PipelineRun.trial_id == trial_id)
+    if pipeline_version:
+        query = query.filter(PipelineRun.pipeline_version == pipeline_version)
+    if status:
+        query = query.filter(PipelineRun.status == status)
     total = query.count()
     runs = query.offset((page - 1) * per_page).limit(per_page).all()
     return {
-        "items": [_run_summary(r) for r in runs],
+        "items": [_run_detail(r) for r in runs],
         "total": total,
         "page": page,
         "per_page": per_page,
@@ -230,7 +285,7 @@ def get_pipeline_run(run_id: UUID, db: Session = Depends(get_db)):
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Pipeline run not found")
-    return _run_summary(run)
+    return _run_detail(run)
 
 
 @router.post("/trials/{trial_id}/re-extract")
@@ -244,10 +299,18 @@ def re_extract_trial(trial_id: UUID, db: Session = Depends(get_db)):
         "trial_id": str(trial.id),
         "criteria_count": result.criteria_count,
         "review_count": result.review_count,
+        "diff_summary": result.diff_summary,
     }
 
 
 # --- Serialization helpers ---
+
+import json as _json
+
+
+def _json_dumps(obj: dict) -> str:
+    return _json.dumps(obj, default=str)
+
 
 def _trial_summary(trial: Trial) -> dict:
     return {
@@ -261,7 +324,15 @@ def _trial_summary(trial: Trial) -> dict:
     }
 
 
-def _trial_detail(trial: Trial) -> dict:
+def _trial_detail(trial: Trial, db: Session) -> dict:
+    criteria_total = db.query(ExtractedCriterion).filter(
+        ExtractedCriterion.trial_id == trial.id
+    ).count()
+    review_pending = db.query(ExtractedCriterion).filter(
+        ExtractedCriterion.trial_id == trial.id,
+        ExtractedCriterion.review_required == True,  # noqa: E712
+        ExtractedCriterion.review_status == "pending",
+    ).count()
     return {
         **_trial_summary(trial),
         "official_title": trial.official_title,
@@ -273,6 +344,10 @@ def _trial_detail(trial: Trial) -> dict:
         "eligible_sex": trial.eligible_sex,
         "accepts_healthy": trial.accepts_healthy,
         "sponsor": trial.sponsor,
+        "criteria_summary": {
+            "total": criteria_total,
+            "review_pending": review_pending,
+        },
     }
 
 
@@ -306,7 +381,7 @@ def _criterion_detail(criterion: ExtractedCriterion) -> dict:
     }
 
 
-def _run_summary(run: PipelineRun) -> dict:
+def _run_detail(run: PipelineRun) -> dict:
     return {
         "id": str(run.id),
         "trial_id": str(run.trial_id),
@@ -317,4 +392,5 @@ def _run_summary(run: PipelineRun) -> dict:
         "criteria_extracted_count": run.criteria_extracted_count,
         "review_required_count": run.review_required_count,
         "error_message": run.error_message,
+        "diff_summary": run.diff_summary,
     }

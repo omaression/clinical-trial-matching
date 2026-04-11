@@ -61,10 +61,10 @@ class RuleBasedClassifier:
         # Logic
         logic = self._logic.detect(criterion_text)
 
-        # Quantitative — try measure entities first, then full text
+        # Quantitative — try measure entities, then cardinal, then full text
         quant = None
         for e in entities:
-            if e.label == "MEASURE":
+            if e.label in ("MEASURE", "CARDINAL"):
                 quant = self._quant.parse(e.text, entities)
                 if quant:
                     break
@@ -137,6 +137,16 @@ class RuleBasedClassifier:
             return "age"
         if _CNS_PATTERN.search(text):
             return "cns_metastases"
+        if _STAGE_PATTERN.search(text):
+            return "disease_stage"
+        if _HISTOLOGY_PATTERN.search(text):
+            return "histology"
+        if _MOLECULAR_PATTERN.search(text):
+            return "molecular_alteration"
+        if _CONCOMITANT_PATTERN.search(text):
+            return "concomitant_medication"
+        if _LINE_PATTERN.search(text):
+            return "line_of_therapy"
         if re.search(r"\borgan function\b", text, re.I):
             return "organ_function"
         return "other"

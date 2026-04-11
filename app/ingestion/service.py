@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.extraction.coding.entity_coder import EntityCoder
 from app.extraction.pipeline import ExtractionPipeline
+from app.fhir.mapper import FHIRMapper
 from app.ingestion.ctgov_client import CTGovClient
 from app.ingestion.hasher import content_hash
 from app.models.database import (
     ExtractedCriterion,
+    FHIRResearchStudy,
     PipelineRun,
     Trial,
     TrialSite,
@@ -22,6 +24,7 @@ class IngestionResult:
     criteria_count: int = 0
     review_count: int = 0
     skipped: bool = False
+    diff_summary: dict | None = None
 
 
 class IngestionService:
@@ -30,6 +33,7 @@ class IngestionService:
         self._client = CTGovClient()
         self._pipeline = ExtractionPipeline()
         self._coder = EntityCoder(db)
+        self._fhir_mapper = FHIRMapper()
 
     def ingest(self, nct_id: str) -> IngestionResult:
         raw_json = self._client.fetch_study(nct_id)
@@ -67,6 +71,8 @@ class IngestionService:
         try:
             result = self._pipeline.extract(eligibility_text)
             self._persist_criteria(trial, run, result)
+            self._persist_fhir(trial, run, result)
+            self._persist_sites(trial, raw_json)
 
             run.status = "completed"
             run.finished_at = datetime.utcnow()
@@ -94,12 +100,18 @@ class IngestionService:
         """Re-run the extraction pipeline on a trial's stored raw_json without re-fetching."""
         eligibility_text = self._extract_eligibility_text(trial.raw_json)
 
-        # Delete old criteria for this trial
+        # Snapshot old criteria categories for diff
+        old_criteria = self._db.query(ExtractedCriterion).filter(
+            ExtractedCriterion.trial_id == trial.id
+        ).all()
+        old_texts = {c.original_text for c in old_criteria}
+        old_count = len(old_criteria)
+
+        # Delete old criteria
         self._db.query(ExtractedCriterion).filter(
             ExtractedCriterion.trial_id == trial.id
         ).delete()
 
-        # Create new pipeline run
         run = PipelineRun(
             trial_id=trial.id,
             pipeline_version=settings.pipeline_version,
@@ -113,11 +125,23 @@ class IngestionService:
         try:
             result = self._pipeline.extract(eligibility_text)
             self._persist_criteria(trial, run, result)
+            self._persist_fhir(trial, run, result)
+
+            # Compute diff
+            new_texts = {c.original_text for c in result.criteria}
+            diff_summary = {
+                "added": len(new_texts - old_texts),
+                "removed": len(old_texts - new_texts),
+                "unchanged": len(new_texts & old_texts),
+                "previous_count": old_count,
+                "new_count": result.criteria_count,
+            }
 
             run.status = "completed"
             run.finished_at = datetime.utcnow()
             run.criteria_extracted_count = result.criteria_count
             run.review_required_count = result.review_required_count
+            run.diff_summary = diff_summary
             trial.extraction_status = "completed"
 
             self._db.commit()
@@ -126,6 +150,7 @@ class IngestionService:
                 trial=trial,
                 criteria_count=result.criteria_count,
                 review_count=result.review_required_count,
+                diff_summary=diff_summary,
             )
         except Exception as e:
             run.status = "failed"
@@ -153,6 +178,53 @@ class IngestionService:
                 result = self.ingest(nct_id)
                 results.append(result)
         return results
+
+    def _persist_fhir(self, trial: Trial, run: PipelineRun, result) -> None:
+        """Generate and store FHIR ResearchStudy resource."""
+        criteria = self._db.query(ExtractedCriterion).filter(
+            ExtractedCriterion.trial_id == trial.id,
+            ExtractedCriterion.pipeline_run_id == run.id,
+        ).all()
+        resource = self._fhir_mapper.to_research_study(trial, criteria)
+
+        # Check for existing FHIR resource
+        existing = self._db.query(FHIRResearchStudy).filter_by(trial_id=trial.id).first()
+        if existing:
+            existing.resource = resource
+            existing.version = existing.version + 1
+            existing.pipeline_run_id = run.id
+            existing.updated_at = datetime.utcnow()
+        else:
+            fhir_study = FHIRResearchStudy(
+                trial_id=trial.id,
+                resource=resource,
+                version=1,
+                pipeline_run_id=run.id,
+            )
+            self._db.add(fhir_study)
+
+    def _persist_sites(self, trial: Trial, raw_json: dict) -> None:
+        """Parse and persist trial sites from ClinicalTrials.gov response."""
+        # Clear existing sites for re-ingestion
+        self._db.query(TrialSite).filter(TrialSite.trial_id == trial.id).delete()
+
+        protocol = raw_json.get("protocolSection", {})
+        contacts = protocol.get("contactsLocationsModule", {})
+        locations = contacts.get("locations", [])
+
+        for loc in locations:
+            site = TrialSite(
+                trial_id=trial.id,
+                facility=loc.get("facility"),
+                city=loc.get("city"),
+                state=loc.get("state"),
+                country=loc.get("country"),
+                zip=loc.get("zip"),
+                latitude=loc.get("geoPoint", {}).get("lat") if loc.get("geoPoint") else None,
+                longitude=loc.get("geoPoint", {}).get("lon") if loc.get("geoPoint") else None,
+                status=loc.get("status"),
+            )
+            self._db.add(site)
 
     def _persist_criteria(self, trial: Trial, run: PipelineRun, result) -> None:
         """Enrich extracted criteria with entity coding and persist to DB."""
