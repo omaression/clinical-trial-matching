@@ -11,7 +11,7 @@ from app.extraction.coding.entity_coder import CodingResult
 from app.extraction.types import ClassifiedCriterion, CodedConcept, Entity, PipelineResult
 from app.ingestion.ctgov_client import SearchStudiesResult
 from app.ingestion.hasher import content_hash
-from app.ingestion.service import IngestionResult, IngestionService
+from app.ingestion.service import IngestionResult, IngestionService, SearchIngestTrialResult
 from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
@@ -343,12 +343,17 @@ class TestSearchAndIngest:
         def _ingest(nct_id):
             if nct_id == "NCTFAIL001":
                 raise RuntimeError("boom")
-            return ingest_results[nct_id]
+            result = ingest_results[nct_id]
+            return SearchIngestTrialResult(
+                nct_id=nct_id,
+                trial=result.trial,
+                criteria_count=result.criteria_count,
+                skipped=result.skipped,
+            )
 
         with (
             patch.object(service._client, "search_studies", return_value=search_result) as search_studies,
-            patch.object(service, "ingest", side_effect=_ingest),
-            patch.object(service._db, "rollback") as rollback,
+            patch.object(service, "_ingest_search_result", side_effect=_ingest),
         ):
             batch = service.search_and_ingest(condition="breast cancer", limit=4, page_token="cursor-1")
 
@@ -364,10 +369,9 @@ class TestSearchAndIngest:
         assert batch.results[1].trial is not None
         assert batch.results[1].skipped is True
         assert batch.results[2].trial is None
-        assert batch.results[2].error_message == "boom"
+        assert batch.results[2].error_message == "Trial ingestion failed"
         assert batch.results[3].trial is None
         assert batch.results[3].error_message == "Search result missing NCT ID"
-        rollback.assert_called_once()
         search_studies.assert_called_once_with(
             condition="breast cancer",
             status=None,

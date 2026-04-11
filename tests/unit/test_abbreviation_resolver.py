@@ -1,4 +1,5 @@
 import pytest
+
 from app.extraction.abbreviation_resolver import AbbreviationResolver
 from app.extraction.types import Entity
 
@@ -46,3 +47,14 @@ class TestLookupText:
         entities = [Entity(text="trastuzumab", label="DRUG", start=0, end=11)]
         resolved = resolver.resolve(entities, "trastuzumab")
         assert resolved[0].lookup_text == "trastuzumab"
+
+
+class TestDynamicAbbreviations:
+    def test_dynamic_abbreviation_expands_when_not_in_static_dictionary(self, resolver):
+        entities = [Entity(text="NSCLC", label="DISEASE", start=0, end=5)]
+        resolved = resolver.resolve(
+            entities,
+            "non-small cell lung cancer (NSCLC)",
+            dynamic_abbreviations={"nsclc": "non-small cell lung cancer"},
+        )
+        assert resolved[0].expanded_text == "non-small cell lung cancer"

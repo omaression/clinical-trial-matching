@@ -90,6 +90,37 @@ def superseded_criterion(db_session):
     return criterion
 
 
+@pytest.fixture
+def seeded_logic_group_criterion(db_session):
+    unique_nct = f"NCT{uuid.uuid4().hex[:8].upper()}"
+    trial = Trial(
+        nct_id=unique_nct, raw_json={}, content_hash="test",
+        brief_title="Logic Group Review Test", status="RECRUITING",
+    )
+    db_session.add(trial)
+    db_session.flush()
+
+    run = PipelineRun(
+        trial_id=trial.id, pipeline_version="0.1.0",
+        input_hash="test", input_snapshot={}, status="completed",
+    )
+    db_session.add(run)
+    db_session.flush()
+
+    logic_group_id = uuid.uuid4()
+    criterion = ExtractedCriterion(
+        trial_id=trial.id, type="inclusion", category="diagnosis",
+        original_text="Melanoma or breast cancer", parse_status="parsed",
+        logic_group_id=logic_group_id, logic_operator="OR",
+        confidence=0.60, review_required=True, review_reason="fuzzy_match",
+        review_status="pending", coded_concepts=[],
+        pipeline_version="0.1.0", pipeline_run_id=run.id,
+    )
+    db_session.add(criterion)
+    db_session.commit()
+    return criterion
+
+
 class TestAccept:
     def test_accept_clears_review(self, client, seeded_criterion):
         response = client.patch(
@@ -168,6 +199,22 @@ class TestCorrect:
         )
         assert response.status_code == 409
         assert response.json()["detail"] == "Criterion belongs to a superseded pipeline run and cannot be reviewed"
+
+    def test_correct_serializes_logic_group_id_in_snapshot(self, client, seeded_logic_group_criterion):
+        response = client.patch(
+            f"/api/v1/criteria/{seeded_logic_group_criterion.id}/review",
+            json={
+                "action": "correct",
+                "reviewed_by": "dr_smith",
+                "corrected_data": {
+                    "confidence": 0.9,
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["original_extracted"]["logic_group_id"] == str(
+            seeded_logic_group_criterion.logic_group_id
+        )
 
 
 class TestReject:

@@ -23,11 +23,17 @@ class AbbreviationResolver:
                 entry = json.loads(line)
                 self._dict[entry["abbr"].lower()] = entry["expansion"]
 
-    def resolve(self, entities: list[Entity], text: str) -> list[Entity]:
+    def resolve(
+        self,
+        entities: list[Entity],
+        text: str,
+        dynamic_abbreviations: dict[str, str] | None = None,
+    ) -> list[Entity]:
         """Expand abbreviations on entities. Returns new list with expanded_text set."""
         result = []
+        dynamic_abbreviations = dynamic_abbreviations or {}
         for entity in entities:
-            expanded = self._lookup(entity.text)
+            expanded = dynamic_abbreviations.get(entity.text.lower()) or self._lookup(entity.text)
             result.append(entity.model_copy(update={"expanded_text": expanded}))
         return result
 

@@ -1,16 +1,36 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.routes import trials
 from app.config import settings
-from app.db.session import get_db
+from app.db.session import engine, get_db
+from app.extraction.pipeline import ExtractionPipeline
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.extraction_pipeline = None
+    app.state.spacy_model = "unavailable"
+    app.state.startup_database = "unavailable"
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        app.state.startup_database = "connected"
+    except Exception:
+        logger.exception("Database unavailable during startup")
+    try:
+        pipeline = ExtractionPipeline()
+        app.state.extraction_pipeline = pipeline
+        app.state.spacy_model = pipeline.loaded_model_name
+    except Exception:
+        logger.exception("Extraction pipeline unavailable during startup")
     yield
 
 
@@ -23,8 +43,17 @@ app = FastAPI(
 app.include_router(trials.router, prefix="/api/v1")
 
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled request error for %s", request.url.path, exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "code": "internal_server_error"},
+    )
+
+
 @app.get("/api/v1/health")
-def health_check(db: Session = Depends(get_db)):
+def health_check(request: Request, db: Session = Depends(get_db)):
     checks = {"pipeline_version": settings.pipeline_version}
 
     # DB check
@@ -34,19 +63,11 @@ def health_check(db: Session = Depends(get_db)):
     except Exception:
         checks["database"] = "unavailable"
 
-    # spaCy model check
-    try:
-        import spacy
-        spacy.load(settings.spacy_model)
-        checks["spacy_model"] = settings.spacy_model
-    except Exception:
-        try:
-            import spacy
-            spacy.load("en_core_web_sm")
-            checks["spacy_model"] = "en_core_web_sm (fallback)"
-        except Exception:
-            checks["spacy_model"] = "unavailable"
+    checks["spacy_model"] = getattr(request.app.state, "spacy_model", "unavailable")
 
     all_healthy = checks["database"] == "connected" and checks["spacy_model"] != "unavailable"
     checks["status"] = "healthy" if all_healthy else "degraded"
-    return checks
+    return JSONResponse(
+        status_code=200 if all_healthy else 503,
+        content=checks,
+    )

@@ -1,7 +1,10 @@
+import logging
 from dataclasses import dataclass
 
+import httpx
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
 from app.extraction.coding.entity_coder import EntityCoder
@@ -17,6 +20,8 @@ from app.models.database import (
     TrialSite,
 )
 from app.time_utils import parse_clinicaltrials_datetime, utc_now
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -46,10 +51,10 @@ class SearchIngestBatchResult:
 
 
 class IngestionService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, pipeline: ExtractionPipeline | None = None):
         self._db = db
         self._client = CTGovClient()
-        self._pipeline = ExtractionPipeline()
+        self._pipeline = pipeline or ExtractionPipeline()
         self._coder = EntityCoder(db)
         self._fhir_mapper = FHIRMapper()
 
@@ -210,21 +215,13 @@ class IngestionService:
                 continue
 
             try:
-                result = self.ingest(nct_id)
-                results.append(
-                    SearchIngestTrialResult(
-                        nct_id=nct_id,
-                        trial=result.trial,
-                        criteria_count=result.criteria_count,
-                        skipped=result.skipped,
-                    )
-                )
+                results.append(self._ingest_search_result(nct_id))
             except Exception as exc:
-                self._db.rollback()
+                logger.exception("search-ingest failed for %s", nct_id)
                 results.append(
                     SearchIngestTrialResult(
                         nct_id=nct_id,
-                        error_message=str(exc),
+                        error_message=self._public_search_error_message(exc),
                     )
                 )
         return SearchIngestBatchResult(
@@ -233,6 +230,26 @@ class IngestionService:
             total_count=total_count,
             next_page_token=next_page_token,
         )
+
+    def _ingest_search_result(self, nct_id: str) -> SearchIngestTrialResult:
+        bind = self._db.get_bind()
+        session_factory = sessionmaker(bind=bind, expire_on_commit=False)
+        with session_factory() as session:
+            service = IngestionService(session, pipeline=self._pipeline)
+            result = service.ingest(nct_id)
+            return SearchIngestTrialResult(
+                nct_id=nct_id,
+                trial=result.trial,
+                criteria_count=result.criteria_count,
+                skipped=result.skipped,
+            )
+
+    def _public_search_error_message(self, exc: Exception) -> str:
+        if isinstance(exc, httpx.HTTPError):
+            return "ClinicalTrials.gov request failed during trial ingestion"
+        if isinstance(exc, SQLAlchemyError):
+            return "Trial ingestion persistence failed"
+        return "Trial ingestion failed"
 
     def _content_hash_material(self, raw_json: dict) -> dict:
         protocol = raw_json.get("protocolSection", {})

@@ -168,7 +168,7 @@ class TestHealthEndpoint:
         response = client.get("/api/v1/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] in ("healthy", "degraded")
+        assert data["status"] == "healthy"
         assert "pipeline_version" in data
         assert "database" in data
         assert data["database"] == "connected"
@@ -642,7 +642,7 @@ class TestIngestEndpoint:
     def test_ingest_via_api(self, client):
         mock_response = json.loads((MOCK_DIR / "NCT04567890.json").read_text())
         # Use unique NCT ID
-        unique_nct = f"NCT{uuid.uuid4().hex[:8].upper()}"
+        unique_nct = f"NCT{uuid.uuid4().int % 10**8:08d}"
         mock_response["protocolSection"]["identificationModule"]["nctId"] = unique_nct
         with patch("app.ingestion.ctgov_client.CTGovClient.fetch_study", return_value=mock_response):
             response = client.post("/api/v1/trials/ingest", json={"nct_id": unique_nct})
@@ -651,3 +651,13 @@ class TestIngestEndpoint:
         assert data["nct_id"] == unique_nct
         assert "trial_id" in data
         assert "criteria_count" in data
+
+    def test_ingest_rejects_invalid_nct_id(self, client):
+        response = client.post("/api/v1/trials/ingest", json={"nct_id": "invalid"})
+        assert response.status_code == 422
+
+    def test_ingest_returns_503_when_pipeline_unavailable(self, client, monkeypatch):
+        monkeypatch.setattr(app.state, "extraction_pipeline", None)
+        response = client.post("/api/v1/trials/ingest", json={"nct_id": "NCT12345678"})
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Extraction pipeline unavailable"

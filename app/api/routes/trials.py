@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Query as SQLAlchemyQuery
 from sqlalchemy.orm import Session
@@ -37,9 +37,15 @@ router = APIRouter()
 fhir_mapper = FHIRMapper()
 
 
+def _get_ingestion_service(request: Request, db: Session = Depends(get_db)) -> IngestionService:
+    pipeline = getattr(request.app.state, "extraction_pipeline", None)
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Extraction pipeline unavailable")
+    return IngestionService(db, pipeline=pipeline)
+
+
 @router.post("/trials/ingest", status_code=201, response_model=IngestResponse)
-def ingest_trial(request: IngestRequest, db: Session = Depends(get_db)):
-    service = IngestionService(db)
+def ingest_trial(request: IngestRequest, service: IngestionService = Depends(_get_ingestion_service)):
     result = service.ingest(request.nct_id)
     return IngestResponse(
         nct_id=result.trial.nct_id,
@@ -51,8 +57,10 @@ def ingest_trial(request: IngestRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/trials/search-ingest", status_code=201, response_model=SearchIngestResponse)
-def search_and_ingest(request: SearchIngestRequest, db: Session = Depends(get_db)):
-    service = IngestionService(db)
+def search_and_ingest(
+    request: SearchIngestRequest,
+    service: IngestionService = Depends(_get_ingestion_service),
+):
     results = service.search_and_ingest(
         condition=request.condition,
         status=request.status,
@@ -347,9 +355,12 @@ def get_pipeline_run(run_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/trials/{trial_id}/re-extract", response_model=ReExtractResponse)
-def re_extract_trial(trial_id: UUID, db: Session = Depends(get_db)):
+def re_extract_trial(
+    trial_id: UUID,
+    db: Session = Depends(get_db),
+    service: IngestionService = Depends(_get_ingestion_service),
+):
     trial = _get_trial_or_404(trial_id, db)
-    service = IngestionService(db)
     result = service.re_extract(trial)
     return ReExtractResponse(
         trial_id=trial.id,
@@ -436,7 +447,7 @@ def _correction_snapshot(criterion: ExtractedCriterion) -> dict[str, Any]:
         "timeframe_operator": criterion.timeframe_operator,
         "timeframe_value": criterion.timeframe_value,
         "timeframe_unit": criterion.timeframe_unit,
-        "logic_group_id": criterion.logic_group_id,
+        "logic_group_id": str(criterion.logic_group_id) if criterion.logic_group_id else None,
         "logic_operator": criterion.logic_operator,
         "coded_concepts": criterion.coded_concepts,
         "confidence": criterion.confidence,

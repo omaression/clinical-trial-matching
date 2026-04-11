@@ -10,7 +10,7 @@ class APIModel(BaseModel):
 
 
 class IngestRequest(APIModel):
-    nct_id: str = Field(min_length=4, max_length=32)
+    nct_id: str = Field(min_length=11, max_length=11, pattern=r"^NCT\d{8}$")
 
 
 class SearchIngestRequest(APIModel):
