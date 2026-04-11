@@ -60,3 +60,21 @@ class TestNoCriteriaDropped:
         result = pipeline.extract(text)
         assert result.criteria_count >= 1
         assert any(c.original_text == text for c in result.criteria)
+
+
+class TestNct07286149Signals:
+    def test_kras_mutation_line_stays_molecular_not_diagnosis(self, pipeline):
+        text = (
+            "Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates "
+            "the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to "
+            "cysteine at codon 12 (G12C) mutations"
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "molecular_alteration"
+
+    def test_nsclc_line_stays_diagnosis_primary(self, pipeline):
+        text = "Has histologically confirmed advanced or metastatic non-small cell lung cancer (NSCLC)"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "diagnosis"

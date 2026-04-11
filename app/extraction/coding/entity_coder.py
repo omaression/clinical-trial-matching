@@ -26,6 +26,39 @@ _SYSTEMS_BY_LABEL = {
     "PERF_SCALE": ("nci_thesaurus",),
     "LAB_TEST": ("loinc",),
 }
+_FUZZY_STOPWORDS = {
+    "and",
+    "or",
+    "of",
+    "the",
+    "to",
+    "in",
+    "for",
+    "with",
+    "without",
+    "history",
+    "current",
+    "active",
+    "prior",
+    "therapy",
+    "treatment",
+    "disease",
+    "disorder",
+    "syndrome",
+    "cancer",
+    "carcinoma",
+    "neoplasm",
+    "neoplasms",
+    "tumor",
+    "tumors",
+    "malignancy",
+    "malignant",
+    "study",
+    "intervention",
+    "protocol",
+    "participants",
+    "patient",
+}
 
 
 class EntityCoder:
@@ -43,8 +76,8 @@ class EntityCoder:
                 review_required=False,
                 review_reason=None,
             )
-        lookup_text = _normalize_text(entity.lookup_text)
-        if not lookup_text:
+        lookup_variants = _lookup_variants(entity)
+        if not lookup_variants:
             return CodingResult(
                 concepts=[],
                 confidence=0.40,
@@ -53,17 +86,19 @@ class EntityCoder:
             )
 
         # Tier 1: Exact match on display
-        result = self._exact_match(lookup_text, systems)
-        if result:
-            return result
+        for lookup_text in lookup_variants:
+            result = self._exact_match(_normalize_text(lookup_text), systems)
+            if result:
+                return result
 
         # Tier 2: Synonym match
-        result = self._synonym_match(entity.lookup_text, systems)
-        if result:
-            return result
+        for lookup_text in lookup_variants:
+            result = self._synonym_match(lookup_text, systems)
+            if result:
+                return result
 
         # Tier 3: Fuzzy match via pg_trgm similarity, with a safe Python fallback.
-        result = self._fuzzy_match(lookup_text, systems)
+        result = self._fuzzy_match(lookup_variants, systems)
         if result:
             return result
 
@@ -151,16 +186,22 @@ class EntityCoder:
             ),
         )
 
-    def _fuzzy_match(self, text: str, systems: tuple[str, ...]) -> CodingResult | None:
-        try:
-            result = self._pg_trgm_fuzzy_match(text, systems)
-            if result:
-                return result
-        except DBAPIError:
-            self._db.rollback()
+    def _fuzzy_match(self, variants: list[str], systems: tuple[str, ...]) -> CodingResult | None:
+        for text in variants:
+            normalized = _normalize_text(text)
+            try:
+                result = self._pg_trgm_fuzzy_match(normalized, systems)
+                if result:
+                    return result
+            except DBAPIError:
+                self._db.rollback()
 
         lookups = self._candidate_lookups(systems)
-        return self._fallback_fuzzy_match(text, lookups)
+        for text in variants:
+            result = self._fallback_fuzzy_match(_normalize_text(text), lookups)
+            if result:
+                return result
+        return None
 
     def _pg_trgm_fuzzy_match(self, text: str, systems: tuple[str, ...]) -> CodingResult | None:
         statement = text_query().bindparams(bindparam("systems", expanding=True))
@@ -175,7 +216,7 @@ class EntityCoder:
         if not rows:
             return None
 
-        best_match = sorted(
+        ranked_matches = sorted(
             rows,
             key=lambda row: (
                 -float(row["score"]),
@@ -183,7 +224,20 @@ class EntityCoder:
                 str(row["display"]).casefold(),
                 str(row["code"]).casefold(),
             ),
-        )[0]
+        )
+        best_match = next(
+            (
+                row for row in ranked_matches
+                if _is_viable_fuzzy_candidate(
+                    text=text,
+                    display=str(row["display"]),
+                    synonyms=row.get("synonyms"),
+                )
+            ),
+            None,
+        )
+        if not best_match:
+            return None
         return CodingResult(
             concepts=[CodedConcept(
                 system=best_match["system"],
@@ -201,12 +255,16 @@ class EntityCoder:
         best_distance = 3
 
         for lookup in lookups:
+            if not _is_viable_fuzzy_candidate(text=text, display=lookup.display, synonyms=lookup.synonyms):
+                continue
             d = _levenshtein(text, _normalize_text(lookup.display))
             if d <= 2 and d < best_distance:
                 best_match = lookup
                 best_distance = d
 
             for syn in (lookup.synonyms or []):
+                if not _is_viable_fuzzy_candidate(text=text, display=syn, synonyms=None):
+                    continue
                 d = _levenshtein(text, _normalize_text(syn))
                 if d <= 2 and d < best_distance:
                     best_match = lookup
@@ -233,6 +291,7 @@ def text_query():
             system,
             code,
             display,
+            synonyms,
             GREATEST(
                 similarity(
                     trim(
@@ -348,6 +407,50 @@ def _normalize_text(text: str) -> str:
     normalized = normalized.replace("_", " ")
     normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
     return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _lookup_variants(entity: Entity) -> list[str]:
+    variants: list[str] = []
+    for value in (entity.text, entity.expanded_text):
+        if not value:
+            continue
+        normalized = value.strip()
+        if normalized and normalized not in variants:
+            variants.append(normalized)
+    return variants
+
+
+def _informative_tokens(text: str | None) -> set[str]:
+    if not text:
+        return set()
+    return {
+        token
+        for token in _normalize_text(text).split()
+        if token and token not in _FUZZY_STOPWORDS
+    }
+
+
+def _is_viable_fuzzy_candidate(text: str, display: str, synonyms: list[str] | None) -> bool:
+    source_tokens = _informative_tokens(text)
+    if not source_tokens:
+        return False
+
+    candidate_token_sets = [_informative_tokens(display)]
+    for synonym in synonyms or []:
+        candidate_token_sets.append(_informative_tokens(synonym))
+
+    viable_overlap = False
+    for tokens in candidate_token_sets:
+        if not tokens:
+            continue
+        overlap = source_tokens.intersection(tokens)
+        if not overlap:
+            continue
+        overlap_ratio = len(overlap) / len(tokens)
+        if len(tokens) <= 2 or overlap_ratio >= 0.5 or tokens.issubset(source_tokens):
+            viable_overlap = True
+            break
+    return viable_overlap
 
 
 def _normalized_sql_text(column):

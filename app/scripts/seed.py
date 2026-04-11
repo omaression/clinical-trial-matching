@@ -52,7 +52,11 @@ NCI_BIOMARKERS = [
     ("C126808", "EGFR Mutation Positive", ["egfr+", "egfr mutant", "egfr mutation positive", "egfr mutated"]),
     ("C126813", "ALK Rearrangement Positive", ["alk+", "alk positive", "alk rearrangement", "alk rearranged"]),
     ("C126817", "BRAF V600E Mutation Positive", ["braf v600e", "braf mutant", "braf mutation positive"]),
-    ("C126815", "KRAS Mutation Positive", ["kras mutant", "kras mutation positive"]),
+    (
+        "C126815",
+        "KRAS Mutation Positive",
+        ["kras", "kras mutant", "kras mutation positive", "kras g12c", "kras g12c mutation"],
+    ),
     ("C126814", "ROS1 Rearrangement Positive", ["ros1+", "ros1 positive", "ros1 rearrangement", "ros1 rearranged"]),
     ("C142080", "NTRK Fusion Positive", ["ntrk+", "ntrk fusion", "ntrk positive", "ntrk fusion positive"]),
     ("C121553", "Microsatellite Instability-High", ["msi-h", "msi high", "microsatellite instability high", "msih"]),

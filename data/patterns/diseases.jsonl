@@ -14,6 +14,15 @@
 {"label": "DISEASE", "pattern": "glioblastoma"}
 {"label": "DISEASE", "pattern": "mesothelioma"}
 {"label": "DISEASE", "pattern": "myeloma"}
+{"label": "DISEASE", "pattern": "HIV"}
+{"label": "DISEASE", "pattern": [{"LOWER": "hiv"}, {"LOWER": "infection"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "human"}, {"LOWER": "immunodeficiency"}, {"LOWER": "virus"}]}
+{"label": "DISEASE", "pattern": "immunodeficiency"}
+{"label": "DISEASE", "pattern": "pneumonitis"}
+{"label": "DISEASE", "pattern": [{"LOWER": "interstitial"}, {"LOWER": "lung"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "corneal"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "dry"}, {"LOWER": "eye"}, {"LOWER": "syndrome"}]}
+{"label": "DISEASE", "pattern": "blepharitis"}
 {"label": "DISEASE", "pattern": "NSCLC"}
 {"label": "DISEASE", "pattern": "SCLC"}
 {"label": "DISEASE", "pattern": "TNBC"}

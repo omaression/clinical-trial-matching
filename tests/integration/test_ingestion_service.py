@@ -216,6 +216,15 @@ class TestIngestSingleTrial:
         assert ("mesh", "D015451") not in coded_keys(
             "* Has history of (noninfectious) pneumonitis/ interstitial lung disease (ILD) that required steroids or has current pneumonitis/ILD"
         )
+        assert criteria_by_text[
+            "* Has histologically or cytologically confirmed diagnosis of advanced or metastatic non-squamous non-small cell lung cancer (NSCLC)"
+        ].category == "diagnosis"
+        assert criteria_by_text[
+            "* Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to cysteine at codon 12 (G12C) mutations"
+        ].category == "molecular_alteration"
+        assert criteria_by_text[
+            "* Has an active infection requiring systemic therapy"
+        ].category == "diagnosis"
 
 
 class TestIdempotency:

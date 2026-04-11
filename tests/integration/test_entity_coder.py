@@ -26,10 +26,16 @@ def seed_lookups(db_session):
                       synonyms=["tnbc", "triple negative breast cancer"]),
         CodingLookup(system="nci_thesaurus", code="C68748", display="HER2 Positive",
                       synonyms=["her2+", "erbb2 positive"]),
+        CodingLookup(system="nci_thesaurus", code="C126815", display="KRAS Mutation Positive",
+                      synonyms=["kras", "kras mutant", "kras g12c", "kras g12c mutation"]),
         CodingLookup(system="mesh", code="D008545", display="Melanoma",
                       synonyms=["malignant melanoma"]),
         CodingLookup(system="nci_thesaurus", code="C3224", display="Melanoma",
                       synonyms=["melanoma lesion"]),
+        CodingLookup(system="mesh", code="D002289", display="Carcinoma, Non-Small-Cell Lung",
+                      synonyms=["nsclc", "non-small cell lung cancer"]),
+        CodingLookup(system="mesh", code="D055752", display="Small Cell Lung Carcinoma",
+                      synonyms=["sclc", "small cell lung cancer"]),
         CodingLookup(system="nci_thesaurus", code="C1647", display="Trastuzumab",
                       synonyms=["herceptin"]),
         CodingLookup(system="loinc", code="751-8", display="Neutrophils [#/volume] in Blood",
@@ -110,6 +116,19 @@ class TestExpandedText:
         assert result.concepts[0].code == "D000073182"
         assert result.concepts[0].match_type == "synonym"
 
+    def test_uses_original_abbreviation_when_expansion_is_less_codable(self, coder):
+        entity = Entity(
+            text="KRAS",
+            label="BIOMARKER",
+            start=0,
+            end=4,
+            expanded_text="Kirsten Rat Sarcoma Viral Oncogene",
+        )
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "nci_thesaurus"
+        assert result.concepts[0].code == "C126815"
+        assert result.concepts[0].match_type == "synonym"
+
 
 class TestDeterministicResolution:
     def test_scopes_disease_entities_to_mesh(self, coder):
@@ -132,3 +151,8 @@ class TestDeterministicResolution:
         assert result.concepts[0].system == "loinc"
         assert result.concepts[0].code == "751-8"
         assert result.concepts[0].match_type == "synonym"
+
+    def test_fuzzy_rejects_generic_lung_cancer_for_specific_subtypes(self, coder):
+        entity = Entity(text="lung cancer", label="DISEASE", start=0, end=11)
+        result = coder.code_entity(entity)
+        assert result.concepts == []

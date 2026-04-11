@@ -74,6 +74,7 @@ class ExtractionPipeline:
                 ct.text,
                 dynamic_abbreviations=dynamic_abbreviations,
             )
+            entities = self._suppress_redundant_entities(entities)
 
             # Stage 3: Criteria Classifier
             classified = self._classifier.classify(ct.text, entities)
@@ -87,3 +88,36 @@ class ExtractionPipeline:
             criteria.append(classified)
 
         return PipelineResult(criteria=criteria, pipeline_version=settings.pipeline_version)
+
+    def _suppress_redundant_entities(self, entities: list[Entity]) -> list[Entity]:
+        filtered: list[Entity] = []
+        for entity in entities:
+            if self._is_subsumed_entity(entity, entities):
+                continue
+            filtered.append(entity)
+        return filtered
+
+    def _is_subsumed_entity(self, entity: Entity, entities: list[Entity]) -> bool:
+        entity_tokens = _entity_tokens(entity)
+        if not entity_tokens:
+            return False
+
+        for other in entities:
+            if other is entity:
+                continue
+            other_tokens = _entity_tokens(other)
+            if len(other_tokens) <= len(entity_tokens):
+                continue
+            if not entity_tokens.issubset(other_tokens):
+                continue
+            if entity.label == "DISEASE" and other.label in {"DISEASE", "BIOMARKER"}:
+                return True
+            if entity.label == other.label and entity.label in {"BIOMARKER", "DRUG", "LAB_TEST"}:
+                return True
+        return False
+
+
+def _entity_tokens(entity: Entity) -> set[str]:
+    source = entity.expanded_text or entity.text
+    normalized = "".join(char.lower() if char.isalnum() else " " for char in source)
+    return {token for token in normalized.split() if token}

@@ -233,6 +233,8 @@ class RuleBasedClassifier:
             return "cns_metastases"
         if _LINE_PATTERN.search(text):
             return "line_of_therapy"
+        if "BIOMARKER" in labels and _MOLECULAR_PATTERN.search(text):
+            return "molecular_alteration"
         if "DISEASE" in labels or _CURRENT_CONDITION_PATTERN.search(text):
             return "diagnosis"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):

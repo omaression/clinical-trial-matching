@@ -30,6 +30,7 @@ def test_seed_catalog_includes_common_biomarker_alias_variants():
     assert "her2/neu positive" in synonyms["HER2 Positive"]
     assert "pd l1 positive" in synonyms["PD-L1 Positive"]
     assert "egfr mutated" in synonyms["EGFR Mutation Positive"]
+    assert "kras g12c mutation" in synonyms["KRAS Mutation Positive"]
 
 
 def test_seed_catalog_includes_common_drug_and_lab_alias_variants():
