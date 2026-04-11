@@ -71,21 +71,21 @@ class IngestionService:
 
         try:
             result = self._pipeline.extract(eligibility_text)
-            self._persist_criteria(trial, run, result)
+            criteria_count, review_count = self._persist_criteria(trial, run, result)
             self._persist_fhir(trial, run, result)
 
             run.status = "completed"
             run.finished_at = utc_now()
-            run.criteria_extracted_count = result.criteria_count
-            run.review_required_count = result.review_required_count
+            run.criteria_extracted_count = criteria_count
+            run.review_required_count = review_count
             trial.extraction_status = "completed"
 
             self._db.commit()
 
             return IngestionResult(
                 trial=trial,
-                criteria_count=result.criteria_count,
-                review_count=result.review_required_count,
+                criteria_count=criteria_count,
+                review_count=review_count,
             )
 
         except Exception as e:
@@ -123,7 +123,7 @@ class IngestionService:
 
         try:
             result = self._pipeline.extract(eligibility_text)
-            self._persist_criteria(trial, run, result)
+            criteria_count, review_count = self._persist_criteria(trial, run, result)
             self._persist_fhir(trial, run, result)
 
             # Compute diff
@@ -133,13 +133,13 @@ class IngestionService:
                 "removed": len(old_texts - new_texts),
                 "unchanged": len(new_texts & old_texts),
                 "previous_count": old_count,
-                "new_count": result.criteria_count,
+                "new_count": criteria_count,
             }
 
             run.status = "completed"
             run.finished_at = utc_now()
-            run.criteria_extracted_count = result.criteria_count
-            run.review_required_count = result.review_required_count
+            run.criteria_extracted_count = criteria_count
+            run.review_required_count = review_count
             run.diff_summary = diff_summary
             trial.extraction_status = "completed"
 
@@ -147,8 +147,8 @@ class IngestionService:
 
             return IngestionResult(
                 trial=trial,
-                criteria_count=result.criteria_count,
-                review_count=result.review_required_count,
+                criteria_count=criteria_count,
+                review_count=review_count,
                 diff_summary=diff_summary,
             )
         except Exception as e:
@@ -258,21 +258,28 @@ class IngestionService:
             )
             self._db.add(site)
 
-    def _persist_criteria(self, trial: Trial, run: PipelineRun, result) -> None:
+    def _persist_criteria(self, trial: Trial, run: PipelineRun, result) -> tuple[int, int]:
         """Enrich extracted criteria with entity coding and persist to DB."""
+        persisted_count = 0
+        review_count = 0
         for criterion in result.criteria:
             coded_concepts = list(criterion.coded_concepts)
             review_required = criterion.review_required
             review_reason = criterion.review_reason
             confidence = criterion.confidence
+            coding_review_reasons = set()
 
             for entity in criterion.entities:
                 coding_result = self._coder.code_entity(entity)
                 coded_concepts.extend(coding_result.concepts)
-                if coding_result.review_required and not review_required:
-                    review_required = True
-                    review_reason = coding_result.review_reason
+                if coding_result.review_required:
+                    if coding_result.review_reason:
+                        coding_review_reasons.add(coding_result.review_reason)
                     confidence = min(confidence, coding_result.confidence)
+
+            if coding_review_reasons and not review_required:
+                review_required = True
+                review_reason = self._aggregate_coding_review_reason(coding_review_reasons)
 
             db_criterion = ExtractedCriterion(
                 trial_id=trial.id,
@@ -301,6 +308,19 @@ class IngestionService:
                 pipeline_run_id=run.id,
             )
             self._db.add(db_criterion)
+            persisted_count += 1
+            if review_required:
+                review_count += 1
+
+        return persisted_count, review_count
+
+    def _aggregate_coding_review_reason(self, reasons: set[str]) -> str | None:
+        normalized = {reason for reason in reasons if reason}
+        if not normalized:
+            return None
+        if len(normalized) == 1:
+            return next(iter(normalized))
+        return "mixed_coding_review"
 
     def _latest_completed_run(self, trial_id) -> PipelineRun | None:
         return (

@@ -7,6 +7,8 @@ from unittest.mock import patch
 import docker
 import pytest
 
+from app.extraction.coding.entity_coder import CodingResult
+from app.extraction.types import ClassifiedCriterion, CodedConcept, Entity, PipelineResult
 from app.ingestion.hasher import content_hash
 from app.ingestion.service import IngestionService
 from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
@@ -54,6 +56,120 @@ class TestIngestSingleTrial:
         assert run is not None
         assert run.status == "completed"
         assert run.input_snapshot is not None
+
+    def test_ingest_aggregates_mixed_coding_review_reasons_and_counts(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Confirmed breast cancr with HER2-positive disease",
+                    type="inclusion",
+                    category="diagnosis",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[
+                        Entity(text="breast cancr", label="DISEASE", start=10, end=22),
+                        Entity(text="HER2-positive", label="BIOMARKER", start=28, end=41),
+                    ],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+        coding_results = [
+            CodingResult(
+                concepts=[
+                    CodedConcept(
+                        system="mesh",
+                        code="D001943",
+                        display="Breast Neoplasms",
+                        match_type="fuzzy",
+                    )
+                ],
+                confidence=0.60,
+                review_required=True,
+                review_reason="fuzzy_match",
+            ),
+            CodingResult(
+                concepts=[],
+                confidence=0.40,
+                review_required=True,
+                review_reason="uncoded_entity",
+            ),
+        ]
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+            patch.object(service._coder, "code_entity", side_effect=coding_results),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).first()
+        run = (
+            db_session.query(PipelineRun)
+            .filter_by(trial_id=trial.id)
+            .order_by(PipelineRun.started_at.desc())
+            .first()
+        )
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.criteria_count == 1
+        assert result.review_count == 1
+        assert run.criteria_extracted_count == 1
+        assert run.review_required_count == 1
+        assert criterion.review_required is True
+        assert criterion.review_reason == "mixed_coding_review"
+        assert criterion.confidence == 0.40
+        assert criterion.review_status == "pending"
+        assert criterion.coded_concepts == [
+            {
+                "system": "mesh",
+                "code": "D001943",
+                "display": "Breast Neoplasms",
+                "match_type": "fuzzy",
+            }
+        ]
+
+    def test_ingest_preserves_non_coding_review_reason_while_counting_coding_flags(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="No prior treatment with trastuzumab, unless administered more than 6 months ago",
+                    type="exclusion",
+                    category="prior_therapy",
+                    parse_status="partial",
+                    confidence=0.30,
+                    review_required=True,
+                    review_reason="complex_criteria",
+                    entities=[Entity(text="trastuzumab", label="DRUG", start=24, end=35)],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+        coding_result = CodingResult(
+            concepts=[],
+            confidence=0.40,
+            review_required=True,
+            review_reason="uncoded_entity",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+            patch.object(service._coder, "code_entity", return_value=coding_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).first()
+        run = db_session.query(PipelineRun).filter_by(trial_id=trial.id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.review_count == 1
+        assert run.review_required_count == 1
+        assert criterion.review_required is True
+        assert criterion.review_reason == "complex_criteria"
+        assert criterion.confidence == 0.30
 
 
 class TestIdempotency:
