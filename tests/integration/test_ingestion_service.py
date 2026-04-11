@@ -1,4 +1,7 @@
+import copy
 import json
+import uuid
+
 import docker
 import pytest
 from pathlib import Path
@@ -22,9 +25,12 @@ def _docker_available():
 pytestmark = pytest.mark.skipif(not _docker_available(), reason="Docker not available")
 
 
-@pytest.fixture
-def mock_ctgov_response():
-    return json.loads((MOCK_DIR / "NCT04567890.json").read_text())
+def _unique_mock_response():
+    """Load mock response and assign a unique NCT ID to avoid cross-test collisions."""
+    data = json.loads((MOCK_DIR / "NCT04567890.json").read_text())
+    nct_id = f"NCT{uuid.uuid4().hex[:8].upper()}"
+    data["protocolSection"]["identificationModule"]["nctId"] = nct_id
+    return nct_id, data
 
 
 @pytest.fixture
@@ -33,15 +39,16 @@ def service(db_session):
 
 
 class TestIngestSingleTrial:
-    def test_ingests_and_extracts(self, service, db_session, mock_ctgov_response):
-        with patch.object(service._client, "fetch_study", return_value=mock_ctgov_response):
-            result = service.ingest("NCT04567890")
+    def test_ingests_and_extracts(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            result = service.ingest(nct_id)
 
-        assert result.trial.nct_id == "NCT04567890"
+        assert result.trial.nct_id == nct_id
         assert result.trial.extraction_status == "completed"
         assert result.criteria_count > 0
 
-        trial = db_session.query(Trial).filter_by(nct_id="NCT04567890").first()
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).first()
         assert trial is not None
         run = db_session.query(PipelineRun).filter_by(trial_id=trial.id).first()
         assert run is not None
@@ -50,23 +57,25 @@ class TestIngestSingleTrial:
 
 
 class TestIdempotency:
-    def test_reingest_unchanged_skips(self, service, db_session, mock_ctgov_response):
-        with patch.object(service._client, "fetch_study", return_value=mock_ctgov_response):
-            result1 = service.ingest("NCT04567890")
-            result2 = service.ingest("NCT04567890")
+    def test_reingest_unchanged_skips(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            result1 = service.ingest(nct_id)
+            result2 = service.ingest(nct_id)
 
         assert result2.skipped is True
         runs = db_session.query(PipelineRun).filter_by(trial_id=result1.trial.id).count()
         assert runs == 1
 
-    def test_reingest_changed_reextracts(self, service, db_session, mock_ctgov_response):
-        with patch.object(service._client, "fetch_study", return_value=mock_ctgov_response):
-            result1 = service.ingest("NCT04567890")
+    def test_reingest_changed_reextracts(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            result1 = service.ingest(nct_id)
 
-        changed = json.loads(json.dumps(mock_ctgov_response))
+        changed = copy.deepcopy(mock_resp)
         changed["protocolSection"]["eligibilityModule"]["eligibilityCriteria"] = "Age >= 21 years"
         with patch.object(service._client, "fetch_study", return_value=changed):
-            result2 = service.ingest("NCT04567890")
+            result2 = service.ingest(nct_id)
 
         assert result2.skipped is False
         runs = db_session.query(PipelineRun).filter_by(trial_id=result1.trial.id).count()

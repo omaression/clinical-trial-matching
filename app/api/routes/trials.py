@@ -33,24 +33,24 @@ def ingest_trial(request: IngestRequest, db: Session = Depends(get_db)):
 @router.post("/trials/search-ingest", status_code=201)
 def search_and_ingest(request: SearchIngestRequest, db: Session = Depends(get_db)):
     service = IngestionService(db)
-    studies = service._client.search_studies(
+    results = service.search_and_ingest(
         condition=request.condition,
         status=request.status,
         phase=request.phase,
         limit=request.limit,
     )
-    results = []
-    for study in studies:
-        nct_id = study.get("protocolSection", {}).get("identificationModule", {}).get("nctId")
-        if nct_id:
-            result = service.ingest(nct_id)
-            results.append({
-                "nct_id": nct_id,
-                "trial_id": str(result.trial.id),
-                "criteria_count": result.criteria_count,
-                "skipped": result.skipped,
-            })
-    return {"ingested": len(results), "trials": results}
+    return {
+        "ingested": len(results),
+        "trials": [
+            {
+                "nct_id": r.trial.nct_id,
+                "trial_id": str(r.trial.id),
+                "criteria_count": r.criteria_count,
+                "skipped": r.skipped,
+            }
+            for r in results
+        ],
+    }
 
 
 # --- Trial retrieval ---
@@ -239,10 +239,7 @@ def re_extract_trial(trial_id: UUID, db: Session = Depends(get_db)):
     if not trial:
         raise HTTPException(status_code=404, detail="Trial not found")
     service = IngestionService(db)
-    # Force re-extraction by clearing the content hash
-    trial.content_hash = ""
-    db.flush()
-    result = service.ingest(trial.nct_id)
+    result = service.re_extract(trial)
     return {
         "trial_id": str(trial.id),
         "criteria_count": result.criteria_count,

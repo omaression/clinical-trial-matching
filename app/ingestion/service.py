@@ -65,54 +65,9 @@ class IngestionService:
         self._db.flush()
 
         try:
-            # Run extraction
             result = self._pipeline.extract(eligibility_text)
+            self._persist_criteria(trial, run, result)
 
-            # Persist criteria with coding
-            for criterion in result.criteria:
-                # Enrich with entity coding
-                coded_concepts = list(criterion.coded_concepts)
-                review_required = criterion.review_required
-                review_reason = criterion.review_reason
-                confidence = criterion.confidence
-
-                for entity in criterion.entities:
-                    coding_result = self._coder.code_entity(entity)
-                    coded_concepts.extend(coding_result.concepts)
-                    if coding_result.review_required and not review_required:
-                        review_required = True
-                        review_reason = coding_result.review_reason
-                        confidence = min(confidence, coding_result.confidence)
-
-                db_criterion = ExtractedCriterion(
-                    trial_id=trial.id,
-                    type=criterion.type,
-                    category=criterion.category,
-                    parse_status=criterion.parse_status,
-                    original_text=criterion.original_text,
-                    operator=criterion.operator,
-                    value_low=criterion.value_low,
-                    value_high=criterion.value_high,
-                    value_text=criterion.value_text,
-                    unit=criterion.unit,
-                    raw_expression=criterion.raw_expression,
-                    negated=criterion.negated,
-                    timeframe_operator=criterion.timeframe_operator,
-                    timeframe_value=criterion.timeframe_value,
-                    timeframe_unit=criterion.timeframe_unit,
-                    logic_group_id=criterion.logic_group_id,
-                    logic_operator=criterion.logic_operator,
-                    coded_concepts=[c.model_dump() for c in coded_concepts],
-                    confidence=confidence,
-                    review_required=review_required,
-                    review_reason=review_reason,
-                    review_status="pending" if review_required else None,
-                    pipeline_version=settings.pipeline_version,
-                    pipeline_run_id=run.id,
-                )
-                self._db.add(db_criterion)
-
-            # Update run and trial status
             run.status = "completed"
             run.finished_at = datetime.utcnow()
             run.criteria_extracted_count = result.criteria_count
@@ -134,6 +89,114 @@ class IngestionService:
             trial.extraction_status = "failed"
             self._db.commit()
             raise
+
+    def re_extract(self, trial: Trial) -> IngestionResult:
+        """Re-run the extraction pipeline on a trial's stored raw_json without re-fetching."""
+        eligibility_text = self._extract_eligibility_text(trial.raw_json)
+
+        # Delete old criteria for this trial
+        self._db.query(ExtractedCriterion).filter(
+            ExtractedCriterion.trial_id == trial.id
+        ).delete()
+
+        # Create new pipeline run
+        run = PipelineRun(
+            trial_id=trial.id,
+            pipeline_version=settings.pipeline_version,
+            input_hash=content_hash(eligibility_text),
+            input_snapshot=trial.raw_json,
+            status="running",
+        )
+        self._db.add(run)
+        self._db.flush()
+
+        try:
+            result = self._pipeline.extract(eligibility_text)
+            self._persist_criteria(trial, run, result)
+
+            run.status = "completed"
+            run.finished_at = datetime.utcnow()
+            run.criteria_extracted_count = result.criteria_count
+            run.review_required_count = result.review_required_count
+            trial.extraction_status = "completed"
+
+            self._db.commit()
+
+            return IngestionResult(
+                trial=trial,
+                criteria_count=result.criteria_count,
+                review_count=result.review_required_count,
+            )
+        except Exception as e:
+            run.status = "failed"
+            run.finished_at = datetime.utcnow()
+            run.error_message = str(e)
+            trial.extraction_status = "failed"
+            self._db.commit()
+            raise
+
+    def search_and_ingest(
+        self,
+        condition: str | None = None,
+        status: str | None = None,
+        phase: str | None = None,
+        limit: int = 25,
+    ) -> list[IngestionResult]:
+        """Search ClinicalTrials.gov and ingest matching studies."""
+        studies = self._client.search_studies(
+            condition=condition, status=status, phase=phase, limit=limit,
+        )
+        results = []
+        for study in studies:
+            nct_id = study.get("protocolSection", {}).get("identificationModule", {}).get("nctId")
+            if nct_id:
+                result = self.ingest(nct_id)
+                results.append(result)
+        return results
+
+    def _persist_criteria(self, trial: Trial, run: PipelineRun, result) -> None:
+        """Enrich extracted criteria with entity coding and persist to DB."""
+        for criterion in result.criteria:
+            coded_concepts = list(criterion.coded_concepts)
+            review_required = criterion.review_required
+            review_reason = criterion.review_reason
+            confidence = criterion.confidence
+
+            for entity in criterion.entities:
+                coding_result = self._coder.code_entity(entity)
+                coded_concepts.extend(coding_result.concepts)
+                if coding_result.review_required and not review_required:
+                    review_required = True
+                    review_reason = coding_result.review_reason
+                    confidence = min(confidence, coding_result.confidence)
+
+            db_criterion = ExtractedCriterion(
+                trial_id=trial.id,
+                type=criterion.type,
+                category=criterion.category,
+                parse_status=criterion.parse_status,
+                original_text=criterion.original_text,
+                operator=criterion.operator,
+                value_low=criterion.value_low,
+                value_high=criterion.value_high,
+                value_text=criterion.value_text,
+                unit=criterion.unit,
+                raw_expression=criterion.raw_expression,
+                negated=criterion.negated,
+                timeframe_operator=criterion.timeframe_operator,
+                timeframe_value=criterion.timeframe_value,
+                timeframe_unit=criterion.timeframe_unit,
+                logic_group_id=criterion.logic_group_id,
+                logic_operator=criterion.logic_operator,
+                coded_concepts=[c.model_dump() for c in coded_concepts],
+                confidence=confidence,
+                review_required=review_required,
+                review_reason=review_reason,
+                review_status="pending" if review_required else None,
+                pipeline_version=settings.pipeline_version,
+                pipeline_run_id=run.id,
+            )
+            self._db.add(db_criterion)
 
     def _extract_eligibility_text(self, raw_json: dict) -> str:
         protocol = raw_json.get("protocolSection", {})
