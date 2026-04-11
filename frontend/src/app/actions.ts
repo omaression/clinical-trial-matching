@@ -59,6 +59,26 @@ function optionalFormString(formData: FormData, key: string): string | undefined
   return typeof value === "string" ? value : undefined;
 }
 
+function actionErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof z.ZodError) {
+    return error.issues.map((issue) => issue.message).join(" ");
+  }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
+
+function redirectToPipelineWithError(error: string, values?: Record<string, string | undefined>): never {
+  const query = new URLSearchParams({ error });
+  for (const [key, value] of Object.entries(values ?? {})) {
+    if (value) {
+      query.set(key, value);
+    }
+  }
+  redirect(`/pipeline?${query.toString()}`);
+}
+
 export async function createPatientAction(formData: FormData) {
   const parsed = createPatientSchema.parse(Object.fromEntries(formData.entries()));
 
@@ -97,24 +117,57 @@ export async function createPatientAction(formData: FormData) {
 }
 
 export async function ingestTrialAction(formData: FormData) {
-  const parsed = ingestTrialSchema.parse(Object.fromEntries(formData.entries()));
-  const result = await ctmApi.ingestTrial({ nct_id: parsed.nct_id.toUpperCase() });
+  const rawNctId = optionalFormString(formData, "nct_id") ?? "";
+  const parsed = ingestTrialSchema.safeParse({ nct_id: rawNctId });
+  if (!parsed.success) {
+    redirectToPipelineWithError(actionErrorMessage(parsed.error, "Use a valid NCT ID."), {
+      nct_id: rawNctId
+    });
+  }
+  const data = parsed.data;
+
+  let result;
+  try {
+    result = await ctmApi.ingestTrial({ nct_id: data.nct_id.toUpperCase() });
+  } catch (error) {
+    redirectToPipelineWithError(actionErrorMessage(error, "Trial ingest failed."), {
+      nct_id: rawNctId
+    });
+  }
+  const ingestResult = result;
 
   revalidatePath("/");
   revalidatePath("/pipeline");
   revalidatePath("/review");
   revalidatePath("/trials");
-  redirect(`/trials/${result.trial_id}`);
+  redirect(`/trials/${ingestResult.trial_id}`);
 }
 
 export async function searchIngestAction(formData: FormData) {
-  const parsed = searchIngestSchema.parse(Object.fromEntries(formData.entries()));
-  const result = await ctmApi.searchAndIngest({
-    condition: parsed.condition || undefined,
-    status: parsed.status || undefined,
-    phase: parsed.phase || undefined,
-    limit: parsed.limit
-  });
+  const submitted = {
+    condition: optionalFormString(formData, "condition") ?? "",
+    status: optionalFormString(formData, "status") ?? "",
+    phase: optionalFormString(formData, "phase") ?? "",
+    limit: optionalFormString(formData, "limit") ?? "10"
+  };
+  const parsed = searchIngestSchema.safeParse(submitted);
+  if (!parsed.success) {
+    redirectToPipelineWithError(actionErrorMessage(parsed.error, "Search ingest failed validation."), submitted);
+  }
+  const data = parsed.data;
+
+  let result;
+  try {
+    result = await ctmApi.searchAndIngest({
+      condition: data.condition || undefined,
+      status: data.status || undefined,
+      phase: data.phase || undefined,
+      limit: data.limit
+    });
+  } catch (error) {
+    redirectToPipelineWithError(actionErrorMessage(error, "Search ingest failed."), submitted);
+  }
+  const searchResult = result;
 
   revalidatePath("/");
   revalidatePath("/pipeline");
@@ -123,27 +176,28 @@ export async function searchIngestAction(formData: FormData) {
 
   const query = new URLSearchParams({
     batch: "1",
-    attempted: String(result.attempted),
-    returned: String(result.returned),
-    ingested: String(result.ingested),
-    skipped: String(result.skipped),
-    failed: String(result.failed)
+    attempted: String(searchResult.attempted),
+    returned: String(searchResult.returned),
+    ingested: String(searchResult.ingested),
+    skipped: String(searchResult.skipped),
+    failed: String(searchResult.failed)
   });
-  if (result.total_count !== undefined && result.total_count !== null) {
-    query.set("total_count", String(result.total_count));
+  if (searchResult.total_count !== undefined && searchResult.total_count !== null) {
+    query.set("total_count", String(searchResult.total_count));
   }
-  if (result.next_page_token) {
+  if (searchResult.next_page_token) {
     query.set("has_more", "1");
   }
-  if (parsed.condition) {
-    query.set("condition", parsed.condition);
+  if (data.condition) {
+    query.set("condition", data.condition);
   }
-  if (parsed.status) {
-    query.set("status", parsed.status);
+  if (data.status) {
+    query.set("status", data.status);
   }
-  if (parsed.phase) {
-    query.set("phase", parsed.phase);
+  if (data.phase) {
+    query.set("phase", data.phase);
   }
+  query.set("limit", String(data.limit));
 
   redirect(`/pipeline?${query.toString()}`);
 }

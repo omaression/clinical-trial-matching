@@ -11,6 +11,9 @@ import { formatDate } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
+  error?: string;
+  nct_id?: string;
+  limit?: string;
   batch?: string;
   attempted?: string;
   returned?: string;
@@ -53,6 +56,12 @@ export default async function PipelinePage({
           </>
         }
       />
+
+      {params.error ? (
+        <Panel title="Operation Error" eyebrow="Submit failed">
+          <p className="text-sm leading-7 text-ember">{params.error}</p>
+        </Panel>
+      ) : null}
 
       {params.batch === "1" ? (
         <Panel title="Latest Search-Ingest Batch" eyebrow="Just completed">
@@ -102,7 +111,7 @@ export default async function PipelinePage({
           <form action={ingestTrialAction} className="grid gap-4">
             <input
               className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
-              defaultValue=""
+              defaultValue={params.nct_id ?? ""}
               name="nct_id"
               placeholder="NCT05346328"
               required
@@ -141,7 +150,7 @@ export default async function PipelinePage({
               />
               <input
                 className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
-                defaultValue="5"
+                defaultValue={params.limit ?? "5"}
                 max="100"
                 min="1"
                 name="limit"
