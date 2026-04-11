@@ -40,6 +40,11 @@ class ExtractionPipeline:
         except ImportError:
             return nlp
         nlp.add_pipe("abbreviation_detector")
+        detector = nlp.get_pipe("abbreviation_detector")
+        global_matcher = getattr(detector, "global_matcher", None)
+        # Some SciSpaCy installs register the component with an empty matcher, which only emits warnings.
+        if global_matcher is not None and len(global_matcher) == 0:
+            nlp.remove_pipe("abbreviation_detector")
         return nlp
 
     def extract(self, eligibility_text: str) -> PipelineResult:
