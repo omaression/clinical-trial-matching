@@ -64,6 +64,12 @@ Run on different ports:
 CTM_BACKEND_PORT=8010 CTM_FRONTEND_PORT=3010 ./scripts/dev.sh
 ```
 
+Load realistic local demo data after the stack is ready:
+
+```bash
+python -m app.scripts.seed_demo
+```
+
 ## Failure Modes
 
 - If `frontend/node_modules` is missing, the launcher exits immediately. Run `cd frontend && npm install` once.
