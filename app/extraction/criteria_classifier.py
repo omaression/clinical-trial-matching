@@ -10,7 +10,10 @@ _CNS_PATTERN = re.compile(r"\b(?:cns|brain|central nervous system|leptomeningeal
 _STAGE_PATTERN = re.compile(r"\b(?:stage\s+[IViv]+|unresectable|metastatic|locally advanced)\b", re.I)
 _HISTOLOGY_PATTERN = re.compile(r"\b(?:adenocarcinoma|squamous|histolog|histopatholog)\b", re.I)
 _MOLECULAR_PATTERN = re.compile(r"\b(?:mutation|rearrangement|amplification|fusion|alteration|wild.?type)\b", re.I)
-_CONCOMITANT_PATTERN = re.compile(r"\b(?:concurrent|concomitant)\s+(?:medication|drug|treatment)\b", re.I)
+_CONCOMITANT_PATTERN = re.compile(
+    r"\b(?:concurrent|concomitant)\b.*\b(?:medications?|drugs?|treatments?|inhibitors?|inducers?|substrates?)\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(r"\b(?:unless|except|provided that|other than)\b", re.I)
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 

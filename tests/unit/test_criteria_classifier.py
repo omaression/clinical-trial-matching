@@ -1,6 +1,7 @@
 import pytest
+
 from app.extraction.criteria_classifier import RuleBasedClassifier
-from app.extraction.types import Entity, ClassifiedCriterion
+from app.extraction.types import Entity
 
 
 @pytest.fixture
@@ -87,11 +88,23 @@ class TestCategoryAssignment:
         assert result.category == "cns_metastases"
         assert result.negated is True
 
+    def test_concomitant_medication_from_inhibitor_language(self, classifier):
+        result = classifier.classify(
+            "No concurrent CYP3A4 inhibitors",
+            [],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "partial"
+        assert result.review_required is True
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):
         result = classifier.classify(
-            "No prior treatment with trastuzumab, unless administered in the adjuvant setting > 6 months ago, or pertuzumab",
+            (
+                "No prior treatment with trastuzumab, unless administered in the "
+                "adjuvant setting > 6 months ago, or pertuzumab"
+            ),
             [
                 Entity(text="trastuzumab", label="DRUG", start=28, end=39),
                 Entity(text="pertuzumab", label="DRUG", start=98, end=108),
