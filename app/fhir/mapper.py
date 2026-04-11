@@ -87,12 +87,14 @@ class FHIRMapper:
         return resource
 
     def _filter_exportable(self, criteria: list[ExtractedCriterion]) -> list[ExtractedCriterion]:
-        """Only export parsed/partial criteria that haven't been rejected."""
+        """Only export criteria that are structurally usable and no longer pending review."""
         exportable = []
         for c in criteria:
             if c.parse_status not in ("parsed", "partial"):
                 continue
             if c.review_status == "rejected":
+                continue
+            if c.review_required and c.review_status not in {"accepted", "corrected"}:
                 continue
             exportable.append(c)
         return exportable

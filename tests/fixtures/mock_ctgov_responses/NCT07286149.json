@@ -1,0 +1,61 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT07286149",
+      "briefTitle": "A Clinical Study of MK-1084 With Other Treatments for Non-small Cell Lung Cancer (MK-3475-01F)",
+      "officialTitle": "KEYMAKER-U01 Substudy 01F: A Phase 1b/2 Umbrella Study With Rolling Arms of Investigational Agents for Previously Treated Participants With Advanced or Metastatic Nonsquamous Non-small Cell Lung Cancer (NSCLC) With KRAS G12C Mutations"
+    },
+    "statusModule": {
+      "overallStatus": "RECRUITING",
+      "startDateStruct": {
+        "date": "2025-01-01"
+      },
+      "completionDateStruct": {
+        "date": "2028-12-31"
+      },
+      "lastUpdatePostDateStruct": {
+        "date": "2026-04-01"
+      }
+    },
+    "designModule": {
+      "phases": [
+        "PHASE1",
+        "PHASE2"
+      ]
+    },
+    "conditionsModule": {
+      "conditions": [
+        "Lung Neoplasm Malignant"
+      ]
+    },
+    "armsInterventionsModule": {
+      "interventions": [
+        {
+          "name": "MK-1084",
+          "type": "DRUG",
+          "description": "Oral administration"
+        },
+        {
+          "name": "Cetuximab",
+          "type": "BIOLOGICAL",
+          "description": "IV infusion"
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n\nThe main inclusion criteria include but are not limited to the following:\n\n* Has histologically or cytologically confirmed diagnosis of advanced or metastatic non-squamous non-small cell lung cancer (NSCLC)\n* Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to cysteine at codon 12 (G12C) mutations\n* Has documented disease progression after receiving 1-2 prior lines of programmed cell death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based chemotherapy\n* Provides archival tumor tissue sample of a tumor lesion not previously irradiated\n* Has provided tissue prior to treatment allocation/randomization from a newly obtained biopsy of a tumor lesion not previously irradiated\n* Participants with human immunodeficiency virus (HIV) infection must have well-controlled HIV on antiretroviral therapy (ART) per protocol\n\nExclusion Criteria:\n\nThe main exclusion criteria include but are not limited to the following:\n\n* Has a diagnosis of small cell lung cancer or, for mixed tumors, presence of small cell elements\n* Has clinically severe pulmonary compromise resulting from intercurrent pulmonary illnesses\n* Has known active central nervous system (CNS) metastases and/or carcinomatous meningitis\n* Has active inflammatory bowel disease requiring immunosuppressive medication or previous history of inflammatory bowel disease\n* Has evidence of any leptomeningeal disease\n* Has uncontrolled or significant cardiovascular disorder or cerebrovascular disease prior to allocation/randomization\n* Has one or more of the following ophthalmological conditions: a) Clinically significant corneal disease b) history of documented severe dry eye syndrome, severe Meibomian gland disease and/or blepharitis\n* HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease\n* Has received previous treatment with an agent targeting KRAS\n* Has received a live or live-attenuated vaccine within 30 days before the first dose of study intervention\n* Has a diagnosis of immunodeficiency or is receiving chronic systemic steroid therapy or any other form of immunosuppressive therapy within 7 days prior to the first dose of study intervention\n* Has known additional malignancy that is progressing or has required active treatment within the past 3 years\n* Has history of (noninfectious) pneumonitis/ interstitial lung disease (ILD) that required steroids or has current pneumonitis/ILD\n* Has an active infection requiring systemic therapy\n* Have not adequately recovered from major surgery or have ongoing surgical complications",
+      "minimumAge": "18 Years",
+      "maximumAge": null,
+      "sex": "ALL",
+      "healthyVolunteers": false
+    },
+    "sponsorCollaboratorsModule": {
+      "leadSponsor": {
+        "name": "Merck Sharp & Dohme LLC"
+      }
+    },
+    "contactsLocationsModule": {
+      "locations": []
+    }
+  }
+}

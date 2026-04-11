@@ -147,6 +147,23 @@ class TestCategoryAssignment:
         assert result.category == "prior_therapy"
         assert result.negated is True
 
+    def test_disease_with_stage_modifier_stays_diagnosis_primary(self, classifier):
+        result = classifier.classify(
+            "Histologically confirmed metastatic non-small cell lung cancer",
+            [Entity(text="non-small cell lung cancer", label="DISEASE", start=34, end=61)],
+        )
+        assert result.category == "diagnosis"
+
+    def test_active_infection_routes_to_diagnosis_instead_of_prior_therapy(self, classifier):
+        result = classifier.classify(
+            "Has an active infection requiring systemic therapy",
+            [],
+        )
+        assert result.category == "diagnosis"
+        assert result.parse_status == "partial"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
     def test_text_only_histology_becomes_parsed_without_review(self, classifier):
         result = classifier.classify(
             "Histologically confirmed adenocarcinoma",

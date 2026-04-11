@@ -46,6 +46,12 @@ _ORGAN_FUNCTION_PATTERN = re.compile(
     r"hematologic function|haematologic function|bone marrow function)\b",
     re.I,
 )
+_CURRENT_CONDITION_PATTERN = re.compile(
+    r"\b(?:active infection|immunodeficiency|pneumonitis|interstitial lung disease|"
+    r"inflammatory bowel disease|cardiovascular disorder|cerebrovascular disease|"
+    r"pulmonary illnesses?)\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(
     r"\b(?:unless|except|provided that|other than|whichever\s+is\s+(?:longer|shorter)|"
     r"including\s+but\s+not\s+limited\s+to)\b",
@@ -227,6 +233,8 @@ class RuleBasedClassifier:
             return "cns_metastases"
         if _LINE_PATTERN.search(text):
             return "line_of_therapy"
+        if "DISEASE" in labels or _CURRENT_CONDITION_PATTERN.search(text):
+            return "diagnosis"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
             return "prior_therapy"
         if "DRUG" in labels:
@@ -255,6 +263,8 @@ class RuleBasedClassifier:
             return "age"
         if _CNS_PATTERN.search(text):
             return "cns_metastases"
+        if _CURRENT_CONDITION_PATTERN.search(text):
+            return "diagnosis"
         if _STAGE_PATTERN.search(text):
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):

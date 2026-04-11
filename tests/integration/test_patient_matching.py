@@ -155,6 +155,22 @@ class TestPatientMatching:
                 },
                 {
                     "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                },
+                {
+                    "type": "inclusion",
+                    "category": "molecular_alteration",
+                    "original_text": "HER2-positive disease",
+                    "coded_concepts": [
+                        {"system": "nci_thesaurus", "code": "C68748", "display": "HER2 Positive"}
+                    ],
+                },
+                {
+                    "type": "inclusion",
                     "category": "biomarker",
                     "original_text": "HER2-positive disease",
                     "coded_concepts": [
@@ -254,6 +270,8 @@ class TestPatientMatching:
         outcomes = {(item["source_type"], item["category"]): item["outcome"] for item in detail.json()["criteria"]}
         assert outcomes[("structured", "sex")] == "matched"
         assert outcomes[("structured", "age")] == "matched"
+        assert outcomes[("extracted", "diagnosis")] == "matched"
+        assert outcomes[("extracted", "molecular_alteration")] == "matched"
         assert outcomes[("extracted", "biomarker")] == "matched"
         assert outcomes[("extracted", "lab_value")] == "matched"
         assert ("extracted", "sex") not in outcomes

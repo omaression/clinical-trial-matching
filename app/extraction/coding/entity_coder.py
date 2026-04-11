@@ -35,6 +35,14 @@ class EntityCoder:
         self._db = db
 
     def code_entity(self, entity: Entity) -> CodingResult:
+        systems = _SYSTEMS_BY_LABEL.get(entity.label)
+        if not systems:
+            return CodingResult(
+                concepts=[],
+                confidence=0.0,
+                review_required=False,
+                review_reason=None,
+            )
         lookup_text = _normalize_text(entity.lookup_text)
         if not lookup_text:
             return CodingResult(
@@ -43,7 +51,6 @@ class EntityCoder:
                 review_required=True,
                 review_reason="uncoded_entity",
             )
-        systems = _SYSTEMS_BY_LABEL.get(entity.label, _SYSTEM_PRIORITY)
 
         # Tier 1: Exact match on display
         result = self._exact_match(lookup_text, systems)

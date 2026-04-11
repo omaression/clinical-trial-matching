@@ -366,9 +366,9 @@ class PatientMatchService:
                     criterion.type,
                     _sex_matches(criterion, patient.sex),
                 )
-        elif criterion.category in {"disease_stage", "histology", "cns_metastases", "other"}:
+        elif criterion.category in {"diagnosis", "disease_stage", "histology", "cns_metastases", "other"}:
             outcome = _evaluate_fact_match(criterion, patient.conditions)
-        elif criterion.category == "biomarker":
+        elif criterion.category in {"biomarker", "molecular_alteration"}:
             outcome = _evaluate_fact_match(criterion, patient.biomarkers)
         elif criterion.category == "lab_value":
             outcome = _evaluate_lab_match(criterion, patient.labs)

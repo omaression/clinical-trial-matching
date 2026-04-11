@@ -36,6 +36,12 @@ def _unique_mock_response():
     return nct_id, data
 
 
+def _mock_response_from_file(filename: str):
+    data = json.loads((MOCK_DIR / filename).read_text())
+    nct_id = data["protocolSection"]["identificationModule"]["nctId"]
+    return nct_id, data
+
+
 @pytest.fixture
 def service(db_session):
     return IngestionService(db_session)
@@ -171,6 +177,45 @@ class TestIngestSingleTrial:
         assert criterion.review_required is True
         assert criterion.review_reason == "complex_criteria"
         assert criterion.confidence == 0.30
+
+    def test_nct07286149_regression_blocks_known_absurd_codes(self, service, db_session):
+        nct_id, mock_resp = _mock_response_from_file("NCT07286149.json")
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).all()
+        criteria_by_text = {criterion.original_text: criterion for criterion in criteria}
+
+        def coded_keys(text: str) -> set[tuple[str, str]]:
+            criterion = criteria_by_text[text]
+            return {
+                (concept["system"], concept["code"])
+                for concept in (criterion.coded_concepts or [])
+                if isinstance(concept, dict)
+            }
+
+        assert ("loinc", "718-7") not in coded_keys(
+            "* Has tumor tissue or circulating tumor deoxyribonucleic acid (ctDNA) that demonstrates the presence of Kirsten rat sarcoma viral oncogene (KRAS) mutation of glycine to cysteine at codon 12 (G12C) mutations"
+        )
+        assert ("loinc", "718-7") not in coded_keys(
+            "* Has documented disease progression after receiving 1-2 prior lines of programmed cell death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based chemotherapy"
+        )
+        assert ("loinc", "1742-6") not in coded_keys(
+            "* Participants with human immunodeficiency virus (HIV) infection must have well-controlled HIV on antiretroviral therapy (ART) per protocol"
+        )
+        assert ("loinc", "6301-6") not in coded_keys(
+            "* Has one or more of the following ophthalmological conditions: a) Clinically significant corneal disease b) history of documented severe dry eye syndrome, severe Meibomian gland disease and/or blepharitis"
+        )
+        assert ("mesh", "D015266") not in coded_keys(
+            "* Has received a live or live-attenuated vaccine within 30 days before the first dose of study intervention"
+        )
+        assert ("mesh", "D015266") not in coded_keys(
+            "* Has a diagnosis of immunodeficiency or is receiving chronic systemic steroid therapy or any other form of immunosuppressive therapy within 7 days prior to the first dose of study intervention"
+        )
+        assert ("mesh", "D015451") not in coded_keys(
+            "* Has history of (noninfectious) pneumonitis/ interstitial lung disease (ILD) that required steroids or has current pneumonitis/ILD"
+        )
 
 
 class TestIdempotency:

@@ -98,3 +98,18 @@ class TestCriteriaExclusion:
         ext = resource.get("extension", [])
         inclusion_ext = [e for e in ext if e.get("url", "").endswith("inclusion")]
         assert len(inclusion_ext) > 0
+
+    def test_pending_review_criteria_are_excluded(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="inclusion",
+                category="molecular_alteration",
+                original_text="KRAS G12C mutation present",
+                parse_status="parsed",
+                coded_concepts=[{"system": "nci_thesaurus", "code": "C126815", "display": "KRAS Mutation Positive"}],
+                review_required=True,
+                review_status="pending",
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        assert "extension" not in resource

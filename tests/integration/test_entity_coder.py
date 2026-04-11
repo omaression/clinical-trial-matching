@@ -93,6 +93,13 @@ class TestNoMatch:
         assert result.review_required is True
         assert result.confidence == 0.40
 
+    def test_non_codeable_labels_are_skipped_without_review(self, coder):
+        entity = Entity(text="30 days", label="DATE", start=0, end=7)
+        result = coder.code_entity(entity)
+        assert result.concepts == []
+        assert result.review_required is False
+        assert result.review_reason is None
+
 
 class TestExpandedText:
     def test_uses_expanded_text(self, coder):
