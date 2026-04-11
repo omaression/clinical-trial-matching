@@ -1,3 +1,4 @@
+import { FhirResearchStudyView } from "@/components/fhir-research-study-view";
 import { reextractTrialAction } from "@/app/actions";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -93,9 +94,7 @@ export default async function TrialDetailPage({
       </Panel>
 
       <Panel title="FHIR Preview" eyebrow="Derived export">
-        <pre className="overflow-x-auto rounded-3xl bg-ink p-5 text-xs leading-6 text-sand">
-          {JSON.stringify(fhir, null, 2)}
-        </pre>
+        <FhirResearchStudyView resource={fhir} />
       </Panel>
     </>
   );

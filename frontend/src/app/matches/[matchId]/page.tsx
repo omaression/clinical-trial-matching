@@ -1,3 +1,4 @@
+import { StructuredDataView } from "@/components/structured-data-view";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
@@ -60,10 +61,10 @@ export default async function MatchDetailPage({
             <p className="mt-3 text-sm leading-7 text-ink/72">{criterion.explanation_text}</p>
             {criterion.evidence_payload ? (
               <details className="mt-4 rounded-2xl bg-sand/65 p-4">
-                <summary className="cursor-pointer text-sm font-semibold text-ink">Evidence payload</summary>
-                <pre className="mt-3 overflow-x-auto text-xs leading-6 text-ink/75">
-                  {JSON.stringify(criterion.evidence_payload, null, 2)}
-                </pre>
+                <summary className="cursor-pointer text-sm font-semibold text-ink">Structured evidence</summary>
+                <div className="mt-4">
+                  <StructuredDataView data={criterion.evidence_payload} emptyLabel="No structured evidence payload is available." />
+                </div>
               </details>
             ) : null}
           </article>
