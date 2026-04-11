@@ -107,6 +107,17 @@ class TestCategoryAssignment:
         assert result.review_required is False
         assert result.review_reason is None
 
+    def test_age_sentence_routes_to_age_threshold(self, classifier):
+        result = classifier.classify(
+            "Patients must be at least 18 years old.",
+            [Entity(text="18 years", label="MEASURE", start=26, end=34)],
+        )
+        assert result.category == "age"
+        assert result.operator == "gte"
+        assert result.value_low == 18
+        assert result.unit == "years"
+        assert result.timeframe_operator is None
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):

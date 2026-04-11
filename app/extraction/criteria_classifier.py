@@ -2,9 +2,9 @@ import re
 
 from app.extraction.negation_resolver import LogicGrouper, NegationResolver, TemporalParser
 from app.extraction.quantitative_parser import QuantitativeParser
-from app.extraction.types import ClassifiedCriterion, Entity
+from app.extraction.types import ClassifiedCriterion, Entity, QuantitativeValue
 
-_AGE_PATTERN = re.compile(r"\bage\b", re.I)
+_AGE_PATTERN = re.compile(r"\b(?:age|years?\s+old)\b", re.I)
 _LINE_PATTERN = re.compile(r"\b(?:line|first.line|second.line|third.line|prior\s+line)\b", re.I)
 _CNS_PATTERN = re.compile(r"\b(?:cns|brain|central nervous system|leptomeningeal)\b", re.I)
 _STAGE_PATTERN = re.compile(r"\b(?:stage\s+[IViv]+|unresectable|metastatic|locally advanced)\b", re.I)
@@ -82,6 +82,11 @@ class RuleBasedClassifier:
 
         # Category
         category = self._assign_category(criterion_text, entities)
+
+        if category == "age" and not quant and temporal and temporal.unit == "years":
+            quant = self._age_quant_from_temporal(temporal, criterion_text)
+            if quant:
+                temporal = None
 
         # Biomarker qualifier
         value_text = None
@@ -167,3 +172,19 @@ class RuleBasedClassifier:
         if category == "other":
             return category, "unparsed", 0.0, True, "complex_criteria"
         return category, "partial", 0.3, True, "complex_criteria"
+
+    def _age_quant_from_temporal(
+        self, temporal, criterion_text: str
+    ) -> QuantitativeValue | None:
+        op = {
+            "at_least": "gte",
+            "no_more": "lte",
+        }.get(temporal.operator)
+        if not op:
+            return None
+        return QuantitativeValue(
+            operator=op,
+            value_low=temporal.value,
+            unit=temporal.unit,
+            raw_expression=criterion_text,
+        )

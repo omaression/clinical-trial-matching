@@ -2,11 +2,12 @@
   {
     "original_text": "Patients must be at least 18 years old.",
     "type": "inclusion",
-    "category": "other",
+    "category": "age",
     "parse_status": "parsed",
-    "timeframe_operator": "at_least",
-    "timeframe_value": 18.0,
-    "timeframe_unit": "years",
+    "operator": "gte",
+    "value_low": 18.0,
+    "unit": "years",
+    "raw_expression": "Patients must be at least 18 years old.",
     "negated": false
   },
   {
