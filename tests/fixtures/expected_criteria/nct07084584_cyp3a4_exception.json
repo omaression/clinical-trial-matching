@@ -1,0 +1,14 @@
+[
+  {
+    "original_text": "Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers (except for systemic itraconazole, ketoconazole, posaconazole, or voriconazole, which should have been started at least 7 days prior to enrolment).",
+    "type": "exclusion",
+    "category": "concomitant_medication",
+    "parse_status": "partial",
+    "timeframe_operator": "at_least",
+    "timeframe_value": 7.0,
+    "timeframe_unit": "days",
+    "logic_operator": "OR",
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

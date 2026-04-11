@@ -1,0 +1,2 @@
+Exclusion Criteria:
+1. Use of any moderate-strong CYP3A4 inhibitor or inducer within 14 days or 5 plasma half-lives (whichever is longer) prior to the administration of IMP and for the duration of the trial.

@@ -1,0 +1,2 @@
+Exclusion Criteria:
+1. Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers (except for systemic itraconazole, ketoconazole, posaconazole, or voriconazole, which should have been started at least 7 days prior to enrolment).
