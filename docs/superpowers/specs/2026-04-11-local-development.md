@@ -69,7 +69,7 @@ CTM_BACKEND_PORT=8010 CTM_FRONTEND_PORT=3010 ./scripts/dev.sh
 - If `frontend/node_modules` is missing, the launcher exits immediately. Run `cd frontend && npm install` once.
 - If `alembic`, `uvicorn`, `npm`, `curl`, or `lsof` are missing from `PATH`, the launcher exits immediately and prints the missing command.
 - If the backend port is already occupied by another CTM backend, the launcher reuses it and starts only the frontend.
-- If the launcher is starting a new backend process and migrations fail, it exits with a short message pointing you to `CTM_DATABASE_URL` and PostgreSQL reachability.
+- If the launcher is starting a new backend process and migrations fail, it exits with a short message pointing you to `CTM_DATABASE_URL` and PostgreSQL reachability, prints the last part of the Alembic output, and leaves the full migration log in a temporary file path.
 - If the backend port is occupied by a non-CTM process, the launcher exits immediately with a clear port-collision message.
 - If the frontend port is already occupied, the launcher exits immediately with a clear port-collision message.
 - If either the backend or frontend process exits, the launcher stops the other process and exits with the same status.
