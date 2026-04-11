@@ -23,6 +23,20 @@ from app.time_utils import parse_clinicaltrials_datetime, utc_now
 
 logger = logging.getLogger(__name__)
 
+_CODABLE_ENTITY_LABELS_BY_CATEGORY = {
+    "diagnosis": {"DISEASE"},
+    "disease_stage": {"DISEASE"},
+    "histology": {"DISEASE"},
+    "cns_metastases": {"DISEASE"},
+    "prior_therapy": {"DRUG"},
+    "line_of_therapy": {"DRUG"},
+    "concomitant_medication": {"DRUG"},
+    "molecular_alteration": {"BIOMARKER"},
+    "biomarker": {"BIOMARKER"},
+    "lab_value": {"LAB_TEST"},
+    "performance_status": {"PERF_SCALE"},
+}
+
 
 @dataclass
 class IngestionResult:
@@ -343,6 +357,8 @@ class IngestionService:
             coding_review_reasons = set()
 
             for entity in criterion.entities:
+                if not self._should_code_entity(criterion.category, entity.label):
+                    continue
                 coding_result = self._coder.code_entity(entity)
                 coded_concepts.extend(coding_result.concepts)
                 if coding_result.review_required:
@@ -394,6 +410,12 @@ class IngestionService:
         if len(normalized) == 1:
             return next(iter(normalized))
         return "mixed_coding_review"
+
+    def _should_code_entity(self, category: str, label: str) -> bool:
+        allowed_labels = _CODABLE_ENTITY_LABELS_BY_CATEGORY.get(category)
+        if allowed_labels is None:
+            return False
+        return label in allowed_labels
 
     def _latest_completed_run(self, trial_id) -> PipelineRun | None:
         return (

@@ -87,6 +87,14 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         assert result.criteria[0].category == "diagnosis"
 
+    def test_live_vaccine_line_becomes_reviewable_concomitant_medication(self, pipeline):
+        text = "Has received a live-attenuated vaccine within 30 days before the first dose"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "concomitant_medication"
+        assert result.criteria[0].parse_status == "partial"
+        assert result.criteria[0].review_required is True
+
     def test_non_small_cell_line_keeps_specific_disease_entity(self, pipeline):
         text = "Has histologically confirmed metastatic non-small cell lung cancer"
         result = pipeline.extract(text)

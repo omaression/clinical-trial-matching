@@ -25,6 +25,10 @@ _CONCOMITANT_PATTERN = re.compile(
     r"\b(?:concurrent|concomitant)\b.*\b(?:medications?|drugs?|treatments?|inhibitors?|inducers?|substrates?)\b",
     re.I,
 )
+_VACCINE_PATTERN = re.compile(
+    r"\b(?:live(?:-attenuated)?\s+vaccine|vaccines?)\b",
+    re.I,
+)
 _CYP_RESTRICTION_PATTERN = re.compile(
     r"(?:\bcyp[0-9a-z-]+\b.*\b(?:inhibitors?|inducers?)\b|\b(?:inhibitors?|inducers?)\b.*\bcyp[0-9a-z-]+\b)",
     re.I,
@@ -215,6 +219,24 @@ class RuleBasedClassifier:
             if qual_match:
                 value_text = qual_match.group(1).lower()
 
+        if category == "concomitant_medication" and _VACCINE_PATTERN.search(criterion_text):
+            return ClassifiedCriterion(
+                original_text=criterion_text,
+                type="inclusion",
+                category=category,
+                parse_status="partial",
+                entities=entities,
+                negated=neg_result.negated,
+                timeframe_operator=temporal.operator if temporal else None,
+                timeframe_value=temporal.value if temporal else None,
+                timeframe_unit=temporal.unit if temporal else None,
+                logic_group_id=logic.group_id,
+                logic_operator=logic.operator,
+                confidence=0.3,
+                review_required=True,
+                review_reason="complex_criteria",
+            )
+
         return ClassifiedCriterion(
             original_text=criterion_text,
             type="inclusion",
@@ -270,6 +292,8 @@ class RuleBasedClassifier:
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
             return "histology"
+        if _VACCINE_PATTERN.search(text):
+            return "concomitant_medication"
         if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
             return "concomitant_medication"
         if "PERF_SCALE" in labels:
@@ -306,6 +330,8 @@ class RuleBasedClassifier:
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
             return "histology"
+        if _VACCINE_PATTERN.search(text):
+            return "concomitant_medication"
         if _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
         if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
@@ -322,6 +348,8 @@ class RuleBasedClassifier:
         category = self._assign_category_from_text(text)
         if category == "histology":
             return category, "parsed", 0.6, False, None
+        if category == "concomitant_medication" and _VACCINE_PATTERN.search(text):
+            return category, "partial", 0.3, True, "complex_criteria"
         if category == "concomitant_medication":
             return category, "parsed", 0.6, False, None
         if category == "organ_function" and not _ORGAN_FUNCTION_COMPLEXITY_PATTERN.search(text):

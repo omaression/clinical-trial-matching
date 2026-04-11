@@ -182,6 +182,16 @@ class TestCategoryAssignment:
         assert result.parse_status == "parsed"
         assert result.review_required is False
 
+    def test_text_only_live_vaccine_becomes_reviewable_concomitant_medication(self, classifier):
+        result = classifier.classify(
+            "Has received a live-attenuated vaccine within 30 days before enrollment",
+            [Entity(text="30 days", label="DATE", start=42, end=49)],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "partial"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
     def test_simple_organ_function_becomes_parsed_without_review(self, classifier):
         result = classifier.classify(
             "Must have adequate organ function.",

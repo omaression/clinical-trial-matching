@@ -114,14 +114,14 @@ class TestIngestSingleTrial:
         pipeline_result = PipelineResult(
             criteria=[
                 ClassifiedCriterion(
-                    original_text="Confirmed breast cancr with HER2-positive disease",
+                    original_text="Confirmed breast cancr with recurrent breast carcinoma",
                     type="inclusion",
                     category="diagnosis",
                     parse_status="parsed",
                     confidence=0.85,
                     entities=[
                         Entity(text="breast cancr", label="DISEASE", start=10, end=22),
-                        Entity(text="HER2-positive", label="BIOMARKER", start=28, end=41),
+                        Entity(text="breast carcinoma", label="DISEASE", start=38, end=54),
                     ],
                 )
             ],
@@ -250,6 +250,61 @@ class TestIngestSingleTrial:
         assert criteria_by_text[NSCLC_DIAGNOSIS_TEXT].category == "diagnosis"
         assert criteria_by_text[KRAS_G12C_TEXT].category == "molecular_alteration"
         assert criteria_by_text[ACTIVE_INFECTION_TEXT].category == "diagnosis"
+        assert criteria_by_text[VACCINE_TEXT].category == "concomitant_medication"
+        assert criteria_by_text[VACCINE_TEXT].review_required is True
+
+    def test_prior_therapy_coding_skips_biomarker_entities_even_when_catalog_matches(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Prior PD-L1 therapy and platinum-based chemotherapy",
+                    type="inclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[
+                        Entity(text="PD-L1", label="BIOMARKER", start=6, end=11),
+                        Entity(text="chemotherapy", label="DRUG", start=31, end=43),
+                    ],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+        db_session.add_all(
+            [
+                CodingLookup(
+                    system="nci_thesaurus",
+                    code="C128839",
+                    display="PD-L1 Positive",
+                    synonyms=["pd-l1", "pd-l1 positive"],
+                ),
+                CodingLookup(
+                    system="nci_thesaurus",
+                    code="C0006826",
+                    display="Chemotherapy",
+                    synonyms=["chemotherapy"],
+                ),
+            ]
+        )
+        db_session.flush()
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+        coded_keys = {
+            (concept["system"], concept["code"])
+            for concept in (criterion.coded_concepts or [])
+            if isinstance(concept, dict)
+        }
+
+        assert ("nci_thesaurus", "C0006826") in coded_keys
+        assert ("nci_thesaurus", "C128839") not in coded_keys
 
     def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
         db_session.add_all(
