@@ -8,6 +8,7 @@ _NEGATION_TRIGGERS = re.compile(
     r"\b(no|not|without|never|absence of|must not|should not|cannot|have not|did not)\b", re.I
 )
 _EXCEPTION_SPLIT = re.compile(r"\b(unless|except|provided that|other than)\b", re.I)
+_NON_NEGATING_PHRASES = re.compile(r"\bnot limited to\b|\bnot amenable to\b", re.I)
 
 _TEMPORAL_PATTERNS = [
     (re.compile(r"within\s+([\d.]+)\s+(days?|weeks?|months?|years?)", re.I), "within"),
@@ -50,8 +51,10 @@ class NegationResolver:
         main_text = text[:exception_match.start()] if exception_match else text
         exception_text = text[exception_match.end():].strip() if exception_match else None
 
+        masked_main_text = _NON_NEGATING_PHRASES.sub(lambda m: " " * len(m.group(0)), main_text)
+
         # Check for negation trigger in main text
-        neg_match = _NEGATION_TRIGGERS.search(main_text)
+        neg_match = _NEGATION_TRIGGERS.search(masked_main_text)
         if not neg_match:
             return NegationResult(negated=False)
 

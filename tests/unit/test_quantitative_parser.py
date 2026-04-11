@@ -1,6 +1,6 @@
 import pytest
+
 from app.extraction.quantitative_parser import QuantitativeParser
-from app.extraction.types import Entity, QuantitativeValue
 
 
 @pytest.fixture
@@ -40,11 +40,23 @@ class TestRanges:
         assert result.value_low == 0
         assert result.value_high == 1
 
+    def test_word_range(self, parser):
+        result = parser.parse("0 to 1", [])
+        assert result.operator == "range"
+        assert result.value_low == 0
+        assert result.value_high == 1
+
     def test_age_range(self, parser):
         result = parser.parse("18-65 years", [])
         assert result.operator == "range"
         assert result.value_low == 18
         assert result.value_high == 65
+        assert result.unit == "years"
+
+    def test_trailing_punctuation_is_removed_from_unit(self, parser):
+        result = parser.parse("Age >= 18 years.", [])
+        assert result.operator == "gte"
+        assert result.value_low == 18
         assert result.unit == "years"
 
 

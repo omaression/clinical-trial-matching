@@ -9,7 +9,11 @@ _LINE_PATTERN = re.compile(r"\b(?:line|first.line|second.line|third.line|prior\s
 _CNS_PATTERN = re.compile(r"\b(?:cns|brain|central nervous system|leptomeningeal)\b", re.I)
 _STAGE_PATTERN = re.compile(r"\b(?:stage\s+[IViv]+|unresectable|metastatic|locally advanced)\b", re.I)
 _HISTOLOGY_PATTERN = re.compile(r"\b(?:adenocarcinoma|squamous|histolog|histopatholog)\b", re.I)
-_MOLECULAR_PATTERN = re.compile(r"\b(?:mutation|rearrangement|amplification|fusion|alteration|wild.?type)\b", re.I)
+_MOLECULAR_PATTERN = re.compile(
+    r"(?:\b(?:mutation|rearrangement|amplification|fusion|alteration|wild.?type)\b|"
+    r"\b(?:genetic|genomic)\s+variants?\b)",
+    re.I,
+)
 _PRIOR_THERAPY_TEXT_PATTERN = re.compile(
     r"\b(?:prior\s+treatment|prior\s+therapy|chemotherap(?:y|ies)|radiation(?:\s+therapy)?|immunotherap(?:y|ies)|"
     r"endocrine\s+therapy|hormonal\s+therapy|targeted\s+therapy|systemic\s+therapy|"
@@ -42,7 +46,8 @@ _ORGAN_FUNCTION_PATTERN = re.compile(
     re.I,
 )
 _COMPLEXITY_SIGNALS = re.compile(
-    r"\b(?:unless|except|provided that|other than|whichever\s+is\s+(?:longer|shorter))\b",
+    r"\b(?:unless|except|provided that|other than|whichever\s+is\s+(?:longer|shorter)|"
+    r"including\s+but\s+not\s+limited\s+to)\b",
     re.I,
 )
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
@@ -66,7 +71,11 @@ class RuleBasedClassifier:
 
         # Complexity check — flag complex criteria for review
         is_complex = bool(_COMPLEXITY_SIGNALS.search(criterion_text))
-        if is_complex and (not entities or len(entities) > 1 or category_hint == "concomitant_medication"):
+        if is_complex and (
+            not entities
+            or len(entities) > 1
+            or category_hint in {"concomitant_medication", "molecular_alteration"}
+        ):
             neg_result = self._negation.resolve(criterion_text, entities)
             temporal = self._temporal.parse(neg_result.exception_text or criterion_text)
             logic = self._logic.detect(criterion_text)

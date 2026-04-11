@@ -215,6 +215,30 @@ class TestCategoryAssignment:
         assert result.review_required is True
         assert result.review_reason == "complex_criteria"
 
+    def test_genetic_variants_text_routes_to_molecular_alteration(self, classifier):
+        result = classifier.classify(
+            "Genetic variants of tumor tissue detected by NGS.",
+            [Entity(text="NGS", label="ORG", start=43, end=46)],
+        )
+        assert result.category == "molecular_alteration"
+        assert result.parse_status == "parsed"
+        assert result.negated is False
+        assert result.review_required is False
+
+    def test_fgfr_not_limited_to_clause_stays_non_negated_reviewable_partial(self, classifier):
+        result = classifier.classify(
+            (
+                "Histologically confirmed FGFR 1-3 alterations, including but not limited to "
+                "amplification, mutation, fusion/rearrangement, etc."
+            ),
+            [Entity(text="FGFR", label="BIOMARKER", start=26, end=30)],
+        )
+        assert result.category == "molecular_alteration"
+        assert result.parse_status == "partial"
+        assert result.negated is False
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):

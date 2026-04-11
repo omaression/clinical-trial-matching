@@ -1,5 +1,6 @@
 import pytest
-from app.extraction.negation_resolver import NegationResolver, TemporalParser, LogicGrouper
+
+from app.extraction.negation_resolver import LogicGrouper, NegationResolver, TemporalParser
 from app.extraction.types import Entity
 
 
@@ -51,6 +52,23 @@ class TestUnlessClauses:
         assert result.negated is True
         assert result.has_exception is True
         assert "adjuvant" in result.exception_text
+
+
+class TestNonNegatingPhrases:
+    def test_not_limited_to_does_not_trigger_negation(self, negation):
+        text = (
+            "FGFR 1-3 alterations, including but not limited to amplification, mutation, "
+            "fusion/rearrangement"
+        )
+        entities = [Entity(text="FGFR", label="BIOMARKER", start=0, end=4)]
+        result = negation.resolve(text, entities)
+        assert result.negated is False
+
+    def test_not_amenable_to_does_not_trigger_negation(self, negation):
+        text = "Stage IIIB or IV NSCLC not amenable to curative treatment"
+        entities = [Entity(text="NSCLC", label="DISEASE", start=18, end=23)]
+        result = negation.resolve(text, entities)
+        assert result.negated is False
 
 
 class TestTemporalParser:

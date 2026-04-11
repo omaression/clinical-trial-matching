@@ -29,6 +29,10 @@ _SCI_NOTATION = re.compile(
 _RANGE = re.compile(
     r"(?P<low>[\d.]+)\s*[-–]\s*(?P<high>[\d.]+)\s*(?P<unit>.*)"
 )
+_RANGE_WORD = re.compile(
+    r"(?P<low>[\d.]+)\s+(?:to|through)\s+(?P<high>[\d.]+)\s*(?P<unit>.*)",
+    re.I,
+)
 _WORD_COMP = re.compile(
     r"(?P<op>at least|no more than|less than|greater than|more than)\s+(?P<val>[\d.]+)\s*(?P<unit>.*)",
     re.I,
@@ -43,6 +47,11 @@ def _parse_superscript(s: str) -> int:
     return int(digits) if digits else 9
 
 
+def _clean_unit(unit: str) -> str | None:
+    cleaned = unit.strip().rstrip(".,;:")
+    return cleaned or None
+
+
 class QuantitativeParser:
     """Stage 3 sub-component: decompose numeric expressions."""
 
@@ -54,7 +63,7 @@ class QuantitativeParser:
         if m:
             exp = _parse_superscript(m.group("exp_raw") or "⁹")
             val = float(m.group("val")) * (10 ** exp)
-            unit = m.group("unit").strip()
+            unit = _clean_unit(m.group("unit") or "")
             if unit and not unit.startswith("/"):
                 unit = "/" + unit
             return QuantitativeValue(
@@ -71,7 +80,18 @@ class QuantitativeParser:
                 operator="range",
                 value_low=float(m.group("low")),
                 value_high=float(m.group("high")),
-                unit=m.group("unit").strip() or None,
+                unit=_clean_unit(m.group("unit") or ""),
+                raw_expression=text,
+            )
+
+        # Try word range
+        m = _RANGE_WORD.search(text)
+        if m:
+            return QuantitativeValue(
+                operator="range",
+                value_low=float(m.group("low")),
+                value_high=float(m.group("high")),
+                unit=_clean_unit(m.group("unit") or ""),
                 raw_expression=text,
             )
 
@@ -81,14 +101,14 @@ class QuantitativeParser:
             return QuantitativeValue(
                 operator=_WORD_OP_MAP[m.group("op").lower()],
                 value_low=float(m.group("val")),
-                unit=m.group("unit").strip() or None,
+                unit=_clean_unit(m.group("unit") or ""),
                 raw_expression=text,
             )
 
         # Try simple comparison
         m = _COMPARISON.search(text)
         if m:
-            unit = m.group("unit").strip()
+            unit = _clean_unit(m.group("unit") or "")
             # Handle "× ULN" style relative units
             if unit and ("ULN" in unit or "LLN" in unit):
                 if not unit.startswith("×"):
