@@ -118,6 +118,17 @@ class TestCategoryAssignment:
         assert result.unit == "years"
         assert result.timeframe_operator is None
 
+    def test_sex_only_text_becomes_partial_supplementary_criterion(self, classifier):
+        result = classifier.classify(
+            "Female patients only",
+            [],
+        )
+        assert result.category == "other"
+        assert result.parse_status == "partial"
+        assert result.value_text == "female"
+        assert result.raw_expression == "Female patients only"
+        assert result.review_required is False
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):

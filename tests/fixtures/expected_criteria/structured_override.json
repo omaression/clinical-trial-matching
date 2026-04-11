@@ -14,9 +14,10 @@
     "original_text": "Female patients only",
     "type": "inclusion",
     "category": "other",
-    "parse_status": "unparsed",
+    "parse_status": "partial",
+    "value_text": "female",
+    "raw_expression": "Female patients only",
     "negated": false,
-    "review_required": true,
-    "review_reason": "complex_criteria"
+    "review_required": false
   }
 ]

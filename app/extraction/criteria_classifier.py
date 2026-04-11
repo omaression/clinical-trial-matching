@@ -18,6 +18,10 @@ _HYPERSENSITIVITY_PATTERN = re.compile(
     r"\b(?:hypersensitiv(?:ity|e)|allerg(?:y|ic)|anaphylaxis|intoleran(?:ce|t))\b",
     re.I,
 )
+_SEX_ONLY_PATTERN = re.compile(
+    r"\b(female|male)\s+(?:patients?|subjects?|participants?)\s+only\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(r"\b(?:unless|except|provided that|other than)\b", re.I)
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 
@@ -48,6 +52,18 @@ class RuleBasedClassifier:
 
         # No entities → unparsed
         if not entities:
+            sex_match = _SEX_ONLY_PATTERN.search(criterion_text)
+            if sex_match:
+                return ClassifiedCriterion(
+                    original_text=criterion_text,
+                    type="inclusion",
+                    category="other",
+                    parse_status="partial",
+                    value_text=sex_match.group(1).lower(),
+                    raw_expression=criterion_text,
+                    confidence=0.6,
+                    review_required=False,
+                )
             category, parse_status, confidence, review_required, review_reason = self._classify_text_only(
                 criterion_text
             )
