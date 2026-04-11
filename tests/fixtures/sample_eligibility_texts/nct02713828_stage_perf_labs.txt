@@ -1,0 +1,5 @@
+Inclusion Criteria:
+1. Male or female patients with metastatic, histologically- or cytologically-confirmed unresectable Stage IIIB or IV non-small cell lung cancer (NSCLC) of squamous histology.
+2. Age >= 18 years.
+3. ECOG Performance Status 0 to 1.
+4. Adequate renal function as assessed by serum creatinine <= 2.0 mg/dL.

@@ -1,0 +1,3 @@
+Inclusion Criteria:
+1. Histologically or cytologically confirmed, unresectable stage IIIB or stage IV NSCLC not amenable to treatment with curative intent.
+2. Genetic variants of tumor tissue detected by NGS.

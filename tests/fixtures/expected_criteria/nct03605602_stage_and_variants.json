@@ -1,0 +1,19 @@
+[
+  {
+    "original_text": "Histologically or cytologically confirmed, unresectable stage IIIB or stage IV NSCLC not amenable to treatment with curative intent.",
+    "type": "inclusion",
+    "category": "disease_stage",
+    "parse_status": "parsed",
+    "negated": false,
+    "logic_operator": "OR",
+    "review_required": false
+  },
+  {
+    "original_text": "Genetic variants of tumor tissue detected by NGS.",
+    "type": "inclusion",
+    "category": "molecular_alteration",
+    "parse_status": "parsed",
+    "negated": false,
+    "review_required": false
+  }
+]
