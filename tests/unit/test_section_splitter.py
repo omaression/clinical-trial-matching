@@ -1,5 +1,7 @@
-import pytest
 from pathlib import Path
+
+import pytest
+
 from app.extraction.section_splitter import SectionSplitter
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "sample_eligibility_texts"
@@ -66,3 +68,26 @@ class TestEdgeCases:
         results = splitter.split("Age >= 18 years")
         assert len(results) == 1
         assert results[0].type == "inclusion"
+
+    def test_multiline_numbered_criterion_is_joined_under_headers(self, splitter):
+        text = (
+            "Inclusion Criteria:\n"
+            "1. Histologically confirmed melanoma\n"
+            "   with measurable disease per RECIST v1.1\n"
+            "2. Age >= 18 years\n"
+        )
+        results = splitter.split(text)
+        assert len(results) == 2
+        assert results[0].text == "Histologically confirmed melanoma with measurable disease per RECIST v1.1"
+        assert results[0].type == "inclusion"
+
+    def test_multiline_unheaded_criterion_is_joined(self, splitter):
+        text = (
+            "1. No active brain metastases\n"
+            "   requiring escalating corticosteroids\n"
+            "2. Age >= 18 years\n"
+        )
+        results = splitter.split(text)
+        assert len(results) == 2
+        assert results[0].text == "No active brain metastases requiring escalating corticosteroids"
+        assert results[0].type == "exclusion"
