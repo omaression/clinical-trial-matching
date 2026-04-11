@@ -63,29 +63,37 @@ export default async function TrialsPage({
         </form>
       </Panel>
 
-      <div className="grid gap-5">
-        {trials.items.map((trial) => (
-          <Link
-            key={trial.id}
-            href={`/trials/${trial.id}`}
-            className="grid gap-4 rounded-[30px] border border-ink/10 bg-white/75 p-6 shadow-card transition hover:border-tide/30 lg:grid-cols-[1.2fr_0.4fr_0.4fr]"
-          >
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-ink/45">{trial.nct_id}</p>
-              <h2 className="text-xl font-semibold text-ink">{trial.brief_title}</h2>
-              <p className="text-sm text-ink/65">Ingested {formatDate(trial.ingested_at)}</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Status</p>
-              <StatusPill value={trial.status} />
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Extraction</p>
-              <StatusPill value={trial.extraction_status} />
-            </div>
-          </Link>
-        ))}
-      </div>
+      {trials.items.length ? (
+        <div className="grid gap-5">
+          {trials.items.map((trial) => (
+            <Link
+              key={trial.id}
+              href={`/trials/${trial.id}`}
+              className="grid gap-4 rounded-[30px] border border-ink/10 bg-white/75 p-6 shadow-card transition hover:border-tide/30 lg:grid-cols-[1.2fr_0.4fr_0.4fr]"
+            >
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-ink/45">{trial.nct_id}</p>
+                <h2 className="text-xl font-semibold text-ink">{trial.brief_title}</h2>
+                <p className="text-sm text-ink/65">Ingested {formatDate(trial.ingested_at)}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Status</p>
+                <StatusPill value={trial.status} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Extraction</p>
+                <StatusPill value={trial.extraction_status} />
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Panel title="No trials available" eyebrow="Empty catalog">
+          <p className="text-sm leading-7 text-ink/68">
+            This catalog only shows ingested trials. Start from <Link className="font-semibold text-ink underline decoration-ink/20 underline-offset-4" href="/pipeline">Pipeline</Link>, ingest one NCT ID or a small search batch, then return here.
+          </p>
+        </Panel>
+      )}
     </>
   );
 }

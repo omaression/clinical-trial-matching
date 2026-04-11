@@ -47,20 +47,26 @@ export default async function PatientsPage() {
         </Panel>
 
         <Panel title="Registry" eyebrow="Existing patients">
-          <div className="grid gap-4">
-            {patients.items.map((patient) => (
-              <Link
-                key={patient.id}
-                href={`/patients/${patient.id}`}
-                className="rounded-3xl border border-ink/8 bg-white/70 p-5 transition hover:border-tide/25"
-              >
-                <p className="text-sm font-semibold text-ink">{patient.external_id ?? patient.id.slice(0, 8)}</p>
-                <p className="mt-1 text-sm text-ink/68">
-                  {patient.sex ?? "Unknown sex"} · {patient.birth_date ? formatDate(patient.birth_date) : "No birth date"}
-                </p>
-              </Link>
-            ))}
-          </div>
+          {patients.items.length ? (
+            <div className="grid gap-4">
+              {patients.items.map((patient) => (
+                <Link
+                  key={patient.id}
+                  href={`/patients/${patient.id}`}
+                  className="rounded-3xl border border-ink/8 bg-white/70 p-5 transition hover:border-tide/25"
+                >
+                  <p className="text-sm font-semibold text-ink">{patient.external_id ?? patient.id.slice(0, 8)}</p>
+                  <p className="mt-1 text-sm text-ink/68">
+                    {patient.sex ?? "Unknown sex"} · {patient.birth_date ? formatDate(patient.birth_date) : "No birth date"}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-ink/12 bg-sand/55 p-5 text-sm leading-7 text-ink/68">
+              No patient profiles exist yet. Create one on the left after you have at least one ingested trial, then open the patient record and run matching.
+            </div>
+          )}
         </Panel>
       </div>
     </>

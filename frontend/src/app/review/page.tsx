@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
 import { ctmApi } from "@/lib/api/client";
+import Link from "next/link";
 
 type SearchParams = {
   reason?: string;
@@ -44,43 +45,57 @@ export default async function ReviewPage({
       </Panel>
 
       <div className="grid gap-5">
-        {queue.items.map((criterion) => (
-          <Panel
-            key={criterion.id}
-            title={criterion.original_text}
-            eyebrow={`${criterion.category} · ${criterion.review_reason ?? "pending"}`}
-            right={<StatusPill value={criterion.review_status ?? "pending"} />}
-          >
-            <form action={reviewCriterionAction} className="grid gap-4 lg:grid-cols-[0.6fr_0.6fr_1.2fr_auto]">
-              <input name="criterion_id" type="hidden" value={criterion.id} />
-              <input
-                className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
-                defaultValue="ops-console"
-                name="reviewed_by"
-                placeholder="Reviewed by"
-                required
-              />
-              <select
-                className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
-                defaultValue="accept"
-                name="action"
-              >
-                <option value="accept">Accept</option>
-                <option value="reject">Reject</option>
-                <option value="correct">Correct</option>
-              </select>
-              <textarea
-                className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
-                defaultValue=""
-                name="corrected_data"
-                placeholder='Optional corrected_data JSON for "correct" action'
-              />
-              <button className="rounded-2xl bg-ink px-5 py-3 font-semibold text-sand" type="submit">
-                Submit
-              </button>
-            </form>
+        {queue.items.length ? (
+          queue.items.map((criterion) => (
+            <Panel
+              key={criterion.id}
+              title={criterion.original_text}
+              eyebrow={`${criterion.category} · ${criterion.review_reason ?? "pending"}`}
+              right={<StatusPill value={criterion.review_status ?? "pending"} />}
+            >
+              <form action={reviewCriterionAction} className="grid gap-4 lg:grid-cols-[0.6fr_0.6fr_1.2fr_auto]">
+                <input name="criterion_id" type="hidden" value={criterion.id} />
+                <input
+                  className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
+                  defaultValue="ops-console"
+                  name="reviewed_by"
+                  placeholder="Reviewed by"
+                  required
+                />
+                <select
+                  className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
+                  defaultValue="accept"
+                  name="action"
+                >
+                  <option value="accept">Accept</option>
+                  <option value="reject">Reject</option>
+                  <option value="correct">Correct</option>
+                </select>
+                <textarea
+                  className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3"
+                  defaultValue=""
+                  name="corrected_data"
+                  placeholder='Optional corrected_data JSON for "correct" action'
+                />
+                <button className="rounded-2xl bg-ink px-5 py-3 font-semibold text-sand" type="submit">
+                  Submit
+                </button>
+              </form>
+            </Panel>
+          ))
+        ) : (
+          <Panel title="Nothing needs review" eyebrow="Queue clear">
+            <p className="text-sm leading-7 text-ink/68">
+              The current latest-run criteria set is fully accepted or unambiguous. If you want to demonstrate the review workflow, ingest another trial from
+              {" "}
+              <Link className="font-semibold text-ink underline decoration-ink/20 underline-offset-4" href="/pipeline">
+                Pipeline
+              </Link>
+              {" "}
+              and return here.
+            </p>
           </Panel>
-        ))}
+        )}
       </div>
     </>
   );

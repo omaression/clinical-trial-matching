@@ -22,6 +22,20 @@ const createPatientSchema = z.object({
   lab_unit: z.string().trim().optional()
 });
 
+const ingestTrialSchema = z.object({
+  nct_id: z.string().trim().regex(/^NCT\d{8}$/i, "Use an NCT ID like NCT05346328.")
+});
+
+const searchIngestSchema = z.object({
+  condition: z.string().trim().optional(),
+  status: z.string().trim().optional(),
+  phase: z.string().trim().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(10)
+}).refine(
+  (value) => Boolean(value.condition || value.status || value.phase),
+  { message: "Provide at least one search field." }
+);
+
 function splitLines(value?: string): string[] {
   if (!value) {
     return [];
@@ -75,6 +89,58 @@ export async function createPatientAction(formData: FormData) {
 
   revalidatePath("/patients");
   redirect(`/patients/${patient.id}`);
+}
+
+export async function ingestTrialAction(formData: FormData) {
+  const parsed = ingestTrialSchema.parse(Object.fromEntries(formData.entries()));
+  const result = await ctmApi.ingestTrial({ nct_id: parsed.nct_id.toUpperCase() });
+
+  revalidatePath("/");
+  revalidatePath("/pipeline");
+  revalidatePath("/review");
+  revalidatePath("/trials");
+  redirect(`/trials/${result.trial_id}`);
+}
+
+export async function searchIngestAction(formData: FormData) {
+  const parsed = searchIngestSchema.parse(Object.fromEntries(formData.entries()));
+  const result = await ctmApi.searchAndIngest({
+    condition: parsed.condition || undefined,
+    status: parsed.status || undefined,
+    phase: parsed.phase || undefined,
+    limit: parsed.limit
+  });
+
+  revalidatePath("/");
+  revalidatePath("/pipeline");
+  revalidatePath("/review");
+  revalidatePath("/trials");
+
+  const query = new URLSearchParams({
+    batch: "1",
+    attempted: String(result.attempted),
+    returned: String(result.returned),
+    ingested: String(result.ingested),
+    skipped: String(result.skipped),
+    failed: String(result.failed)
+  });
+  if (result.total_count !== undefined && result.total_count !== null) {
+    query.set("total_count", String(result.total_count));
+  }
+  if (result.next_page_token) {
+    query.set("has_more", "1");
+  }
+  if (parsed.condition) {
+    query.set("condition", parsed.condition);
+  }
+  if (parsed.status) {
+    query.set("status", parsed.status);
+  }
+  if (parsed.phase) {
+    query.set("phase", parsed.phase);
+  }
+
+  redirect(`/pipeline?${query.toString()}`);
 }
 
 export async function matchPatientAction(formData: FormData) {

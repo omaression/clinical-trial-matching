@@ -37,6 +37,46 @@ export type TrialListResponse = {
   per_page: number;
 };
 
+export type IngestRequest = {
+  nct_id: string;
+};
+
+export type IngestResponse = {
+  nct_id: string;
+  trial_id: string;
+  criteria_count: number;
+  review_count: number;
+  skipped: boolean;
+};
+
+export type SearchIngestRequest = {
+  condition?: string;
+  status?: string;
+  phase?: string;
+  page_token?: string;
+  limit?: number;
+};
+
+export type SearchIngestTrialResponse = {
+  nct_id?: string | null;
+  trial_id?: string | null;
+  criteria_count: number;
+  skipped: boolean;
+  status: "ingested" | "skipped" | "failed";
+  error_message?: string | null;
+};
+
+export type SearchIngestResponse = {
+  attempted: number;
+  returned: number;
+  ingested: number;
+  skipped: number;
+  failed: number;
+  total_count?: number | null;
+  next_page_token?: string | null;
+  trials: SearchIngestTrialResponse[];
+};
+
 export type CodedConcept = {
   system: string;
   code: string;

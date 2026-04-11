@@ -5,6 +5,8 @@ import type {
   ApiError,
   CriteriaListResponse,
   HealthResponse,
+  IngestRequest,
+  IngestResponse,
   MatchResultDetail,
   MatchResultListResponse,
   MatchRunResponse,
@@ -14,6 +16,8 @@ import type {
   PipelineRunListResponse,
   PipelineStatusResponse,
   ReviewQueueResponse,
+  SearchIngestRequest,
+  SearchIngestResponse,
   TrialDetail,
   TrialListResponse
 } from "@/lib/api/types";
@@ -65,6 +69,10 @@ export const ctmApi = {
   getHealth: () => apiRequest<HealthResponse>("/health"),
   listTrials: (query = "") => apiRequest<TrialListResponse>(`/trials${query}`),
   getTrial: (trialId: string) => apiRequest<TrialDetail>(`/trials/${trialId}`),
+  ingestTrial: (payload: IngestRequest) =>
+    apiRequest<IngestResponse>("/trials/ingest", { method: "POST", auth: true, body: payload }),
+  searchAndIngest: (payload: SearchIngestRequest) =>
+    apiRequest<SearchIngestResponse>("/trials/search-ingest", { method: "POST", auth: true, body: payload }),
   getTrialCriteria: (trialId: string, query = "") =>
     apiRequest<CriteriaListResponse>(`/trials/${trialId}/criteria${query}`),
   getTrialFhir: (trialId: string) =>
