@@ -1,0 +1,45 @@
+[
+  {
+    "original_text": "Age >= 18 years",
+    "type": "inclusion",
+    "category": "age",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 18.0,
+    "unit": "years",
+    "negated": false
+  },
+  {
+    "original_text": "Histologically confirmed HER2-positive breast cancer",
+    "type": "inclusion",
+    "category": "biomarker",
+    "parse_status": "parsed",
+    "value_text": "positive",
+    "negated": false
+  },
+  {
+    "original_text": "ECOG performance status 0-1",
+    "type": "inclusion",
+    "category": "performance_status",
+    "parse_status": "parsed",
+    "operator": "range",
+    "value_low": 0.0,
+    "value_high": 1.0,
+    "raw_expression": "ECOG performance status 0-1",
+    "negated": false
+  },
+  {
+    "original_text": "Active brain metastases",
+    "type": "exclusion",
+    "category": "cns_metastases",
+    "parse_status": "parsed",
+    "negated": false
+  },
+  {
+    "original_text": "Prior treatment with trastuzumab",
+    "type": "exclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "negated": false
+  }
+]

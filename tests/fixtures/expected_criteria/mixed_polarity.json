@@ -1,0 +1,37 @@
+[
+  {
+    "original_text": "Age >= 18 years",
+    "type": "inclusion",
+    "category": "age",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 18.0,
+    "unit": "years",
+    "negated": false
+  },
+  {
+    "original_text": "Confirmed breast cancer diagnosis",
+    "type": "inclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "negated": false
+  },
+  {
+    "original_text": "Patients must NOT have received prior immunotherapy",
+    "type": "exclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "negated": true,
+    "review_required": true,
+    "review_reason": "polarity_override"
+  },
+  {
+    "original_text": "Known hypersensitivity to study drug",
+    "type": "exclusion",
+    "category": "other",
+    "parse_status": "unparsed",
+    "negated": false,
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

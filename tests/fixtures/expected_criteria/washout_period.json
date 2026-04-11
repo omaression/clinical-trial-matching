@@ -1,0 +1,22 @@
+[
+  {
+    "original_text": "Chemotherapy within 28 days of enrollment",
+    "type": "exclusion",
+    "category": "other",
+    "parse_status": "parsed",
+    "timeframe_operator": "within",
+    "timeframe_value": 28.0,
+    "timeframe_unit": "days",
+    "negated": false
+  },
+  {
+    "original_text": "Radiation therapy within 14 days",
+    "type": "exclusion",
+    "category": "other",
+    "parse_status": "parsed",
+    "timeframe_operator": "within",
+    "timeframe_value": 14.0,
+    "timeframe_unit": "days",
+    "negated": false
+  }
+]

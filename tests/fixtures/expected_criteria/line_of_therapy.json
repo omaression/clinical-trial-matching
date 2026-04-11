@@ -1,0 +1,12 @@
+[
+  {
+    "original_text": "Failed at least 1 prior line of systemic therapy",
+    "type": "inclusion",
+    "category": "line_of_therapy",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 1.0,
+    "raw_expression": "at least 1",
+    "negated": false
+  }
+]

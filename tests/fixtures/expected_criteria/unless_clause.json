@@ -1,0 +1,11 @@
+[
+  {
+    "original_text": "No prior treatment with trastuzumab, unless administered in the adjuvant setting more than 6 months ago",
+    "type": "exclusion",
+    "category": "prior_therapy",
+    "parse_status": "partial",
+    "negated": false,
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

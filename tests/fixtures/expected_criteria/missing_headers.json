@@ -1,0 +1,41 @@
+[
+  {
+    "original_text": "Patients must be at least 18 years old.",
+    "type": "inclusion",
+    "category": "other",
+    "parse_status": "parsed",
+    "timeframe_operator": "at_least",
+    "timeframe_value": 18.0,
+    "timeframe_unit": "years",
+    "negated": false
+  },
+  {
+    "original_text": "Histologically confirmed diagnosis of NSCLC.",
+    "type": "inclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "negated": false
+  },
+  {
+    "original_text": "Patients must NOT have active CNS disease.",
+    "type": "exclusion",
+    "category": "cns_metastases",
+    "parse_status": "parsed",
+    "negated": true
+  },
+  {
+    "original_text": "No prior systemic chemotherapy for metastatic disease.",
+    "type": "exclusion",
+    "category": "disease_stage",
+    "parse_status": "parsed",
+    "negated": true
+  },
+  {
+    "original_text": "Must have adequate organ function.",
+    "type": "inclusion",
+    "category": "organ_function",
+    "parse_status": "partial",
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

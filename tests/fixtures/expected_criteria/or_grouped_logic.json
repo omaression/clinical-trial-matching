@@ -1,0 +1,10 @@
+[
+  {
+    "original_text": "EGFR mutation positive or ALK rearrangement positive",
+    "type": "inclusion",
+    "category": "molecular_alteration",
+    "parse_status": "parsed",
+    "logic_operator": "OR",
+    "negated": false
+  }
+]

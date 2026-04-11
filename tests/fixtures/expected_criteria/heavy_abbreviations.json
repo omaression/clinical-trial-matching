@@ -1,0 +1,30 @@
+[
+  {
+    "original_text": "Confirmed TNBC",
+    "type": "inclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "negated": false
+  },
+  {
+    "original_text": "ECOG performance status 0-1",
+    "type": "inclusion",
+    "category": "performance_status",
+    "parse_status": "parsed",
+    "operator": "range",
+    "value_low": 0.0,
+    "value_high": 1.0,
+    "raw_expression": "ECOG performance status 0-1",
+    "negated": false
+  },
+  {
+    "original_text": "ANC >= 1500",
+    "type": "inclusion",
+    "category": "lab_value",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 1500.0,
+    "raw_expression": "ANC >= 1500",
+    "negated": false
+  }
+]

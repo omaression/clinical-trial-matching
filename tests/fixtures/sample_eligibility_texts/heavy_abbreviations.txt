@@ -1,0 +1,4 @@
+Inclusion Criteria:
+1. Confirmed TNBC
+2. ECOG performance status 0-1
+3. ANC >= 1500
