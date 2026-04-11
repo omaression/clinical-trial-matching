@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
@@ -15,6 +14,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
+
+from app.time_utils import utc_now
 
 
 class Base(DeclarativeBase):
@@ -42,11 +43,11 @@ class Trial(Base):
     accepts_healthy = Column(Boolean)
     structured_eligibility = Column(JSONB)
     sponsor = Column(String)
-    start_date = Column(DateTime)
-    completion_date = Column(DateTime)
-    last_updated = Column(DateTime)
-    ingested_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime)
+    start_date = Column(DateTime(timezone=True))
+    completion_date = Column(DateTime(timezone=True))
+    last_updated = Column(DateTime(timezone=True))
+    ingested_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True))
     extraction_status = Column(String, nullable=False, default="pending")
 
     sites = relationship("TrialSite", back_populates="trial", cascade="all, delete-orphan")
@@ -85,8 +86,8 @@ class PipelineRun(Base):
     input_hash = Column(String, nullable=False)
     input_snapshot = Column(JSONB, nullable=False)
     status = Column(String, nullable=False, default="running")
-    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    finished_at = Column(DateTime)
+    started_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    finished_at = Column(DateTime(timezone=True))
     error_message = Column(Text)
     criteria_extracted_count = Column(Integer)
     review_required_count = Column(Integer)
@@ -105,8 +106,8 @@ class FHIRResearchStudy(Base):
     resource = Column(JSONB, nullable=False)
     version = Column(Integer, nullable=False, default=1)
     pipeline_run_id = Column(UUID(as_uuid=True), ForeignKey("pipeline_runs.id"), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True))
 
     trial = relationship("Trial", back_populates="fhir_studies")
     pipeline_run = relationship("PipelineRun", back_populates="fhir_study")
@@ -147,13 +148,13 @@ class ExtractedCriterion(Base):
     # Review outcomes
     review_status = Column(String)  # pending / accepted / corrected / rejected
     reviewed_by = Column(String)
-    reviewed_at = Column(DateTime)
+    reviewed_at = Column(DateTime(timezone=True))
     review_notes = Column(Text)
     original_extracted = Column(JSONB)
     # Provenance
     pipeline_version = Column(String, nullable=False)
     pipeline_run_id = Column(UUID(as_uuid=True), ForeignKey("pipeline_runs.id"), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     trial = relationship("Trial", back_populates="criteria")
     pipeline_run = relationship("PipelineRun", back_populates="criteria")
@@ -173,7 +174,7 @@ class CodingLookup(Base):
     display = Column(String, nullable=False)
     synonyms = Column(ARRAY(String), default=list)
     parent_codes = Column(ARRAY(String), default=list)
-    fetched_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    fetched_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
     __table_args__ = (
         UniqueConstraint("system", "code", name="uq_coding_system_code"),

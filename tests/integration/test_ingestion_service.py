@@ -1,15 +1,15 @@
 import copy
 import json
 import uuid
-
-import docker
-import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from app.ingestion.service import IngestionService
+import docker
+import pytest
+
 from app.ingestion.hasher import content_hash
-from app.models.database import Trial, PipelineRun, ExtractedCriterion
+from app.ingestion.service import IngestionService
+from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
 
@@ -80,6 +80,114 @@ class TestIdempotency:
         assert result2.skipped is False
         runs = db_session.query(PipelineRun).filter_by(trial_id=result1.trial.id).count()
         assert runs == 2
+
+    def test_reingest_changed_source_fields_reextracts_and_preserves_run_history(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            result1 = service.ingest(nct_id)
+
+        changed = copy.deepcopy(mock_resp)
+        changed["protocolSection"]["identificationModule"]["briefTitle"] = "Updated Study Title"
+        changed["protocolSection"]["statusModule"]["overallStatus"] = "COMPLETED"
+        changed["protocolSection"]["eligibilityModule"]["minimumAge"] = "21 Years"
+
+        with patch.object(service._client, "fetch_study", return_value=changed):
+            result2 = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).first()
+        runs = db_session.query(PipelineRun).filter_by(trial_id=trial.id).count()
+        latest_run = (
+            db_session.query(PipelineRun)
+            .filter_by(trial_id=trial.id)
+            .order_by(PipelineRun.started_at.desc())
+            .first()
+        )
+        total_criteria = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).count()
+        latest_criteria_count = db_session.query(ExtractedCriterion).filter_by(
+            trial_id=trial.id,
+            pipeline_run_id=latest_run.id,
+        ).count()
+        fhir_versions = [
+            row.version
+            for row in db_session.query(FHIRResearchStudy)
+            .filter_by(trial_id=trial.id)
+            .order_by(FHIRResearchStudy.version.asc())
+            .all()
+        ]
+
+        assert result2.skipped is False
+        assert runs == 2
+        assert trial.brief_title == "Updated Study Title"
+        assert trial.status == "COMPLETED"
+        assert trial.eligible_min_age == "21 Years"
+        assert total_criteria == result1.criteria_count + result2.criteria_count
+        assert latest_criteria_count == result2.criteria_count
+        assert fhir_versions == [1, 2]
+
+    def test_reextract_appends_history_and_diffs_against_previous_completed_run(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            first_result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).first()
+        second_result = service.re_extract(trial)
+
+        runs = (
+            db_session.query(PipelineRun)
+            .filter_by(trial_id=trial.id, status="completed")
+            .order_by(PipelineRun.started_at.asc())
+            .all()
+        )
+        criteria_by_run = {
+            run.id: db_session.query(ExtractedCriterion).filter_by(pipeline_run_id=run.id).count()
+            for run in runs
+        }
+        fhir_versions = [
+            row.version
+            for row in db_session.query(FHIRResearchStudy)
+            .filter_by(trial_id=trial.id)
+            .order_by(FHIRResearchStudy.version.asc())
+            .all()
+        ]
+
+        assert len(runs) == 2
+        assert second_result.criteria_count == first_result.criteria_count
+        assert criteria_by_run[runs[0].id] == first_result.criteria_count
+        assert criteria_by_run[runs[1].id] == second_result.criteria_count
+        assert second_result.diff_summary == {
+            "added": 0,
+            "removed": 0,
+            "unchanged": first_result.criteria_count,
+            "previous_count": first_result.criteria_count,
+            "new_count": second_result.criteria_count,
+        }
+        assert fhir_versions == [1, 2]
+
+    def test_reextract_failure_preserves_existing_criteria(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).first()
+        original_count = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).count()
+
+        with patch.object(service._pipeline, "extract", side_effect=RuntimeError("boom")):
+            with pytest.raises(RuntimeError, match="boom"):
+                service.re_extract(trial)
+
+        criteria_count = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).count()
+        fhir_count = db_session.query(FHIRResearchStudy).filter_by(trial_id=trial.id).count()
+        latest_run = (
+            db_session.query(PipelineRun)
+            .filter_by(trial_id=trial.id)
+            .order_by(PipelineRun.started_at.desc())
+            .first()
+        )
+
+        assert criteria_count == original_count
+        assert original_count == result.criteria_count
+        assert fhir_count == 1
+        assert latest_run.status == "failed"
 
 
 class TestContentHash:

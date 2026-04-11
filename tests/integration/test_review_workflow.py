@@ -1,8 +1,10 @@
 import uuid
+from datetime import datetime
 
 import docker
 import pytest
-from app.models.database import Trial, PipelineRun, ExtractedCriterion
+
+from app.models.database import ExtractedCriterion, PipelineRun, Trial
 
 
 def _docker_available():
@@ -14,6 +16,10 @@ def _docker_available():
 
 
 pytestmark = pytest.mark.skipif(not _docker_available(), reason="Docker not available")
+
+
+def _parse_api_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
 @pytest.fixture
@@ -58,6 +64,9 @@ class TestAccept:
         data = response.json()
         assert data["review_status"] == "accepted"
         assert data["review_required"] is False
+        parsed = _parse_api_datetime(data["reviewed_at"])
+        assert parsed.tzinfo is not None
+        assert parsed.utcoffset().total_seconds() == 0
 
 
 class TestCorrect:

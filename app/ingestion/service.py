@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -16,6 +16,7 @@ from app.models.database import (
     Trial,
     TrialSite,
 )
+from app.time_utils import parse_clinicaltrials_datetime, utc_now
 
 
 @dataclass
@@ -38,7 +39,7 @@ class IngestionService:
     def ingest(self, nct_id: str) -> IngestionResult:
         raw_json = self._client.fetch_study(nct_id)
         eligibility_text = self._extract_eligibility_text(raw_json)
-        new_hash = content_hash(eligibility_text)
+        new_hash = content_hash(self._content_hash_material(raw_json))
 
         # Check for existing trial
         existing = self._db.query(Trial).filter_by(nct_id=nct_id).first()
@@ -48,14 +49,14 @@ class IngestionService:
         # Create or update trial
         if existing:
             trial = existing
-            trial.raw_json = raw_json
-            trial.content_hash = new_hash
-            trial.updated_at = datetime.utcnow()
+            self._apply_trial_snapshot(trial, raw_json=raw_json, hash_val=new_hash)
+            trial.updated_at = utc_now()
         else:
             trial = self._create_trial(nct_id, raw_json, new_hash)
             self._db.add(trial)
 
         self._db.flush()
+        self._persist_sites(trial, raw_json)
 
         # Create pipeline run
         run = PipelineRun(
@@ -72,10 +73,9 @@ class IngestionService:
             result = self._pipeline.extract(eligibility_text)
             self._persist_criteria(trial, run, result)
             self._persist_fhir(trial, run, result)
-            self._persist_sites(trial, raw_json)
 
             run.status = "completed"
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utc_now()
             run.criteria_extracted_count = result.criteria_count
             run.review_required_count = result.review_required_count
             trial.extraction_status = "completed"
@@ -90,7 +90,7 @@ class IngestionService:
 
         except Exception as e:
             run.status = "failed"
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utc_now()
             run.error_message = str(e)
             trial.extraction_status = "failed"
             self._db.commit()
@@ -100,17 +100,16 @@ class IngestionService:
         """Re-run the extraction pipeline on a trial's stored raw_json without re-fetching."""
         eligibility_text = self._extract_eligibility_text(trial.raw_json)
 
-        # Snapshot old criteria categories for diff
-        old_criteria = self._db.query(ExtractedCriterion).filter(
-            ExtractedCriterion.trial_id == trial.id
-        ).all()
+        previous_run = self._latest_completed_run(trial.id)
+        old_criteria = []
+        if previous_run:
+            old_criteria = (
+                self._db.query(ExtractedCriterion)
+                .filter(ExtractedCriterion.pipeline_run_id == previous_run.id)
+                .all()
+            )
         old_texts = {c.original_text for c in old_criteria}
         old_count = len(old_criteria)
-
-        # Delete old criteria
-        self._db.query(ExtractedCriterion).filter(
-            ExtractedCriterion.trial_id == trial.id
-        ).delete()
 
         run = PipelineRun(
             trial_id=trial.id,
@@ -138,7 +137,7 @@ class IngestionService:
             }
 
             run.status = "completed"
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utc_now()
             run.criteria_extracted_count = result.criteria_count
             run.review_required_count = result.review_required_count
             run.diff_summary = diff_summary
@@ -154,7 +153,7 @@ class IngestionService:
             )
         except Exception as e:
             run.status = "failed"
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utc_now()
             run.error_message = str(e)
             trial.extraction_status = "failed"
             self._db.commit()
@@ -179,6 +178,42 @@ class IngestionService:
                 results.append(result)
         return results
 
+    def _content_hash_material(self, raw_json: dict) -> dict:
+        protocol = raw_json.get("protocolSection", {})
+        identification = protocol.get("identificationModule", {})
+        status_module = protocol.get("statusModule", {})
+        eligibility = protocol.get("eligibilityModule", {})
+        design = protocol.get("designModule", {})
+        conditions_module = protocol.get("conditionsModule", {})
+        sponsor_module = protocol.get("sponsorCollaboratorsModule", {})
+        contacts = protocol.get("contactsLocationsModule", {})
+
+        return {
+            "brief_title": identification.get("briefTitle"),
+            "official_title": identification.get("officialTitle"),
+            "status": status_module.get("overallStatus"),
+            "start_date": status_module.get("startDateStruct", {}).get("date"),
+            "completion_date": (
+                status_module.get("completionDateStruct", {}).get("date")
+                or status_module.get("primaryCompletionDateStruct", {}).get("date")
+            ),
+            "last_updated": status_module.get("lastUpdatePostDateStruct", {}).get("date"),
+            "phase": design.get("phases", []),
+            "conditions": conditions_module.get("conditions", []),
+            "interventions": protocol.get("armsInterventionsModule", {}).get("interventions"),
+            "eligibility_text": eligibility.get("eligibilityCriteria", ""),
+            "minimum_age": eligibility.get("minimumAge"),
+            "maximum_age": eligibility.get("maximumAge"),
+            "sex": eligibility.get("sex"),
+            "healthy_volunteers": eligibility.get("healthyVolunteers"),
+            "structured_eligibility": {
+                key: value for key, value in eligibility.items()
+                if key not in ("eligibilityCriteria", "minimumAge", "maximumAge", "sex", "healthyVolunteers")
+            },
+            "sponsor": sponsor_module.get("leadSponsor", {}).get("name"),
+            "locations": contacts.get("locations", []),
+        }
+
     def _persist_fhir(self, trial: Trial, run: PipelineRun, result) -> None:
         """Generate and store FHIR ResearchStudy resource."""
         criteria = self._db.query(ExtractedCriterion).filter(
@@ -187,21 +222,18 @@ class IngestionService:
         ).all()
         resource = self._fhir_mapper.to_research_study(trial, criteria)
 
-        # Check for existing FHIR resource
-        existing = self._db.query(FHIRResearchStudy).filter_by(trial_id=trial.id).first()
-        if existing:
-            existing.resource = resource
-            existing.version = existing.version + 1
-            existing.pipeline_run_id = run.id
-            existing.updated_at = datetime.utcnow()
-        else:
-            fhir_study = FHIRResearchStudy(
-                trial_id=trial.id,
-                resource=resource,
-                version=1,
-                pipeline_run_id=run.id,
-            )
-            self._db.add(fhir_study)
+        latest_version = (
+            self._db.query(func.max(FHIRResearchStudy.version))
+            .filter(FHIRResearchStudy.trial_id == trial.id)
+            .scalar()
+        ) or 0
+        fhir_study = FHIRResearchStudy(
+            trial_id=trial.id,
+            resource=resource,
+            version=latest_version + 1,
+            pipeline_run_id=run.id,
+        )
+        self._db.add(fhir_study)
 
     def _persist_sites(self, trial: Trial, raw_json: dict) -> None:
         """Parse and persist trial sites from ClinicalTrials.gov response."""
@@ -270,12 +302,31 @@ class IngestionService:
             )
             self._db.add(db_criterion)
 
+    def _latest_completed_run(self, trial_id) -> PipelineRun | None:
+        return (
+            self._db.query(PipelineRun)
+            .filter(
+                PipelineRun.trial_id == trial_id,
+                PipelineRun.status == "completed",
+            )
+            .order_by(PipelineRun.finished_at.desc().nullslast(), PipelineRun.started_at.desc())
+            .first()
+        )
+
     def _extract_eligibility_text(self, raw_json: dict) -> str:
         protocol = raw_json.get("protocolSection", {})
         eligibility = protocol.get("eligibilityModule", {})
         return eligibility.get("eligibilityCriteria", "")
 
     def _create_trial(self, nct_id: str, raw_json: dict, hash_val: str) -> Trial:
+        return Trial(**self._trial_snapshot(nct_id=nct_id, raw_json=raw_json, hash_val=hash_val))
+
+    def _apply_trial_snapshot(self, trial: Trial, raw_json: dict, hash_val: str) -> None:
+        snapshot = self._trial_snapshot(nct_id=trial.nct_id, raw_json=raw_json, hash_val=hash_val)
+        for field, value in snapshot.items():
+            setattr(trial, field, value)
+
+    def _trial_snapshot(self, nct_id: str, raw_json: dict, hash_val: str) -> dict:
         protocol = raw_json.get("protocolSection", {})
         identification = protocol.get("identificationModule", {})
         status_module = protocol.get("statusModule", {})
@@ -284,24 +335,32 @@ class IngestionService:
         conditions_module = protocol.get("conditionsModule", {})
         sponsor_module = protocol.get("sponsorCollaboratorsModule", {})
 
-        return Trial(
-            nct_id=nct_id,
-            raw_json=raw_json,
-            content_hash=hash_val,
-            brief_title=identification.get("briefTitle", ""),
-            official_title=identification.get("officialTitle"),
-            status=status_module.get("overallStatus", "UNKNOWN"),
-            phase=",".join(design.get("phases", [])),
-            conditions=conditions_module.get("conditions", []),
-            interventions=protocol.get("armsInterventionsModule", {}).get("interventions"),
-            eligibility_text=eligibility.get("eligibilityCriteria", ""),
-            eligible_min_age=eligibility.get("minimumAge"),
-            eligible_max_age=eligibility.get("maximumAge"),
-            eligible_sex=eligibility.get("sex"),
-            accepts_healthy=eligibility.get("healthyVolunteers") == "Yes",
-            structured_eligibility={
+        return {
+            "nct_id": nct_id,
+            "raw_json": raw_json,
+            "content_hash": hash_val,
+            "brief_title": identification.get("briefTitle", ""),
+            "official_title": identification.get("officialTitle"),
+            "status": status_module.get("overallStatus", "UNKNOWN"),
+            "phase": ",".join(design.get("phases", [])),
+            "conditions": conditions_module.get("conditions", []),
+            "interventions": protocol.get("armsInterventionsModule", {}).get("interventions"),
+            "eligibility_text": eligibility.get("eligibilityCriteria", ""),
+            "eligible_min_age": eligibility.get("minimumAge"),
+            "eligible_max_age": eligibility.get("maximumAge"),
+            "eligible_sex": eligibility.get("sex"),
+            "accepts_healthy": eligibility.get("healthyVolunteers") == "Yes",
+            "structured_eligibility": {
                 k: v for k, v in eligibility.items()
                 if k not in ("eligibilityCriteria", "minimumAge", "maximumAge", "sex", "healthyVolunteers")
             } or None,
-            sponsor=sponsor_module.get("leadSponsor", {}).get("name"),
-        )
+            "sponsor": sponsor_module.get("leadSponsor", {}).get("name"),
+            "start_date": parse_clinicaltrials_datetime(status_module.get("startDateStruct", {}).get("date")),
+            "completion_date": parse_clinicaltrials_datetime(
+                status_module.get("completionDateStruct", {}).get("date")
+                or status_module.get("primaryCompletionDateStruct", {}).get("date")
+            ),
+            "last_updated": parse_clinicaltrials_datetime(
+                status_module.get("lastUpdatePostDateStruct", {}).get("date")
+            ),
+        }
