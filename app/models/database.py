@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -54,6 +55,7 @@ class Trial(Base):
     criteria = relationship("ExtractedCriterion", back_populates="trial", cascade="all, delete-orphan")
     pipeline_runs = relationship("PipelineRun", back_populates="trial", cascade="all, delete-orphan")
     fhir_studies = relationship("FHIRResearchStudy", back_populates="trial", cascade="all, delete-orphan")
+    match_results = relationship("MatchResult", back_populates="trial", cascade="all, delete-orphan")
 
     __table_args__ = (Index("ix_trials_conditions", "conditions", postgresql_using="gin"),)
 
@@ -180,3 +182,169 @@ class CodingLookup(Base):
         UniqueConstraint("system", "code", name="uq_coding_system_code"),
         Index("ix_coding_synonyms", "synonyms", postgresql_using="gin"),
     )
+
+
+class Patient(Base):
+    __tablename__ = "patients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    external_id = Column(String, unique=True)
+    sex = Column(String)
+    birth_date = Column(Date)
+    ecog_status = Column(Integer)
+    is_healthy_volunteer = Column(Boolean)
+    country = Column(String)
+    state = Column(String)
+    city = Column(String)
+    latitude = Column(Float)
+    longitude = Column(Float)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = Column(DateTime(timezone=True))
+
+    conditions = relationship("PatientCondition", back_populates="patient", cascade="all, delete-orphan")
+    biomarkers = relationship("PatientBiomarker", back_populates="patient", cascade="all, delete-orphan")
+    labs = relationship("PatientLab", back_populates="patient", cascade="all, delete-orphan")
+    therapies = relationship("PatientTherapy", back_populates="patient", cascade="all, delete-orphan")
+    medications = relationship("PatientMedication", back_populates="patient", cascade="all, delete-orphan")
+    match_runs = relationship("MatchRun", back_populates="patient", cascade="all, delete-orphan")
+    match_results = relationship("MatchResult", back_populates="patient", cascade="all, delete-orphan")
+
+
+class PatientCondition(Base):
+    __tablename__ = "patient_conditions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    coded_concepts = Column(JSONB, default=list)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    patient = relationship("Patient", back_populates="conditions")
+
+
+class PatientBiomarker(Base):
+    __tablename__ = "patient_biomarkers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    coded_concepts = Column(JSONB, default=list)
+    value_text = Column(String)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    patient = relationship("Patient", back_populates="biomarkers")
+
+
+class PatientLab(Base):
+    __tablename__ = "patient_labs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    coded_concepts = Column(JSONB, default=list)
+    value_numeric = Column(Float)
+    value_text = Column(String)
+    unit = Column(String)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    patient = relationship("Patient", back_populates="labs")
+
+
+class PatientTherapy(Base):
+    __tablename__ = "patient_therapies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    coded_concepts = Column(JSONB, default=list)
+    line_of_therapy = Column(Integer)
+    completed = Column(Boolean)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    patient = relationship("Patient", back_populates="therapies")
+
+
+class PatientMedication(Base):
+    __tablename__ = "patient_medications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    description = Column(String, nullable=False)
+    coded_concepts = Column(JSONB, default=list)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    patient = relationship("Patient", back_populates="medications")
+
+
+class MatchRun(Base):
+    __tablename__ = "match_runs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String, nullable=False, default="completed")
+    total_trials_evaluated = Column(Integer, nullable=False, default=0)
+    eligible_trials = Column(Integer, nullable=False, default=0)
+    possible_trials = Column(Integer, nullable=False, default=0)
+    ineligible_trials = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    patient = relationship("Patient", back_populates="match_runs")
+    results = relationship("MatchResult", back_populates="match_run", cascade="all, delete-orphan")
+
+
+class MatchResult(Base):
+    __tablename__ = "match_results"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    match_run_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("match_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    trial_id = Column(UUID(as_uuid=True), ForeignKey("trials.id", ondelete="CASCADE"), nullable=False, index=True)
+    overall_status = Column(String, nullable=False, index=True)
+    score = Column(Float, nullable=False, default=0.0)
+    favorable_count = Column(Integer, nullable=False, default=0)
+    unfavorable_count = Column(Integer, nullable=False, default=0)
+    unknown_count = Column(Integer, nullable=False, default=0)
+    requires_review_count = Column(Integer, nullable=False, default=0)
+    summary_explanation = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    match_run = relationship("MatchRun", back_populates="results")
+    patient = relationship("Patient", back_populates="match_results")
+    trial = relationship("Trial", back_populates="match_results")
+    criteria = relationship("MatchResultCriterion", back_populates="match_result", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("match_run_id", "trial_id", name="uq_match_run_trial"),
+    )
+
+
+class MatchResultCriterion(Base):
+    __tablename__ = "match_result_criteria"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    match_result_id = Column(
+        UUID(as_uuid=True), ForeignKey("match_results.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    criterion_id = Column(UUID(as_uuid=True), ForeignKey("extracted_criteria.id"), nullable=True, index=True)
+    pipeline_run_id = Column(UUID(as_uuid=True), ForeignKey("pipeline_runs.id"), nullable=True, index=True)
+    source_type = Column(String, nullable=False)
+    source_label = Column(String, nullable=False)
+    criterion_type = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    criterion_text = Column(Text, nullable=False)
+    outcome = Column(String, nullable=False)
+    explanation_text = Column(Text)
+    explanation_type = Column(String)
+    evidence_payload = Column(JSONB)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    match_result = relationship("MatchResult", back_populates="criteria")
+    criterion = relationship("ExtractedCriterion")
+    pipeline_run = relationship("PipelineRun")

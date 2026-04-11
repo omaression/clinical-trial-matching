@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -8,6 +9,8 @@ import docker
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
+from app.db.session import get_db
 from app.ingestion.service import SearchIngestBatchResult, SearchIngestTrialResult
 from app.main import app
 from app.models.database import ExtractedCriterion, PipelineRun, Trial
@@ -21,6 +24,9 @@ def _docker_available():
         return True
     except Exception:
         return False
+
+
+pytestmark_docker = pytest.mark.skipif(not _docker_available(), reason="Docker not available")
 
 
 # --- Non-DB tests (no Docker needed) ---
@@ -48,11 +54,98 @@ class TestRouteRegistration:
             assert "/api/v1/pipeline/runs/{run_id}" in paths
             assert "/api/v1/trials/{trial_id}/re-extract" in paths
             assert "/api/v1/trials/search-ingest" in paths
+            assert "/api/v1/patients" in paths
+            assert "/api/v1/patients/{patient_id}" in paths
+            assert "/api/v1/patients/{patient_id}/match" in paths
+            assert "/api/v1/patients/{patient_id}/matches" in paths
+            assert "/api/v1/matches/{match_id}" in paths
+
+    def test_protected_operations_require_api_key_security_scheme(self):
+        with TestClient(app) as c:
+            schema = c.get("/openapi.json").json()
+            ingest_operation = schema["paths"]["/api/v1/trials/ingest"]["post"]
+            review_operation = schema["paths"]["/api/v1/review"]["get"]
+            patient_operation = schema["paths"]["/api/v1/patients"]["post"]
+            assert ingest_operation["security"] == [{"APIKeyHeader": []}]
+            assert review_operation["security"] == [{"APIKeyHeader": []}]
+            assert patient_operation["security"] == [{"APIKeyHeader": []}]
+
+
+@pytestmark_docker
+class TestApiHardening:
+    def test_public_trial_list_does_not_require_api_key(self, unauthenticated_client):
+        response = unauthenticated_client.get("/api/v1/trials")
+        assert response.status_code == 200
+        assert response.headers["X-Request-ID"]
+
+    def test_operational_endpoint_rejects_missing_api_key(self, unauthenticated_client):
+        response = unauthenticated_client.post("/api/v1/trials/ingest", json={"nct_id": "NCT12345678"})
+        assert response.status_code == 401
+        assert response.json()["code"] == "invalid_api_key"
+        assert response.json()["request_id"] == response.headers["X-Request-ID"]
+
+    def test_operational_endpoint_rejects_invalid_api_key(self, db_session):
+        def override_get_db():
+            yield db_session
+
+        app.dependency_overrides[get_db] = override_get_db
+        try:
+            with TestClient(app) as c:
+                response = c.post(
+                    "/api/v1/trials/ingest",
+                    json={"nct_id": "NCT12345678"},
+                    headers={"X-API-Key": "wrong-key"},
+                )
+            assert response.status_code == 401
+            assert response.json()["code"] == "invalid_api_key"
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_request_id_is_echoed_on_success(self, client):
+        response = client.get("/api/v1/trials", headers={"X-Request-ID": "req-123"})
+        assert response.status_code == 200
+        assert response.headers["X-Request-ID"] == "req-123"
+
+    def test_validation_errors_use_structured_error_payload(self, client):
+        response = client.post("/api/v1/trials/ingest", json={"nct_id": "invalid"})
+        assert response.status_code == 422
+        assert response.json()["code"] == "validation_error"
+        assert response.json()["request_id"] == response.headers["X-Request-ID"]
+
+    def test_ingest_rate_limit_returns_429_with_retry_after(self, client, monkeypatch):
+        base_response = json.loads((MOCK_DIR / "NCT04567890.json").read_text())
+        first_nct = f"NCT{uuid.uuid4().int % 10**8:08d}"
+        second_nct = f"NCT{uuid.uuid4().int % 10**8:08d}"
+        monkeypatch.setattr(settings, "ingest_rate_limit_requests", 1)
+        monkeypatch.setattr(settings, "ingest_rate_limit_window_seconds", 60)
+
+        def _fetch_study(nct_id):
+            response = json.loads(json.dumps(base_response))
+            response["protocolSection"]["identificationModule"]["nctId"] = nct_id
+            return response
+
+        with patch("app.ingestion.ctgov_client.CTGovClient.fetch_study", side_effect=_fetch_study):
+            first = client.post("/api/v1/trials/ingest", json={"nct_id": first_nct})
+            second = client.post("/api/v1/trials/ingest", json={"nct_id": second_nct})
+        assert first.status_code == 201
+        assert second.status_code == 429
+        assert second.json()["code"] == "rate_limit_exceeded"
+        assert int(second.headers["Retry-After"]) >= 1
+
+    def test_request_logging_emits_structured_json(self, client, caplog):
+        with caplog.at_level(logging.INFO, logger="app.request"):
+            response = client.get("/api/v1/trials")
+        assert response.status_code == 200
+        entries = [record.message for record in caplog.records if record.name == "app.request"]
+        payload = json.loads(entries[-1])
+        assert payload["request_id"] == response.headers["X-Request-ID"]
+        assert payload["path"] == "/api/v1/trials"
+        assert payload["method"] == "GET"
+        assert payload["status_code"] == 200
+        assert payload["duration_ms"] >= 0
 
 
 # --- DB-backed tests (require Docker) ---
-
-pytestmark_docker = pytest.mark.skipif(not _docker_available(), reason="Docker not available")
 
 
 def _parse_api_datetime(value: str) -> datetime:

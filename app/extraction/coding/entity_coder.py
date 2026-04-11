@@ -1,9 +1,11 @@
 import re
 from dataclasses import dataclass, field
 
-from sqlalchemy import func, or_
+from sqlalchemy import bindparam, func, or_, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.extraction.types import CodedConcept, Entity
 from app.models.database import CodingLookup
 
@@ -53,9 +55,8 @@ class EntityCoder:
         if result:
             return result
 
-        # Tier 3: Fuzzy match
-        lookups = self._candidate_lookups(systems)
-        result = self._fuzzy_match(lookup_text, lookups)
+        # Tier 3: Fuzzy match via pg_trgm similarity, with a safe Python fallback.
+        result = self._fuzzy_match(lookup_text, systems)
         if result:
             return result
 
@@ -143,7 +144,52 @@ class EntityCoder:
             ),
         )
 
-    def _fuzzy_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
+    def _fuzzy_match(self, text: str, systems: tuple[str, ...]) -> CodingResult | None:
+        try:
+            result = self._pg_trgm_fuzzy_match(text, systems)
+            if result:
+                return result
+        except DBAPIError:
+            self._db.rollback()
+
+        lookups = self._candidate_lookups(systems)
+        return self._fallback_fuzzy_match(text, lookups)
+
+    def _pg_trgm_fuzzy_match(self, text: str, systems: tuple[str, ...]) -> CodingResult | None:
+        statement = text_query().bindparams(bindparam("systems", expanding=True))
+        rows = self._db.execute(
+            statement,
+            {
+                "lookup_text": text,
+                "systems": list(systems),
+                "threshold": settings.coding_fuzzy_similarity_threshold,
+            },
+        ).mappings().all()
+        if not rows:
+            return None
+
+        best_match = sorted(
+            rows,
+            key=lambda row: (
+                -float(row["score"]),
+                _system_rank(str(row["system"]), systems),
+                str(row["display"]).casefold(),
+                str(row["code"]).casefold(),
+            ),
+        )[0]
+        return CodingResult(
+            concepts=[CodedConcept(
+                system=best_match["system"],
+                code=best_match["code"],
+                display=best_match["display"],
+                match_type="fuzzy",
+            )],
+            confidence=0.60,
+            review_required=True,
+            review_reason="fuzzy_match",
+        )
+
+    def _fallback_fuzzy_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
         best_match: CodingLookup | None = None
         best_distance = 3
 
@@ -170,6 +216,120 @@ class EntityCoder:
                 review_reason="fuzzy_match",
             )
         return None
+
+
+def text_query():
+    return text(
+        """
+        SELECT
+            id,
+            system,
+            code,
+            display,
+            GREATEST(
+                similarity(
+                    trim(
+                        regexp_replace(
+                            regexp_replace(
+                                replace(
+                                    replace(replace(lower(display), '+', ' positive '), '/', ' '),
+                                    '_',
+                                    ' '
+                                ),
+                                '[^a-z0-9]+',
+                                ' ',
+                                'g'
+                            ),
+                            '\\s+',
+                            ' ',
+                            'g'
+                        )
+                    ),
+                    :lookup_text
+                ),
+                COALESCE(
+                    (
+                        SELECT MAX(
+                            similarity(
+                                trim(
+                                    regexp_replace(
+                                        regexp_replace(
+                                            replace(
+                                                replace(replace(lower(synonym), '+', ' positive '), '/', ' '),
+                                                '_',
+                                                ' '
+                                            ),
+                                            '[^a-z0-9]+',
+                                            ' ',
+                                            'g'
+                                        ),
+                                        '\\s+',
+                                        ' ',
+                                        'g'
+                                    )
+                                ),
+                                :lookup_text
+                            )
+                        )
+                        FROM unnest(COALESCE(coding_lookups.synonyms, ARRAY[]::text[])) AS synonym
+                    ),
+                    0
+                )
+            ) AS score
+        FROM coding_lookups
+        WHERE system IN :systems
+          AND GREATEST(
+                similarity(
+                    trim(
+                        regexp_replace(
+                            regexp_replace(
+                                replace(
+                                    replace(replace(lower(display), '+', ' positive '), '/', ' '),
+                                    '_',
+                                    ' '
+                                ),
+                                '[^a-z0-9]+',
+                                ' ',
+                                'g'
+                            ),
+                            '\\s+',
+                            ' ',
+                            'g'
+                        )
+                    ),
+                    :lookup_text
+                ),
+                COALESCE(
+                    (
+                        SELECT MAX(
+                            similarity(
+                                trim(
+                                    regexp_replace(
+                                        regexp_replace(
+                                            replace(
+                                                replace(replace(lower(synonym), '+', ' positive '), '/', ' '),
+                                                '_',
+                                                ' '
+                                            ),
+                                            '[^a-z0-9]+',
+                                            ' ',
+                                            'g'
+                                        ),
+                                        '\\s+',
+                                        ' ',
+                                        'g'
+                                    )
+                                ),
+                                :lookup_text
+                            )
+                        )
+                        FROM unnest(COALESCE(coding_lookups.synonyms, ARRAY[]::text[])) AS synonym
+                    ),
+                    0
+                )
+            ) >= :threshold
+        """
+    )
 
 
 def _normalize_text(text: str) -> str:

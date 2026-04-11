@@ -6,6 +6,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Query as SQLAlchemyQuery
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import add_request_log_context, rate_limit_dependency, require_api_key
+from app.api.openapi import (
+    COMMON_ERROR_RESPONSES,
+    PROTECTED_OPERATIONAL_RESPONSES,
+    PROTECTED_READ_RESPONSES,
+    PROTECTED_REVIEW_RESPONSES,
+    READ_ERROR_RESPONSES,
+)
 from app.api.schemas import (
     CriteriaListResponse,
     CriteriaSummary,
@@ -35,6 +43,21 @@ from app.time_utils import utc_now
 
 router = APIRouter()
 fhir_mapper = FHIRMapper()
+ingest_rate_limit = rate_limit_dependency(
+    "ingest",
+    limit_setting="ingest_rate_limit_requests",
+    window_setting="ingest_rate_limit_window_seconds",
+)
+search_ingest_rate_limit = rate_limit_dependency(
+    "search_ingest",
+    limit_setting="search_ingest_rate_limit_requests",
+    window_setting="search_ingest_rate_limit_window_seconds",
+)
+reextract_rate_limit = rate_limit_dependency(
+    "reextract",
+    limit_setting="reextract_rate_limit_requests",
+    window_setting="reextract_rate_limit_window_seconds",
+)
 
 
 def _get_ingestion_service(request: Request, db: Session = Depends(get_db)) -> IngestionService:
@@ -44,9 +67,20 @@ def _get_ingestion_service(request: Request, db: Session = Depends(get_db)) -> I
     return IngestionService(db, pipeline=pipeline)
 
 
-@router.post("/trials/ingest", status_code=201, response_model=IngestResponse)
-def ingest_trial(request: IngestRequest, service: IngestionService = Depends(_get_ingestion_service)):
-    result = service.ingest(request.nct_id)
+@router.post(
+    "/trials/ingest",
+    status_code=201,
+    response_model=IngestResponse,
+    responses=PROTECTED_OPERATIONAL_RESPONSES,
+)
+def ingest_trial(
+    payload: IngestRequest,
+    request: Request,
+    _: str = Depends(ingest_rate_limit),
+    service: IngestionService = Depends(_get_ingestion_service),
+):
+    add_request_log_context(request, nct_id=payload.nct_id)
+    result = service.ingest(payload.nct_id)
     return IngestResponse(
         nct_id=result.trial.nct_id,
         trial_id=result.trial.id,
@@ -56,17 +90,25 @@ def ingest_trial(request: IngestRequest, service: IngestionService = Depends(_ge
     )
 
 
-@router.post("/trials/search-ingest", status_code=201, response_model=SearchIngestResponse)
+@router.post(
+    "/trials/search-ingest",
+    status_code=201,
+    response_model=SearchIngestResponse,
+    responses=PROTECTED_OPERATIONAL_RESPONSES,
+)
 def search_and_ingest(
-    request: SearchIngestRequest,
+    payload: SearchIngestRequest,
+    request: Request,
+    _: str = Depends(search_ingest_rate_limit),
     service: IngestionService = Depends(_get_ingestion_service),
 ):
+    add_request_log_context(request)
     results = service.search_and_ingest(
-        condition=request.condition,
-        status=request.status,
-        phase=request.phase,
-        limit=request.limit,
-        page_token=request.page_token,
+        condition=payload.condition,
+        status=payload.status,
+        phase=payload.phase,
+        limit=payload.limit,
+        page_token=payload.page_token,
     )
     if isinstance(results, list):
         batch_results = results
@@ -108,7 +150,7 @@ def search_and_ingest(
     )
 
 
-@router.get("/trials", response_model=TrialListResponse)
+@router.get("/trials", response_model=TrialListResponse, responses=COMMON_ERROR_RESPONSES)
 def list_trials(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
@@ -140,23 +182,30 @@ def list_trials(
     )
 
 
-@router.get("/trials/{trial_id}", response_model=TrialDetail)
-def get_trial(trial_id: UUID, db: Session = Depends(get_db)):
+@router.get("/trials/{trial_id}", response_model=TrialDetail, responses=READ_ERROR_RESPONSES)
+def get_trial(trial_id: UUID, request: Request, db: Session = Depends(get_db)):
+    add_request_log_context(request, trial_id=trial_id)
     trial = _get_trial_or_404(trial_id, db)
     return _trial_detail(trial, db)
 
 
-@router.get("/trials/nct/{nct_id}", response_model=TrialDetail)
-def get_trial_by_nct(nct_id: str, db: Session = Depends(get_db)):
+@router.get("/trials/nct/{nct_id}", response_model=TrialDetail, responses=READ_ERROR_RESPONSES)
+def get_trial_by_nct(nct_id: str, request: Request, db: Session = Depends(get_db)):
+    add_request_log_context(request, nct_id=nct_id)
     trial = db.query(Trial).filter(Trial.nct_id == nct_id).first()
     if not trial:
         raise HTTPException(status_code=404, detail="Trial not found")
     return _trial_detail(trial, db)
 
 
-@router.get("/trials/{trial_id}/criteria", response_model=CriteriaListResponse)
+@router.get(
+    "/trials/{trial_id}/criteria",
+    response_model=CriteriaListResponse,
+    responses=READ_ERROR_RESPONSES,
+)
 def get_trial_criteria(
     trial_id: UUID,
+    request: Request,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     type: str | None = None,
@@ -164,6 +213,7 @@ def get_trial_criteria(
     review_required: bool | None = None,
     db: Session = Depends(get_db),
 ):
+    add_request_log_context(request, trial_id=trial_id)
     _get_trial_or_404(trial_id, db)
     query = _latest_trial_criteria_query(trial_id, db)
     if type:
@@ -188,16 +238,22 @@ def get_trial_criteria(
     )
 
 
-@router.get("/criteria/{criterion_id}", response_model=CriterionResponse)
-def get_criterion(criterion_id: UUID, db: Session = Depends(get_db)):
+@router.get("/criteria/{criterion_id}", response_model=CriterionResponse, responses=READ_ERROR_RESPONSES)
+def get_criterion(criterion_id: UUID, request: Request, db: Session = Depends(get_db)):
     criterion = db.query(ExtractedCriterion).filter(ExtractedCriterion.id == criterion_id).first()
     if not criterion:
         raise HTTPException(status_code=404, detail="Criterion not found")
+    add_request_log_context(
+        request,
+        trial_id=criterion.trial_id,
+        pipeline_run_id=criterion.pipeline_run_id,
+    )
     return _criterion_detail(criterion)
 
 
-@router.get("/trials/{trial_id}/fhir")
-def get_trial_fhir(trial_id: UUID, db: Session = Depends(get_db)):
+@router.get("/trials/{trial_id}/fhir", responses=READ_ERROR_RESPONSES)
+def get_trial_fhir(trial_id: UUID, request: Request, db: Session = Depends(get_db)):
+    add_request_log_context(request, trial_id=trial_id)
     trial = _get_trial_or_404(trial_id, db)
     latest_run = _latest_completed_run(trial.id, db)
 
@@ -226,14 +282,17 @@ def get_trial_fhir(trial_id: UUID, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/review", response_model=ReviewQueueResponse)
+@router.get("/review", response_model=ReviewQueueResponse, responses=PROTECTED_READ_RESPONSES)
 def get_review_queue(
+    request: Request,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     reason: str | None = None,
     trial_id: UUID | None = None,
+    _: str = Depends(require_api_key),
     db: Session = Depends(get_db),
 ):
+    add_request_log_context(request, trial_id=trial_id)
     latest_run_ids = _latest_completed_run_ids_subquery()
     query = db.query(ExtractedCriterion).filter(
         ExtractedCriterion.pipeline_run_id.in_(latest_run_ids),
@@ -272,23 +331,34 @@ def get_review_queue(
     )
 
 
-@router.patch("/criteria/{criterion_id}/review", response_model=CriterionResponse)
+@router.patch(
+    "/criteria/{criterion_id}/review",
+    response_model=CriterionResponse,
+    responses=PROTECTED_REVIEW_RESPONSES,
+)
 def review_criterion(
     criterion_id: UUID,
-    request: ReviewRequest,
+    payload: ReviewRequest,
+    request: Request,
+    _: str = Depends(require_api_key),
     db: Session = Depends(get_db),
 ):
     criterion = db.query(ExtractedCriterion).filter(ExtractedCriterion.id == criterion_id).first()
     if not criterion:
         raise HTTPException(status_code=404, detail="Criterion not found")
+    add_request_log_context(
+        request,
+        trial_id=criterion.trial_id,
+        pipeline_run_id=criterion.pipeline_run_id,
+    )
     _ensure_reviewable_criterion(criterion, db)
 
-    if request.action == "accept":
+    if payload.action == "accept":
         criterion.review_status = "accepted"
         criterion.review_required = False
-    elif request.action == "correct":
+    elif payload.action == "correct":
         criterion.original_extracted = _correction_snapshot(criterion)
-        for key, value in request.corrected_data.model_dump(exclude_unset=True).items():
+        for key, value in payload.corrected_data.model_dump(exclude_unset=True).items():
             if hasattr(criterion, key):
                 setattr(criterion, key, value)
         criterion.review_status = "corrected"
@@ -297,17 +367,18 @@ def review_criterion(
         criterion.review_status = "rejected"
         criterion.review_required = False
 
-    criterion.reviewed_by = request.reviewed_by
+    criterion.reviewed_by = payload.reviewed_by
     criterion.reviewed_at = utc_now()
-    criterion.review_notes = request.review_notes
+    criterion.review_notes = payload.review_notes
 
     db.commit()
     db.refresh(criterion)
     return _criterion_detail(criterion)
 
 
-@router.get("/pipeline/status", response_model=PipelineStatusResponse)
-def pipeline_status(db: Session = Depends(get_db)):
+@router.get("/pipeline/status", response_model=PipelineStatusResponse, responses=PROTECTED_READ_RESPONSES)
+def pipeline_status(request: Request, _: str = Depends(require_api_key), db: Session = Depends(get_db)):
+    add_request_log_context(request)
     latest_run_ids = _latest_completed_run_ids_subquery()
     total_runs = db.query(PipelineRun).count()
     completed = db.query(PipelineRun).filter(PipelineRun.status == "completed").count()
@@ -332,15 +403,18 @@ def pipeline_status(db: Session = Depends(get_db)):
     )
 
 
-@router.get("/pipeline/runs", response_model=PipelineRunListResponse)
+@router.get("/pipeline/runs", response_model=PipelineRunListResponse, responses=PROTECTED_READ_RESPONSES)
 def list_pipeline_runs(
+    request: Request,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     trial_id: UUID | None = None,
     pipeline_version: str | None = None,
     status: str | None = None,
+    _: str = Depends(require_api_key),
     db: Session = Depends(get_db),
 ):
+    add_request_log_context(request, trial_id=trial_id)
     query = db.query(PipelineRun).order_by(PipelineRun.started_at.desc())
     if trial_id:
         query = query.filter(PipelineRun.trial_id == trial_id)
@@ -359,20 +433,32 @@ def list_pipeline_runs(
     )
 
 
-@router.get("/pipeline/runs/{run_id}", response_model=PipelineRunResponse)
-def get_pipeline_run(run_id: UUID, db: Session = Depends(get_db)):
+@router.get(
+    "/pipeline/runs/{run_id}",
+    response_model=PipelineRunResponse,
+    responses={**PROTECTED_READ_RESPONSES, 404: READ_ERROR_RESPONSES[404]},
+)
+def get_pipeline_run(run_id: UUID, request: Request, _: str = Depends(require_api_key), db: Session = Depends(get_db)):
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Pipeline run not found")
+    add_request_log_context(request, trial_id=run.trial_id, pipeline_run_id=run.id)
     return _run_detail(run)
 
 
-@router.post("/trials/{trial_id}/re-extract", response_model=ReExtractResponse)
+@router.post(
+    "/trials/{trial_id}/re-extract",
+    response_model=ReExtractResponse,
+    responses={**PROTECTED_OPERATIONAL_RESPONSES, 404: READ_ERROR_RESPONSES[404]},
+)
 def re_extract_trial(
     trial_id: UUID,
+    request: Request,
+    _: str = Depends(reextract_rate_limit),
     db: Session = Depends(get_db),
     service: IngestionService = Depends(_get_ingestion_service),
 ):
+    add_request_log_context(request, trial_id=trial_id)
     trial = _get_trial_or_404(trial_id, db)
     result = service.re_extract(trial)
     return ReExtractResponse(

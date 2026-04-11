@@ -76,6 +76,14 @@ class TestFuzzyMatch:
             assert result.review_required is True
             assert result.confidence == 0.60
 
+    def test_fuzzy_match_uses_synonym_similarity(self, coder):
+        entity = Entity(text="absolute neutrophil coun", label="LAB_TEST", start=0, end=24)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "loinc"
+        assert result.concepts[0].code == "751-8"
+        assert result.concepts[0].match_type == "fuzzy"
+        assert result.review_required is True
+
 
 class TestNoMatch:
     def test_uncoded_flagged(self, coder):

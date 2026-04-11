@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -224,6 +224,230 @@ class ReExtractResponse(APIModel):
     diff_summary: dict[str, Any] | None = None
 
 
+class HealthResponse(APIModel):
+    status: Literal["healthy", "degraded"]
+    pipeline_version: str
+    database: str
+    spacy_model: str
+
+
+class PatientConditionInput(APIModel):
+    description: str = Field(min_length=1)
+    coded_concepts: list[CodedConceptUpdate] = Field(default_factory=list)
+
+
+class PatientBiomarkerInput(APIModel):
+    description: str = Field(min_length=1)
+    coded_concepts: list[CodedConceptUpdate] = Field(default_factory=list)
+    value_text: str | None = None
+
+
+class PatientLabInput(APIModel):
+    description: str = Field(min_length=1)
+    coded_concepts: list[CodedConceptUpdate] = Field(default_factory=list)
+    value_numeric: float | None = None
+    value_text: str | None = None
+    unit: str | None = None
+
+
+class PatientTherapyInput(APIModel):
+    description: str = Field(min_length=1)
+    coded_concepts: list[CodedConceptUpdate] = Field(default_factory=list)
+    line_of_therapy: int | None = Field(default=None, ge=0)
+    completed: bool | None = None
+
+
+class PatientMedicationInput(APIModel):
+    description: str = Field(min_length=1)
+    coded_concepts: list[CodedConceptUpdate] = Field(default_factory=list)
+    active: bool = True
+
+
+class PatientCreateRequest(APIModel):
+    external_id: str | None = None
+    sex: Literal["male", "female", "other", "unknown"] | None = None
+    birth_date: date | None = None
+    ecog_status: int | None = Field(default=None, ge=0, le=5)
+    is_healthy_volunteer: bool | None = None
+    country: str | None = None
+    state: str | None = None
+    city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    conditions: list[PatientConditionInput] = Field(default_factory=list)
+    biomarkers: list[PatientBiomarkerInput] = Field(default_factory=list)
+    labs: list[PatientLabInput] = Field(default_factory=list)
+    therapies: list[PatientTherapyInput] = Field(default_factory=list)
+    medications: list[PatientMedicationInput] = Field(default_factory=list)
+
+
+class PatientUpdateRequest(APIModel):
+    external_id: str | None = None
+    sex: Literal["male", "female", "other", "unknown"] | None = None
+    birth_date: date | None = None
+    ecog_status: int | None = Field(default=None, ge=0, le=5)
+    is_healthy_volunteer: bool | None = None
+    country: str | None = None
+    state: str | None = None
+    city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    conditions: list[PatientConditionInput] | None = None
+    biomarkers: list[PatientBiomarkerInput] | None = None
+    labs: list[PatientLabInput] | None = None
+    therapies: list[PatientTherapyInput] | None = None
+    medications: list[PatientMedicationInput] | None = None
+
+    @model_validator(mode="after")
+    def validate_has_fields(self):
+        if not self.model_fields_set:
+            raise ValueError("patient update must include at least one field")
+        return self
+
+
+class PatientConditionResponse(APIModel):
+    id: UUID
+    description: str
+    coded_concepts: list["CodedConceptResponse"] = Field(default_factory=list)
+
+
+class PatientBiomarkerResponse(APIModel):
+    id: UUID
+    description: str
+    coded_concepts: list["CodedConceptResponse"] = Field(default_factory=list)
+    value_text: str | None = None
+
+
+class PatientLabResponse(APIModel):
+    id: UUID
+    description: str
+    coded_concepts: list["CodedConceptResponse"] = Field(default_factory=list)
+    value_numeric: float | None = None
+    value_text: str | None = None
+    unit: str | None = None
+
+
+class PatientTherapyResponse(APIModel):
+    id: UUID
+    description: str
+    coded_concepts: list["CodedConceptResponse"] = Field(default_factory=list)
+    line_of_therapy: int | None = None
+    completed: bool | None = None
+
+
+class PatientMedicationResponse(APIModel):
+    id: UUID
+    description: str
+    coded_concepts: list["CodedConceptResponse"] = Field(default_factory=list)
+    active: bool
+
+
+class PatientSummary(APIModel):
+    id: UUID
+    external_id: str | None = None
+    sex: str | None = None
+    birth_date: date | None = None
+    ecog_status: int | None = None
+    is_healthy_volunteer: bool | None = None
+    country: str | None = None
+    state: str | None = None
+    city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class PatientDetail(PatientSummary):
+    conditions: list[PatientConditionResponse] = Field(default_factory=list)
+    biomarkers: list[PatientBiomarkerResponse] = Field(default_factory=list)
+    labs: list[PatientLabResponse] = Field(default_factory=list)
+    therapies: list[PatientTherapyResponse] = Field(default_factory=list)
+    medications: list[PatientMedicationResponse] = Field(default_factory=list)
+
+
+class PatientListResponse(APIModel):
+    items: list[PatientSummary]
+    total: int
+    page: int
+    per_page: int
+
+
+CriterionMatchOutcome = Literal[
+    "matched",
+    "not_matched",
+    "unknown",
+    "requires_review",
+    "not_triggered",
+    "triggered",
+]
+
+
+class MatchCriterionResultResponse(APIModel):
+    id: UUID
+    criterion_id: UUID | None = None
+    pipeline_run_id: UUID | None = None
+    source_type: str
+    source_label: str
+    criterion_type: str
+    category: str
+    criterion_text: str
+    outcome: CriterionMatchOutcome
+    explanation_text: str | None = None
+    explanation_type: str | None = None
+    evidence_payload: dict[str, Any] | None = None
+    created_at: datetime | None = None
+
+
+class MatchResultSummary(APIModel):
+    id: UUID
+    match_run_id: UUID
+    patient_id: UUID
+    trial_id: UUID
+    trial_nct_id: str
+    trial_brief_title: str
+    overall_status: Literal["eligible", "possible", "ineligible"]
+    score: float
+    favorable_count: int
+    unfavorable_count: int
+    unknown_count: int
+    requires_review_count: int
+    summary_explanation: str | None = None
+    created_at: datetime | None = None
+
+
+class MatchResultDetail(MatchResultSummary):
+    criteria: list[MatchCriterionResultResponse] = Field(default_factory=list)
+
+
+class MatchRunResponse(APIModel):
+    id: UUID
+    patient_id: UUID
+    status: str
+    total_trials_evaluated: int
+    eligible_trials: int
+    possible_trials: int
+    ineligible_trials: int
+    created_at: datetime | None = None
+    completed_at: datetime | None = None
+    results: list[MatchResultSummary] = Field(default_factory=list)
+
+
+class MatchResultListResponse(APIModel):
+    items: list[MatchResultSummary]
+    total: int
+    page: int
+    per_page: int
+
+
 class ErrorResponse(APIModel):
     detail: str
     code: str | None = None
+    request_id: str | None = None
+
+
+PatientConditionResponse.model_rebuild()
+PatientBiomarkerResponse.model_rebuild()
+PatientLabResponse.model_rebuild()
+PatientTherapyResponse.model_rebuild()
+PatientMedicationResponse.model_rebuild()
