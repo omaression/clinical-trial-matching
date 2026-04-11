@@ -8,3 +8,6 @@ dist/
 .pytest_cache/
 .superpowers/
 .worktrees/
+.ctm-dev/
+.conda-pkgs/
+.conda-env/
