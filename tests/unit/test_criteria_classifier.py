@@ -94,8 +94,8 @@ class TestCategoryAssignment:
             [],
         )
         assert result.category == "concomitant_medication"
-        assert result.parse_status == "partial"
-        assert result.review_required is True
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
 
     def test_hypersensitivity_text_only_becomes_partial_not_unparsed(self, classifier):
         result = classifier.classify(
@@ -153,6 +153,15 @@ class TestCategoryAssignment:
             [],
         )
         assert result.category == "histology"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+
+    def test_text_only_concomitant_medication_becomes_parsed_without_review(self, classifier):
+        result = classifier.classify(
+            "No concurrent CYP3A4 inhibitors",
+            [],
+        )
+        assert result.category == "concomitant_medication"
         assert result.parse_status == "parsed"
         assert result.review_required is False
 

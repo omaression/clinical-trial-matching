@@ -220,6 +220,8 @@ class RuleBasedClassifier:
         category = self._assign_category_from_text(text)
         if category == "histology":
             return category, "parsed", 0.6, False, None
+        if category == "concomitant_medication":
+            return category, "parsed", 0.6, False, None
         if _HYPERSENSITIVITY_PATTERN.search(text):
             return category, "partial", 0.6, False, None
         if category == "other":

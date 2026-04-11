@@ -11,9 +11,8 @@
     "original_text": "No concurrent CYP3A4 inhibitors",
     "type": "exclusion",
     "category": "concomitant_medication",
-    "parse_status": "partial",
+    "parse_status": "parsed",
     "negated": false,
-    "review_required": true,
-    "review_reason": "complex_criteria"
+    "review_required": false
   }
 ]
