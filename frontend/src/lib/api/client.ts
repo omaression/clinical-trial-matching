@@ -1,6 +1,6 @@
 import "server-only";
 
-import { frontendConfig } from "@/lib/config";
+import { getFrontendConfig } from "@/lib/config";
 import type {
   ApiError,
   CriteriaListResponse,
@@ -32,6 +32,7 @@ type RequestOptions = {
 };
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const frontendConfig = getFrontendConfig();
   const url = `${frontendConfig.apiBaseUrl}${path}`;
   const headers = new Headers(options.headers);
   headers.set("Accept", options.accept ?? "application/json");

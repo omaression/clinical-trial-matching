@@ -1,0 +1,23 @@
+databases:
+  - name: ctm-postgres
+    databaseName: clinical_trials
+    user: ctm
+
+services:
+  - type: web
+    name: ctm-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: CTM_DATABASE_URL
+        fromDatabase:
+          name: ctm-postgres
+          property: connectionString
+      - key: CTM_API_KEY
+        sync: false
+      - key: CTM_RUN_MIGRATIONS
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "1"

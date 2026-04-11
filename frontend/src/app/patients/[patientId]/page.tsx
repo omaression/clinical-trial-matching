@@ -7,6 +7,8 @@ import { StatusPill } from "@/components/status-pill";
 import { ctmApi } from "@/lib/api/client";
 import { formatDate, formatPercent } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 export default async function PatientDetailPage({
   params
 }: {

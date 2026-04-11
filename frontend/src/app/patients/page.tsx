@@ -5,6 +5,8 @@ import { ctmApi } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function PatientsPage() {
   const patients = await ctmApi.listPatients("?per_page=50");
 

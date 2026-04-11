@@ -2,13 +2,26 @@ services:
   app:
     build: .
     ports: ["8000:8000"]
-    env_file: .env
+    environment:
+      CTM_DATABASE_URL: ${CTM_DATABASE_URL:-postgresql://ctm:ctm@db:5432/clinical_trials}
+      CTM_API_KEY: ${CTM_API_KEY:-local-dev-api-key}
+      CTM_RUN_MIGRATIONS: "1"
+      PORT: "8000"
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./app:/app/app
-      - ./data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports: ["3000:3000"]
+    environment:
+      CTM_FRONTEND_API_BASE_URL: http://app:8000/api/v1
+      CTM_FRONTEND_API_KEY: ${CTM_API_KEY:-local-dev-api-key}
+      PORT: "3000"
+    depends_on:
+      - app
 
   db:
     image: postgres:16

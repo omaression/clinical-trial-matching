@@ -6,6 +6,8 @@ import { StatusPill } from "@/components/status-pill";
 import { ctmApi } from "@/lib/api/client";
 import { formatDate } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = {
   page?: string;
   per_page?: string;

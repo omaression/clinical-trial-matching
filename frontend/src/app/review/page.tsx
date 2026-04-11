@@ -5,6 +5,8 @@ import { StatusPill } from "@/components/status-pill";
 import { ctmApi } from "@/lib/api/client";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = {
   reason?: string;
   page?: string;
