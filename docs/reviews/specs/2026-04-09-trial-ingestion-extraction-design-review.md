@@ -190,3 +190,15 @@ If the spec is revised, the MVP should emphasize:
 - extensible oncology criterion modeling
 
 FHIR export can remain in scope, but as a derived compatibility layer rather than the core storage contract.
+
+## External Source Provenance Notes
+
+The implementation and validation work on top of this spec has used official external sources only where the code needed source-text or terminology verification beyond the repository fixtures.
+
+- ClinicalTrials.gov study records were used to derive and validate real eligibility-text fixtures:
+  - `NCT03872596` for a CYP3A4 inhibitor/inducer washout restriction
+  - `NCT07084584` for a CYP3A4 exception-clause restriction
+- ClinicalTrials.gov data-API documentation and study-data structure pages were used when validating ingestion and search semantics for the V2 API.
+- NCI Drug Dictionary pages were used to validate seeded NCIt drug identifiers and synonym coverage, including carboplatin, docetaxel, and capecitabine.
+
+A detailed source ledger with exact URLs, dates, and implementation notes is tracked locally in ignored context so the public repository keeps the outline-level documentation while still preserving provenance during development.
