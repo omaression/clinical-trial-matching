@@ -20,11 +20,44 @@ class SearchIngestRequest(APIModel):
     limit: int = Field(default=25, ge=1, le=100)
 
 
+class CodedConceptUpdate(APIModel):
+    system: str = Field(min_length=1)
+    code: str = Field(min_length=1)
+    display: str | None = None
+    match_type: str | None = None
+
+
+class CriterionCorrectionData(APIModel):
+    type: Literal["inclusion", "exclusion"] | None = None
+    category: str | None = None
+    parse_status: Literal["parsed", "partial", "unparsed"] | None = None
+    operator: str | None = None
+    value_low: float | None = None
+    value_high: float | None = None
+    value_text: str | None = None
+    unit: str | None = None
+    raw_expression: str | None = None
+    negated: bool | None = None
+    timeframe_operator: str | None = None
+    timeframe_value: float | None = None
+    timeframe_unit: str | None = None
+    logic_group_id: UUID | None = None
+    logic_operator: Literal["AND", "OR"] | None = None
+    coded_concepts: list[CodedConceptUpdate] | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_has_fields(self):
+        if not self.model_fields_set:
+            raise ValueError("corrected_data must include at least one editable field")
+        return self
+
+
 class ReviewRequest(APIModel):
     action: Literal["accept", "correct", "reject"]
     reviewed_by: str = Field(min_length=1)
     review_notes: str | None = None
-    corrected_data: dict[str, Any] | None = None
+    corrected_data: CriterionCorrectionData | None = None
 
     @model_validator(mode="after")
     def validate_correction_payload(self):

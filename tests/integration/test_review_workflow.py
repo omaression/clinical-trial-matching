@@ -54,6 +54,42 @@ def seeded_criterion(db_session):
     return criterion
 
 
+@pytest.fixture
+def superseded_criterion(db_session):
+    unique_nct = f"NCT{uuid.uuid4().hex[:8].upper()}"
+    trial = Trial(
+        nct_id=unique_nct, raw_json={}, content_hash="test",
+        brief_title="Superseded Review Test", status="RECRUITING",
+    )
+    db_session.add(trial)
+    db_session.flush()
+
+    old_run = PipelineRun(
+        trial_id=trial.id, pipeline_version="0.1.0",
+        input_hash="old", input_snapshot={}, status="completed",
+    )
+    db_session.add(old_run)
+    db_session.flush()
+
+    criterion = ExtractedCriterion(
+        trial_id=trial.id, type="inclusion", category="diagnosis",
+        original_text="Prior TNBC diagnosis", parse_status="parsed",
+        confidence=0.60, review_required=True, review_reason="fuzzy_match",
+        review_status="pending", coded_concepts=[],
+        pipeline_version="0.1.0", pipeline_run_id=old_run.id,
+    )
+    db_session.add(criterion)
+    db_session.flush()
+
+    latest_run = PipelineRun(
+        trial_id=trial.id, pipeline_version="0.1.1",
+        input_hash="new", input_snapshot={}, status="completed",
+    )
+    db_session.add(latest_run)
+    db_session.commit()
+    return criterion
+
+
 class TestAccept:
     def test_accept_clears_review(self, client, seeded_criterion):
         response = client.patch(
@@ -67,6 +103,20 @@ class TestAccept:
         parsed = _parse_api_datetime(data["reviewed_at"])
         assert parsed.tzinfo is not None
         assert parsed.utcoffset().total_seconds() == 0
+
+    def test_cannot_review_already_resolved_criterion(self, client, seeded_criterion):
+        first = client.patch(
+            f"/api/v1/criteria/{seeded_criterion.id}/review",
+            json={"action": "accept", "reviewed_by": "dr_smith"},
+        )
+        assert first.status_code == 200
+
+        second = client.patch(
+            f"/api/v1/criteria/{seeded_criterion.id}/review",
+            json={"action": "reject", "reviewed_by": "dr_jones"},
+        )
+        assert second.status_code == 409
+        assert second.json()["detail"] == "Criterion review has already been resolved"
 
 
 class TestCorrect:
@@ -91,6 +141,33 @@ class TestCorrect:
         assert data["review_status"] == "corrected"
         assert data["confidence"] == 1.0
         assert data["original_extracted"] is not None
+        assert data["original_extracted"]["type"] == "inclusion"
+        assert data["original_extracted"]["parse_status"] == "parsed"
+        assert data["original_extracted"]["negated"] is False
+
+    def test_correct_rejects_non_editable_fields(self, client, seeded_criterion):
+        response = client.patch(
+            f"/api/v1/criteria/{seeded_criterion.id}/review",
+            json={
+                "action": "correct",
+                "reviewed_by": "dr_smith",
+                "corrected_data": {
+                    "review_status": "accepted",
+                },
+            },
+        )
+        assert response.status_code == 422
+
+    def test_cannot_review_superseded_criterion(self, client, superseded_criterion):
+        response = client.patch(
+            f"/api/v1/criteria/{superseded_criterion.id}/review",
+            json={
+                "action": "accept",
+                "reviewed_by": "dr_smith",
+            },
+        )
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Criterion belongs to a superseded pipeline run and cannot be reviewed"
 
 
 class TestReject:

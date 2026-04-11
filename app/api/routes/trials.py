@@ -233,22 +233,14 @@ def review_criterion(
     criterion = db.query(ExtractedCriterion).filter(ExtractedCriterion.id == criterion_id).first()
     if not criterion:
         raise HTTPException(status_code=404, detail="Criterion not found")
+    _ensure_reviewable_criterion(criterion, db)
 
     if request.action == "accept":
         criterion.review_status = "accepted"
         criterion.review_required = False
     elif request.action == "correct":
-        criterion.original_extracted = {
-            "coded_concepts": criterion.coded_concepts,
-            "confidence": criterion.confidence,
-            "category": criterion.category,
-            "operator": criterion.operator,
-            "value_low": criterion.value_low,
-            "value_high": criterion.value_high,
-            "unit": criterion.unit,
-            "raw_expression": criterion.raw_expression,
-        }
-        for key, value in (request.corrected_data or {}).items():
+        criterion.original_extracted = _correction_snapshot(criterion)
+        for key, value in request.corrected_data.model_dump(exclude_unset=True).items():
             if hasattr(criterion, key):
                 setattr(criterion, key, value)
         criterion.review_status = "corrected"
@@ -386,6 +378,42 @@ def _latest_trial_criteria_query(trial_id: UUID, db: Session) -> SQLAlchemyQuery
     if latest_run:
         query = query.filter(ExtractedCriterion.pipeline_run_id == latest_run.id)
     return query
+
+
+def _ensure_reviewable_criterion(criterion: ExtractedCriterion, db: Session) -> None:
+    latest_run = _latest_completed_run(criterion.trial_id, db)
+    if latest_run and criterion.pipeline_run_id != latest_run.id:
+        raise HTTPException(
+            status_code=409,
+            detail="Criterion belongs to a superseded pipeline run and cannot be reviewed",
+        )
+    if criterion.review_status != "pending" or not criterion.review_required:
+        raise HTTPException(
+            status_code=409,
+            detail="Criterion review has already been resolved",
+        )
+
+
+def _correction_snapshot(criterion: ExtractedCriterion) -> dict[str, Any]:
+    return {
+        "type": criterion.type,
+        "category": criterion.category,
+        "parse_status": criterion.parse_status,
+        "operator": criterion.operator,
+        "value_low": criterion.value_low,
+        "value_high": criterion.value_high,
+        "value_text": criterion.value_text,
+        "unit": criterion.unit,
+        "raw_expression": criterion.raw_expression,
+        "negated": criterion.negated,
+        "timeframe_operator": criterion.timeframe_operator,
+        "timeframe_value": criterion.timeframe_value,
+        "timeframe_unit": criterion.timeframe_unit,
+        "logic_group_id": criterion.logic_group_id,
+        "logic_operator": criterion.logic_operator,
+        "coded_concepts": criterion.coded_concepts,
+        "confidence": criterion.confidence,
+    }
 
 
 def _trial_summary(trial: Trial) -> TrialSummary:
