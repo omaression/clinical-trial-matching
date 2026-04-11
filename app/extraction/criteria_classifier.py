@@ -147,6 +147,10 @@ class RuleBasedClassifier:
             return "cns_metastases"
         if _LINE_PATTERN.search(text):
             return "line_of_therapy"
+        if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
+            return "prior_therapy"
+        if "DRUG" in labels:
+            return "prior_therapy"
         if _STAGE_PATTERN.search(text):
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
@@ -161,8 +165,6 @@ class RuleBasedClassifier:
             return "biomarker"
         if "LAB_TEST" in labels:
             return "lab_value"
-        if "DRUG" in labels:
-            return "prior_therapy"
         if "DISEASE" in labels:
             return "diagnosis"
         return self._assign_category_from_text(text)

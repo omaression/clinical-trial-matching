@@ -27,7 +27,7 @@
   {
     "original_text": "No prior systemic chemotherapy for metastatic disease.",
     "type": "exclusion",
-    "category": "disease_stage",
+    "category": "prior_therapy",
     "parse_status": "parsed",
     "negated": true
   },

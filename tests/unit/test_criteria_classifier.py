@@ -139,6 +139,14 @@ class TestCategoryAssignment:
         assert result.timeframe_value == 28
         assert result.timeframe_unit == "days"
 
+    def test_prior_therapy_signal_beats_stage_language(self, classifier):
+        result = classifier.classify(
+            "No prior systemic chemotherapy for metastatic disease.",
+            [Entity(text="chemotherapy", label="DRUG", start=18, end=30)],
+        )
+        assert result.category == "prior_therapy"
+        assert result.negated is True
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):
