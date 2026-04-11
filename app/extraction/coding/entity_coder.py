@@ -1,6 +1,6 @@
+import re
 from dataclasses import dataclass, field
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.extraction.types import CodedConcept, Entity
@@ -15,6 +15,16 @@ class CodingResult:
     review_reason: str | None = "uncoded_entity"
 
 
+_SYSTEM_PRIORITY = ("mesh", "nci_thesaurus", "loinc")
+_SYSTEMS_BY_LABEL = {
+    "DISEASE": ("mesh",),
+    "BIOMARKER": ("nci_thesaurus",),
+    "DRUG": ("nci_thesaurus",),
+    "PERF_SCALE": ("nci_thesaurus",),
+    "LAB_TEST": ("loinc",),
+}
+
+
 class EntityCoder:
     """Stage 4: Map entities to MeSH / NCI Thesaurus / LOINC."""
 
@@ -22,20 +32,28 @@ class EntityCoder:
         self._db = db
 
     def code_entity(self, entity: Entity) -> CodingResult:
-        lookup_text = entity.lookup_text
+        lookup_text = _normalize_text(entity.lookup_text)
+        if not lookup_text:
+            return CodingResult(
+                concepts=[],
+                confidence=0.40,
+                review_required=True,
+                review_reason="uncoded_entity",
+            )
+        lookups = self._candidate_lookups(entity.label)
 
         # Tier 1: Exact match on display
-        result = self._exact_match(lookup_text)
+        result = self._exact_match(lookup_text, lookups)
         if result:
             return result
 
         # Tier 2: Synonym match
-        result = self._synonym_match(lookup_text)
+        result = self._synonym_match(lookup_text, lookups)
         if result:
             return result
 
         # Tier 3: Fuzzy match
-        result = self._fuzzy_match(lookup_text)
+        result = self._fuzzy_match(lookup_text, lookups)
         if result:
             return result
 
@@ -47,11 +65,30 @@ class EntityCoder:
             review_reason="uncoded_entity",
         )
 
-    def _exact_match(self, text: str) -> CodingResult | None:
-        lookup = self._db.query(CodingLookup).filter(
-            func.lower(CodingLookup.display) == text.lower()
-        ).first()
-        if lookup:
+    def _candidate_lookups(self, label: str) -> list[CodingLookup]:
+        systems = _SYSTEMS_BY_LABEL.get(label, _SYSTEM_PRIORITY)
+        lookups = (
+            self._db.query(CodingLookup)
+            .filter(CodingLookup.system.in_(systems))
+            .all()
+        )
+        return sorted(
+            lookups,
+            key=lambda lookup: (
+                _system_rank(lookup.system, systems),
+                lookup.display.casefold(),
+                lookup.code.casefold(),
+            ),
+        )
+
+    def _exact_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
+        matches = [
+            lookup
+            for lookup in lookups
+            if _normalize_text(lookup.display) == text
+        ]
+        if matches:
+            lookup = matches[0]
             return CodingResult(
                 concepts=[CodedConcept(
                     system=lookup.system, code=lookup.code,
@@ -63,11 +100,15 @@ class EntityCoder:
             )
         return None
 
-    def _synonym_match(self, text: str) -> CodingResult | None:
-        lookup = self._db.query(CodingLookup).filter(
-            CodingLookup.synonyms.any(func.lower(text))
-        ).first()
-        if lookup:
+    def _synonym_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
+        matches = []
+        for lookup in lookups:
+            synonyms = lookup.synonyms or []
+            if any(_normalize_text(synonym) == text for synonym in synonyms):
+                matches.append(lookup)
+
+        if matches:
+            lookup = matches[0]
             return CodingResult(
                 concepts=[CodedConcept(
                     system=lookup.system, code=lookup.code,
@@ -79,19 +120,18 @@ class EntityCoder:
             )
         return None
 
-    def _fuzzy_match(self, text: str) -> CodingResult | None:
-        lookups = self._db.query(CodingLookup).all()
-        best_match = None
+    def _fuzzy_match(self, text: str, lookups: list[CodingLookup]) -> CodingResult | None:
+        best_match: CodingLookup | None = None
         best_distance = 3
 
         for lookup in lookups:
-            d = _levenshtein(text.lower(), lookup.display.lower())
+            d = _levenshtein(text, _normalize_text(lookup.display))
             if d <= 2 and d < best_distance:
                 best_match = lookup
                 best_distance = d
 
             for syn in (lookup.synonyms or []):
-                d = _levenshtein(text.lower(), syn.lower())
+                d = _levenshtein(text, _normalize_text(syn))
                 if d <= 2 and d < best_distance:
                     best_match = lookup
                     best_distance = d
@@ -107,6 +147,25 @@ class EntityCoder:
                 review_reason="fuzzy_match",
             )
         return None
+
+
+def _normalize_text(text: str) -> str:
+    normalized = text.casefold()
+    normalized = re.sub(r"(?<=\w)\+(?=\s|$)", " positive ", normalized)
+    normalized = re.sub(r"(?<=\w)-(?=\s|$)", " negative ", normalized)
+    normalized = normalized.replace("+", " positive ")
+    normalized = normalized.replace("/", " ")
+    normalized = normalized.replace("_", " ")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _system_rank(system: str, allowed_systems: tuple[str, ...]) -> int:
+    if system in allowed_systems:
+        return allowed_systems.index(system)
+    if system in _SYSTEM_PRIORITY:
+        return len(allowed_systems) + _SYSTEM_PRIORITY.index(system)
+    return len(allowed_systems) + len(_SYSTEM_PRIORITY)
 
 
 def _levenshtein(s1: str, s2: str) -> int:

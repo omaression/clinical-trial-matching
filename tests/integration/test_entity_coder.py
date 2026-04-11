@@ -1,5 +1,6 @@
 import docker
 import pytest
+
 from app.extraction.coding.entity_coder import EntityCoder
 from app.extraction.types import Entity
 from app.models.database import CodingLookup
@@ -21,12 +22,18 @@ def seed_lookups(db_session):
     lookups = [
         CodingLookup(system="mesh", code="D001943", display="Breast Neoplasms",
                       synonyms=["breast cancer", "breast carcinoma"]),
+        CodingLookup(system="mesh", code="D000073182", display="Triple Negative Breast Neoplasms",
+                      synonyms=["tnbc", "triple negative breast cancer"]),
         CodingLookup(system="nci_thesaurus", code="C68748", display="HER2 Positive",
                       synonyms=["her2+", "erbb2 positive"]),
         CodingLookup(system="mesh", code="D008545", display="Melanoma",
                       synonyms=["malignant melanoma"]),
+        CodingLookup(system="nci_thesaurus", code="C3224", display="Melanoma",
+                      synonyms=["melanoma lesion"]),
         CodingLookup(system="nci_thesaurus", code="C1647", display="Trastuzumab",
                       synonyms=["herceptin"]),
+        CodingLookup(system="loinc", code="751-8", display="Neutrophils [#/volume] in Blood",
+                      synonyms=["anc", "absolute neutrophil count"]),
     ]
     db_session.add_all(lookups)
     db_session.flush()
@@ -85,3 +92,28 @@ class TestExpandedText:
                          expanded_text="Triple Negative Breast Cancer")
         result = coder.code_entity(entity)
         assert result is not None
+        assert result.concepts[0].code == "D000073182"
+        assert result.concepts[0].match_type == "synonym"
+
+
+class TestDeterministicResolution:
+    def test_scopes_disease_entities_to_mesh(self, coder):
+        entity = Entity(text="Melanoma", label="DISEASE", start=0, end=8)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "mesh"
+        assert result.concepts[0].code == "D008545"
+        assert result.concepts[0].match_type == "exact"
+
+    def test_normalizes_punctuation_for_biomarker_resolution(self, coder):
+        entity = Entity(text="HER2-positive", label="BIOMARKER", start=0, end=13)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "nci_thesaurus"
+        assert result.concepts[0].code == "C68748"
+        assert result.concepts[0].match_type == "exact"
+
+    def test_scopes_lab_entities_to_loinc(self, coder):
+        entity = Entity(text="ANC", label="LAB_TEST", start=0, end=3)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "loinc"
+        assert result.concepts[0].code == "751-8"
+        assert result.concepts[0].match_type == "synonym"
