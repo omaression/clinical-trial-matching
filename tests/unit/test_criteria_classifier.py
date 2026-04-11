@@ -205,8 +205,9 @@ class TestComplexityRouting:
 
 
 class TestUnparsedPreservation:
-    def test_unparsed_when_no_entities(self, classifier):
+    def test_investigator_defined_organ_function_stays_reviewable(self, classifier):
         result = classifier.classify("Adequate renal function as determined by investigator", [])
-        assert result.parse_status in ("unparsed", "partial")
+        assert result.category == "organ_function"
+        assert result.parse_status == "partial"
         assert result.original_text == "Adequate renal function as determined by investigator"
         assert result.review_required is True

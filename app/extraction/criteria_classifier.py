@@ -32,6 +32,11 @@ _ORGAN_FUNCTION_COMPLEXITY_PATTERN = re.compile(
     r"\b(?:as\s+determined\s+by|per\s+institutional|investigator)\b",
     re.I,
 )
+_ORGAN_FUNCTION_PATTERN = re.compile(
+    r"\b(?:organ function|renal function|kidney function|hepatic function|liver function|"
+    r"hematologic function|haematologic function|bone marrow function)\b",
+    re.I,
+)
 _COMPLEXITY_SIGNALS = re.compile(r"\b(?:unless|except|provided that|other than)\b", re.I)
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 
@@ -216,7 +221,7 @@ class RuleBasedClassifier:
             return "line_of_therapy"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
             return "prior_therapy"
-        if re.search(r"\borgan function\b", text, re.I):
+        if _ORGAN_FUNCTION_PATTERN.search(text):
             return "organ_function"
         return "other"
 
