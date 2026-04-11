@@ -200,7 +200,7 @@ The implementation and validation work on top of this spec has used official ext
   - `NCT07084584` for a CYP3A4 exception-clause restriction
   - `NCT03605602` for unresectable stage-plus-variant eligibility language without false negation
   - `NCT02713828` for mixed stage, age, ECOG, and renal-function inclusion criteria
-  - `NCT05346328` for stage-plus-biomarker and nested prior-therapy compound criteria that should remain reviewable
+  - `NCT05346328` for stage-plus-biomarker, nested prior-therapy, and CNS-exception compound criteria that should remain reviewable
 - ClinicalTrials.gov data-API documentation and study-data structure pages were used when validating ingestion and search semantics for the V2 API.
 - NCI Drug Dictionary pages were used to validate seeded NCIt drug identifiers and synonym coverage, including carboplatin, docetaxel, and capecitabine.
 
