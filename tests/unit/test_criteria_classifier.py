@@ -269,6 +269,31 @@ class TestCategoryAssignment:
         assert result.review_required is True
         assert result.review_reason == "complex_criteria"
 
+    def test_cns_exception_allowance_becomes_reviewable_partial(self, classifier):
+        result = classifier.classify(
+            (
+                "Patients with primary central nervous system (CNS) malignant tumors or CNS "
+                "metastases that have failed local treatment; for asymptomatic brain metastases, "
+                "or with stable clinical symptoms and no need for steroids and other brain "
+                "metastases within 4 weeks before the first administration of the trial drug "
+                "treated patients can be included in the group."
+            ),
+            [
+                Entity(text="CNS metastases", label="DISEASE", start=69, end=84),
+                Entity(text="brain metastases", label="DISEASE", start=136, end=152),
+                Entity(text="4 weeks", label="DATE", start=235, end=242),
+            ],
+        )
+        assert result.category == "cns_metastases"
+        assert result.parse_status == "partial"
+        assert result.negated is True
+        assert result.timeframe_operator == "within"
+        assert result.timeframe_value == 4
+        assert result.timeframe_unit == "weeks"
+        assert result.logic_operator == "OR"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):

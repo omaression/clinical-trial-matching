@@ -54,6 +54,7 @@ _COMPLEXITY_SIGNALS = re.compile(
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 _INCLUDING_PATTERN = re.compile(r"\bincluding\b", re.I)
 _AT_LEAST_COUNT_PATTERN = re.compile(r"\bat\s+least\s+[\d.]+\b", re.I)
+_ALLOWANCE_PATTERN = re.compile(r"\b(?:can\s+be\s+included|eligible)\b", re.I)
 
 
 class RuleBasedClassifier:
@@ -80,12 +81,17 @@ class RuleBasedClassifier:
             criterion_text,
             category_hint,
         )
+        has_cns_exception_allowance = self._has_cns_exception_allowance(
+            criterion_text,
+            category_hint,
+        )
 
         # Complexity check — flag complex criteria for review
         is_complex = bool(_COMPLEXITY_SIGNALS.search(criterion_text))
         if (
             has_mixed_stage_biomarker
             or has_nested_therapy_requirements
+            or has_cns_exception_allowance
             or (
                 is_complex and (
                     not entities
@@ -290,6 +296,11 @@ class RuleBasedClassifier:
         if not _INCLUDING_PATTERN.search(text):
             return False
         return len(_AT_LEAST_COUNT_PATTERN.findall(text)) >= 2
+
+    def _has_cns_exception_allowance(self, text: str, category_hint: str) -> bool:
+        if category_hint != "cns_metastases":
+            return False
+        return bool(_ALLOWANCE_PATTERN.search(text) and _CNS_PATTERN.search(text))
 
     def _age_quant_from_temporal(
         self, temporal, criterion_text: str
