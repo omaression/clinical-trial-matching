@@ -1,0 +1,12 @@
+[
+  {
+    "original_text": "Have received at least 3 targeted therapies for locally advanced or metastatic disease, including disease progression after receiving at least 1 trastuzumab-containing treatment.",
+    "type": "inclusion",
+    "category": "prior_therapy",
+    "parse_status": "partial",
+    "negated": false,
+    "logic_operator": "OR",
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

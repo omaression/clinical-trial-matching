@@ -1,0 +1,4 @@
+Inclusion Criteria:
+1. Breast cancer patients by histopathology and/or cytology documented, including:
+   a) Participants with unresectable locally advanced or metastatic breast cancer;
+   b) Evaluated or tested as HER2-positive expression.

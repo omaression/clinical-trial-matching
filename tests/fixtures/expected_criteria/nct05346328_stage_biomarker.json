@@ -1,0 +1,12 @@
+[
+  {
+    "original_text": "Breast cancer patients by histopathology and/or cytology documented, including: a) Participants with unresectable locally advanced or metastatic breast cancer; b) Evaluated or tested as HER2-positive expression.",
+    "type": "inclusion",
+    "category": "disease_stage",
+    "parse_status": "partial",
+    "negated": false,
+    "logic_operator": "OR",
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]
