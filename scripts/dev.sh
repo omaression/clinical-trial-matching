@@ -103,16 +103,21 @@ else
 fi
 
 if [[ "${REUSE_BACKEND}" == "0" && "${CTM_SKIP_MIGRATIONS:-0}" != "1" ]]; then
+  ALEMBIC_LOG="$(mktemp "${TMPDIR:-/tmp}/ctm-alembic.XXXXXX.log")"
   echo "Running database migrations..."
   if ! (
     cd "${ROOT_DIR}"
     alembic upgrade head
-  ); then
+  ) >"${ALEMBIC_LOG}" 2>&1; then
     echo "Database migration failed." >&2
     echo "Check CTM_DATABASE_URL and make sure PostgreSQL is reachable from this shell." >&2
     echo "If you already have a healthy CTM backend running, start the launcher with CTM_SKIP_MIGRATIONS=1." >&2
+    echo "Last Alembic output:" >&2
+    tail -n 12 "${ALEMBIC_LOG}" >&2 || true
+    echo "Full Alembic log: ${ALEMBIC_LOG}" >&2
     exit 1
   fi
+  rm -f "${ALEMBIC_LOG}"
 fi
 
 if [[ "${REUSE_BACKEND}" == "0" ]]; then
