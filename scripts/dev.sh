@@ -103,7 +103,7 @@ else
 fi
 
 if [[ "${REUSE_BACKEND}" == "0" && "${CTM_SKIP_MIGRATIONS:-0}" != "1" ]]; then
-  ALEMBIC_LOG="$(mktemp "${TMPDIR:-/tmp}/ctm-alembic.XXXXXX.log")"
+  ALEMBIC_LOG="$(mktemp "${TMPDIR:-/tmp}/ctm-alembic.XXXXXX")"
   echo "Running database migrations..."
   if ! (
     cd "${ROOT_DIR}"
