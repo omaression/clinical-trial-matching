@@ -10,6 +10,12 @@ _CNS_PATTERN = re.compile(r"\b(?:cns|brain|central nervous system|leptomeningeal
 _STAGE_PATTERN = re.compile(r"\b(?:stage\s+[IViv]+|unresectable|metastatic|locally advanced)\b", re.I)
 _HISTOLOGY_PATTERN = re.compile(r"\b(?:adenocarcinoma|squamous|histolog|histopatholog)\b", re.I)
 _MOLECULAR_PATTERN = re.compile(r"\b(?:mutation|rearrangement|amplification|fusion|alteration|wild.?type)\b", re.I)
+_PRIOR_THERAPY_TEXT_PATTERN = re.compile(
+    r"\b(?:chemotherap(?:y|ies)|radiation(?:\s+therapy)?|immunotherap(?:y|ies)|"
+    r"endocrine\s+therapy|hormonal\s+therapy|targeted\s+therapy|systemic\s+therapy|"
+    r"biologic(?:al)?\s+therapy)\b",
+    re.I,
+)
 _CONCOMITANT_PATTERN = re.compile(
     r"\b(?:concurrent|concomitant)\b.*\b(?:medications?|drugs?|treatments?|inhibitors?|inducers?|substrates?)\b",
     re.I,
@@ -177,6 +183,8 @@ class RuleBasedClassifier:
             return "concomitant_medication"
         if _LINE_PATTERN.search(text):
             return "line_of_therapy"
+        if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
+            return "prior_therapy"
         if re.search(r"\borgan function\b", text, re.I):
             return "organ_function"
         return "other"

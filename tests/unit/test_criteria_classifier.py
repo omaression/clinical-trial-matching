@@ -129,6 +129,16 @@ class TestCategoryAssignment:
         assert result.raw_expression == "Female patients only"
         assert result.review_required is False
 
+    def test_text_only_washout_therapy_routes_to_prior_therapy(self, classifier):
+        result = classifier.classify(
+            "Chemotherapy within 28 days of enrollment",
+            [Entity(text="28 days", label="DATE", start=20, end=27)],
+        )
+        assert result.category == "prior_therapy"
+        assert result.timeframe_operator == "within"
+        assert result.timeframe_value == 28
+        assert result.timeframe_unit == "days"
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):
