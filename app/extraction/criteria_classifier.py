@@ -11,7 +11,7 @@ _STAGE_PATTERN = re.compile(r"\b(?:stage\s+[IViv]+|unresectable|metastatic|local
 _HISTOLOGY_PATTERN = re.compile(r"\b(?:adenocarcinoma|squamous|histolog|histopatholog)\b", re.I)
 _MOLECULAR_PATTERN = re.compile(r"\b(?:mutation|rearrangement|amplification|fusion|alteration|wild.?type)\b", re.I)
 _PRIOR_THERAPY_TEXT_PATTERN = re.compile(
-    r"\b(?:chemotherap(?:y|ies)|radiation(?:\s+therapy)?|immunotherap(?:y|ies)|"
+    r"\b(?:prior\s+treatment|prior\s+therapy|chemotherap(?:y|ies)|radiation(?:\s+therapy)?|immunotherap(?:y|ies)|"
     r"endocrine\s+therapy|hormonal\s+therapy|targeted\s+therapy|systemic\s+therapy|"
     r"biologic(?:al)?\s+therapy)\b",
     re.I,
@@ -45,12 +45,21 @@ class RuleBasedClassifier:
         # Complexity check — flag complex criteria for review
         is_complex = bool(_COMPLEXITY_SIGNALS.search(criterion_text))
         if is_complex and len(entities) > 1:
+            neg_result = self._negation.resolve(criterion_text, entities)
+            exception_temporal = (
+                self._temporal.parse(neg_result.exception_text or "")
+                if neg_result.has_exception else None
+            )
             return ClassifiedCriterion(
                 original_text=criterion_text,
                 type="inclusion",
                 category=self._assign_category(criterion_text, entities),
                 parse_status="partial",
                 entities=entities,
+                negated=neg_result.negated,
+                timeframe_operator=exception_temporal.operator if exception_temporal else None,
+                timeframe_value=exception_temporal.value if exception_temporal else None,
+                timeframe_unit=exception_temporal.unit if exception_temporal else None,
                 confidence=0.3,
                 review_required=True,
                 review_reason="complex_criteria",
@@ -58,6 +67,22 @@ class RuleBasedClassifier:
 
         # No entities → unparsed
         if not entities:
+            neg_result = self._negation.resolve(criterion_text, [])
+            if neg_result.has_exception:
+                exception_temporal = self._temporal.parse(neg_result.exception_text or "")
+                return ClassifiedCriterion(
+                    original_text=criterion_text,
+                    type="inclusion",
+                    category=self._assign_category_from_text(criterion_text),
+                    parse_status="partial",
+                    negated=neg_result.negated,
+                    timeframe_operator=exception_temporal.operator if exception_temporal else None,
+                    timeframe_value=exception_temporal.value if exception_temporal else None,
+                    timeframe_unit=exception_temporal.unit if exception_temporal else None,
+                    confidence=0.3,
+                    review_required=True,
+                    review_reason="complex_criteria",
+                )
             sex_match = _SEX_ONLY_PATTERN.search(criterion_text)
             if sex_match:
                 return ClassifiedCriterion(

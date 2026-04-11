@@ -163,6 +163,19 @@ class TestComplexityRouting:
         assert result.review_required is True
         assert result.review_reason == "complex_criteria"
 
+    def test_text_only_unless_clause_keeps_negation_and_exception_timeframe(self, classifier):
+        result = classifier.classify(
+            "No prior treatment with trastuzumab, unless administered in the adjuvant setting more than 6 months ago",
+            [],
+        )
+        assert result.category == "prior_therapy"
+        assert result.parse_status == "partial"
+        assert result.negated is True
+        assert result.timeframe_operator == "at_least"
+        assert result.timeframe_value == 6
+        assert result.timeframe_unit == "months"
+        assert result.review_required is True
+
 
 class TestUnparsedPreservation:
     def test_unparsed_when_no_entities(self, classifier):

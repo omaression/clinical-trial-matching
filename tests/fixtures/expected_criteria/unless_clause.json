@@ -4,7 +4,10 @@
     "type": "exclusion",
     "category": "prior_therapy",
     "parse_status": "partial",
-    "negated": false,
+    "negated": true,
+    "timeframe_operator": "at_least",
+    "timeframe_value": 6.0,
+    "timeframe_unit": "months",
     "review_required": true,
     "review_reason": "complex_criteria"
   }
