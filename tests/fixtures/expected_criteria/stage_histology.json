@@ -11,9 +11,8 @@
     "original_text": "Histologically confirmed adenocarcinoma",
     "type": "inclusion",
     "category": "histology",
-    "parse_status": "partial",
+    "parse_status": "parsed",
     "negated": false,
-    "review_required": true,
-    "review_reason": "complex_criteria"
+    "review_required": false
   }
 ]

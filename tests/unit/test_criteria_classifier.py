@@ -147,6 +147,15 @@ class TestCategoryAssignment:
         assert result.category == "prior_therapy"
         assert result.negated is True
 
+    def test_text_only_histology_becomes_parsed_without_review(self, classifier):
+        result = classifier.classify(
+            "Histologically confirmed adenocarcinoma",
+            [],
+        )
+        assert result.category == "histology"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):

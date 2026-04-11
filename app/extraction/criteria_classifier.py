@@ -218,6 +218,8 @@ class RuleBasedClassifier:
 
     def _classify_text_only(self, text: str) -> tuple[str, str, float, bool, str | None]:
         category = self._assign_category_from_text(text)
+        if category == "histology":
+            return category, "parsed", 0.6, False, None
         if _HYPERSENSITIVITY_PATTERN.search(text):
             return category, "partial", 0.6, False, None
         if category == "other":
