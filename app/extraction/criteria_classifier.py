@@ -20,6 +20,10 @@ _CONCOMITANT_PATTERN = re.compile(
     r"\b(?:concurrent|concomitant)\b.*\b(?:medications?|drugs?|treatments?|inhibitors?|inducers?|substrates?)\b",
     re.I,
 )
+_CYP_RESTRICTION_PATTERN = re.compile(
+    r"(?:\bcyp[0-9a-z-]+\b.*\b(?:inhibitors?|inducers?)\b|\b(?:inhibitors?|inducers?)\b.*\bcyp[0-9a-z-]+\b)",
+    re.I,
+)
 _HYPERSENSITIVITY_PATTERN = re.compile(
     r"\b(?:hypersensitiv(?:ity|e)|allerg(?:y|ic)|anaphylaxis|intoleran(?:ce|t))\b",
     re.I,
@@ -37,7 +41,10 @@ _ORGAN_FUNCTION_PATTERN = re.compile(
     r"hematologic function|haematologic function|bone marrow function)\b",
     re.I,
 )
-_COMPLEXITY_SIGNALS = re.compile(r"\b(?:unless|except|provided that|other than)\b", re.I)
+_COMPLEXITY_SIGNALS = re.compile(
+    r"\b(?:unless|except|provided that|other than|whichever\s+is\s+(?:longer|shorter))\b",
+    re.I,
+)
 _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|amplified)", re.I)
 
 
@@ -51,24 +58,30 @@ class RuleBasedClassifier:
         self._logic = LogicGrouper()
 
     def classify(self, criterion_text: str, entities: list[Entity]) -> ClassifiedCriterion:
+        category_hint = (
+            self._assign_category(criterion_text, entities)
+            if entities
+            else self._assign_category_from_text(criterion_text)
+        )
+
         # Complexity check — flag complex criteria for review
         is_complex = bool(_COMPLEXITY_SIGNALS.search(criterion_text))
-        if is_complex and len(entities) > 1:
+        if is_complex and (not entities or len(entities) > 1 or category_hint == "concomitant_medication"):
             neg_result = self._negation.resolve(criterion_text, entities)
-            exception_temporal = (
-                self._temporal.parse(neg_result.exception_text or "")
-                if neg_result.has_exception else None
-            )
+            temporal = self._temporal.parse(neg_result.exception_text or criterion_text)
+            logic = self._logic.detect(criterion_text)
             return ClassifiedCriterion(
                 original_text=criterion_text,
                 type="inclusion",
-                category=self._assign_category(criterion_text, entities),
+                category=category_hint,
                 parse_status="partial",
                 entities=entities,
                 negated=neg_result.negated,
-                timeframe_operator=exception_temporal.operator if exception_temporal else None,
-                timeframe_value=exception_temporal.value if exception_temporal else None,
-                timeframe_unit=exception_temporal.unit if exception_temporal else None,
+                timeframe_operator=temporal.operator if temporal else None,
+                timeframe_value=temporal.value if temporal else None,
+                timeframe_unit=temporal.unit if temporal else None,
+                logic_group_id=logic.group_id,
+                logic_operator=logic.operator,
                 confidence=0.3,
                 review_required=True,
                 review_reason="complex_criteria",
@@ -191,7 +204,7 @@ class RuleBasedClassifier:
             return "histology"
         if _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
-        if _CONCOMITANT_PATTERN.search(text):
+        if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
             return "concomitant_medication"
         if "PERF_SCALE" in labels:
             return "performance_status"
@@ -215,7 +228,7 @@ class RuleBasedClassifier:
             return "histology"
         if _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
-        if _CONCOMITANT_PATTERN.search(text):
+        if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
             return "concomitant_medication"
         if _LINE_PATTERN.search(text):
             return "line_of_therapy"

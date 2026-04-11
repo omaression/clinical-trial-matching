@@ -174,6 +174,47 @@ class TestCategoryAssignment:
         assert result.parse_status == "parsed"
         assert result.review_required is False
 
+    def test_text_only_cyp3a4_exception_becomes_reviewable_concomitant_medication(self, classifier):
+        result = classifier.classify(
+            (
+                "Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers "
+                "(except for systemic itraconazole, ketoconazole, posaconazole, or "
+                "voriconazole, which should have been started at least 7 days prior to enrolment)."
+            ),
+            [Entity(text="at least 7 days", label="DATE", start=182, end=197)],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "partial"
+        assert result.timeframe_operator == "at_least"
+        assert result.timeframe_value == 7
+        assert result.timeframe_unit == "days"
+        assert result.logic_operator == "OR"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
+    def test_text_only_cyp3a4_washout_becomes_reviewable_concomitant_medication(self, classifier):
+        result = classifier.classify(
+            (
+                "Use of any moderate-strong CYP3A4 inhibitor or inducer within 14 days "
+                "or 5 plasma half-lives (whichever is longer) prior to the administration "
+                "of IMP and for the duration of the trial."
+            ),
+            [
+                Entity(text="14 days", label="DATE", start=62, end=69),
+                Entity(text="5", label="CARDINAL", start=73, end=74),
+                Entity(text="half", label="CARDINAL", start=82, end=86),
+                Entity(text="IMP", label="ORG", start=146, end=149),
+            ],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "partial"
+        assert result.timeframe_operator == "within"
+        assert result.timeframe_value == 14
+        assert result.timeframe_unit == "days"
+        assert result.logic_operator == "OR"
+        assert result.review_required is True
+        assert result.review_reason == "complex_criteria"
+
 
 class TestComplexityRouting:
     def test_complex_flagged_for_review(self, classifier):
