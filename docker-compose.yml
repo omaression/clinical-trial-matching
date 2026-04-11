@@ -20,7 +20,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U ctm
+      test: pg_isready -U ctm -d clinical_trials
       interval: 5s
       retries: 5
 
