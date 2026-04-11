@@ -26,16 +26,8 @@ def upgrade() -> None:
         USING gin (display gin_trgm_ops)
         """
     )
-    op.execute(
-        """
-        CREATE INDEX IF NOT EXISTS ix_coding_lookups_synonyms_text_trgm
-        ON coding_lookups
-        USING gin ((array_to_string(COALESCE(synonyms, ARRAY[]::text[]), ' ')) gin_trgm_ops)
-        """
-    )
 
 
 def downgrade() -> None:
-    op.execute("DROP INDEX IF EXISTS ix_coding_lookups_synonyms_text_trgm")
     op.execute("DROP INDEX IF EXISTS ix_coding_lookups_display_trgm")
     op.execute("DROP EXTENSION IF EXISTS pg_trgm")
