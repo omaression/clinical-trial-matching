@@ -1,17 +1,21 @@
 """Seed the database with coding lookups for entity resolution."""
 
-from datetime import datetime
-
-from sqlalchemy import text
-
 from app.db.session import SessionLocal
 from app.models.database import CodingLookup
 
 # MeSH disease codes
 MESH_DISEASES = [
-    ("D001943", "Breast Neoplasms", ["breast cancer", "breast carcinoma", "mammary cancer"]),
-    ("D000073182", "Triple Negative Breast Neoplasms", ["tnbc", "triple negative breast cancer"]),
-    ("D002289", "Carcinoma, Non-Small-Cell Lung", ["nsclc", "non-small cell lung cancer", "non-small cell lung carcinoma"]),
+    ("D001943", "Breast Neoplasms", ["breast cancer", "breast carcinoma", "mammary cancer", "breast neoplasm"]),
+    (
+        "D000073182",
+        "Triple Negative Breast Neoplasms",
+        ["tnbc", "triple negative breast cancer", "triple-negative breast cancer"],
+    ),
+    (
+        "D002289",
+        "Carcinoma, Non-Small-Cell Lung",
+        ["nsclc", "non-small cell lung cancer", "non-small cell lung carcinoma", "non-small-cell lung cancer"],
+    ),
     ("D055752", "Small Cell Lung Carcinoma", ["sclc", "small cell lung cancer"]),
     ("D008545", "Melanoma", ["malignant melanoma"]),
     ("D006528", "Hepatocellular Carcinoma", ["hcc", "liver cancer", "hepatoma"]),
@@ -38,21 +42,21 @@ MESH_DISEASES = [
 
 # NCI Thesaurus biomarker/molecular codes
 NCI_BIOMARKERS = [
-    ("C68748", "HER2 Positive", ["her2+", "erbb2 positive", "her2 positive"]),
-    ("C68749", "HER2 Negative", ["her2-", "erbb2 negative", "her2 negative"]),
+    ("C68748", "HER2 Positive", ["her2+", "erbb2 positive", "her2 positive", "her2/neu positive"]),
+    ("C68749", "HER2 Negative", ["her2-", "erbb2 negative", "her2 negative", "her2/neu negative"]),
     ("C68750", "Estrogen Receptor Positive", ["er+", "er positive", "estrogen receptor positive"]),
     ("C68751", "Estrogen Receptor Negative", ["er-", "er negative", "estrogen receptor negative"]),
     ("C68752", "Progesterone Receptor Positive", ["pr+", "pr positive", "progesterone receptor positive"]),
     ("C68753", "Progesterone Receptor Negative", ["pr-", "pr negative", "progesterone receptor negative"]),
-    ("C128839", "PD-L1 Positive", ["pd-l1+", "pd-l1 positive", "pdl1 positive"]),
-    ("C126808", "EGFR Mutation Positive", ["egfr+", "egfr mutant", "egfr mutation positive"]),
-    ("C126813", "ALK Rearrangement Positive", ["alk+", "alk positive", "alk rearrangement"]),
+    ("C128839", "PD-L1 Positive", ["pd-l1+", "pd-l1 positive", "pdl1 positive", "pd l1 positive", "pdl1+"]),
+    ("C126808", "EGFR Mutation Positive", ["egfr+", "egfr mutant", "egfr mutation positive", "egfr mutated"]),
+    ("C126813", "ALK Rearrangement Positive", ["alk+", "alk positive", "alk rearrangement", "alk rearranged"]),
     ("C126817", "BRAF V600E Mutation Positive", ["braf v600e", "braf mutant", "braf mutation positive"]),
     ("C126815", "KRAS Mutation Positive", ["kras mutant", "kras mutation positive"]),
-    ("C126814", "ROS1 Rearrangement Positive", ["ros1+", "ros1 positive", "ros1 rearrangement"]),
-    ("C142080", "NTRK Fusion Positive", ["ntrk+", "ntrk fusion", "ntrk positive"]),
-    ("C121553", "Microsatellite Instability-High", ["msi-h", "msi high", "microsatellite instability high"]),
-    ("C177609", "Tumor Mutational Burden-High", ["tmb-h", "tmb high", "tumor mutational burden high"]),
+    ("C126814", "ROS1 Rearrangement Positive", ["ros1+", "ros1 positive", "ros1 rearrangement", "ros1 rearranged"]),
+    ("C142080", "NTRK Fusion Positive", ["ntrk+", "ntrk fusion", "ntrk positive", "ntrk fusion positive"]),
+    ("C121553", "Microsatellite Instability-High", ["msi-h", "msi high", "microsatellite instability high", "msih"]),
+    ("C177609", "Tumor Mutational Burden-High", ["tmb-h", "tmb high", "tumor mutational burden high", "tmbh"]),
     ("C126818", "BRCA1 Mutation", ["brca1 mutant", "brca1 mutation", "brca1 pathogenic variant"]),
     ("C126819", "BRCA2 Mutation", ["brca2 mutant", "brca2 mutation", "brca2 pathogenic variant"]),
     ("C129789", "PIK3CA Mutation", ["pik3ca mutant", "pik3ca mutation"]),
@@ -77,8 +81,12 @@ NCI_DRUGS = [
     ("C1282", "Carboplatin", ["paraplatin"]),
     ("C1512", "Gemcitabine", ["gemzar"]),
     ("C490", "Doxorubicin", ["adriamycin"]),
-    ("C62040", "T-DM1", ["ado-trastuzumab emtansine", "kadcyla"]),
-    ("C157437", "Trastuzumab Deruxtecan", ["enhertu", "t-dxd", "ds-8201"]),
+    ("C62040", "T-DM1", ["ado-trastuzumab emtansine", "ado trastuzumab emtansine", "kadcyla"]),
+    (
+        "C157437",
+        "Trastuzumab Deruxtecan",
+        ["enhertu", "t-dxd", "ds-8201", "fam trastuzumab deruxtecan", "fam trastuzumab deruxtecan nxki"],
+    ),
     ("C1878", "Olaparib", ["lynparza"]),
     ("C1879", "Rucaparib", ["rubraca"]),
     ("C1880", "Niraparib", ["zejula"]),
@@ -99,19 +107,27 @@ NCI_DRUGS = [
     ("C62565", "Encorafenib", ["braftovi"]),
     ("C1282b", "Capecitabine", ["xeloda"]),
     ("C1900", "Irinotecan", ["camptosar"]),
-    ("C510", "Fluorouracil", ["5-fu", "5fu"]),
+    ("C510", "Fluorouracil", ["5-fu", "5fu", "5 fluorouracil"]),
 ]
 
 # LOINC lab test codes
 LOINC_LABS = [
     ("26464-8", "Leukocytes [#/volume] in Blood", ["wbc", "white blood cell count", "leukocyte count"]),
-    ("751-8", "Neutrophils [#/volume] in Blood", ["anc", "absolute neutrophil count"]),
+    ("751-8", "Neutrophils [#/volume] in Blood", ["anc", "absolute neutrophil count", "absolute neutrophils"]),
     ("26515-7", "Platelets [#/volume] in Blood", ["platelet count", "thrombocyte count"]),
     ("718-7", "Hemoglobin [Mass/volume] in Blood", ["hemoglobin", "hgb", "hb"]),
-    ("1742-6", "Alanine aminotransferase [Enzymatic activity/volume] in Serum", ["alt", "sgpt", "alanine aminotransferase"]),
-    ("1920-8", "Aspartate aminotransferase [Enzymatic activity/volume] in Serum", ["ast", "sgot", "aspartate aminotransferase"]),
-    ("1975-2", "Bilirubin.total [Mass/volume] in Serum", ["total bilirubin", "bilirubin"]),
-    ("2160-0", "Creatinine [Mass/volume] in Serum", ["creatinine", "serum creatinine"]),
+    (
+        "1742-6",
+        "Alanine aminotransferase [Enzymatic activity/volume] in Serum",
+        ["alt", "sgpt", "alanine aminotransferase"],
+    ),
+    (
+        "1920-8",
+        "Aspartate aminotransferase [Enzymatic activity/volume] in Serum",
+        ["ast", "sgot", "aspartate aminotransferase"],
+    ),
+    ("1975-2", "Bilirubin.total [Mass/volume] in Serum", ["total bilirubin", "bilirubin", "serum bilirubin"]),
+    ("2160-0", "Creatinine [Mass/volume] in Serum", ["creatinine", "serum creatinine", "serum creatinine level"]),
     ("33914-3", "Glomerular filtration rate/1.73 sq M.predicted", ["gfr", "egfr", "glomerular filtration rate"]),
     ("6690-2", "Creatinine Clearance", ["crcl", "creatinine clearance"]),
     ("6301-6", "INR in Platelet poor plasma", ["inr", "international normalized ratio"]),
