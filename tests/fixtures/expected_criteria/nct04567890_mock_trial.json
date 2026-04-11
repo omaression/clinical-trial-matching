@@ -1,0 +1,69 @@
+[
+  {
+    "original_text": "Age >= 18 years",
+    "type": "inclusion",
+    "category": "age",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 18.0,
+    "unit": "years",
+    "raw_expression": "Age >= 18 years",
+    "negated": false
+  },
+  {
+    "original_text": "Histologically confirmed HER2-positive breast cancer",
+    "type": "inclusion",
+    "category": "biomarker",
+    "parse_status": "parsed",
+    "value_text": "positive",
+    "negated": false
+  },
+  {
+    "original_text": "ECOG performance status 0-1",
+    "type": "inclusion",
+    "category": "performance_status",
+    "parse_status": "parsed",
+    "operator": "range",
+    "value_low": 0.0,
+    "value_high": 1.0,
+    "raw_expression": "ECOG performance status 0-1",
+    "negated": false
+  },
+  {
+    "original_text": "ANC >= 1500 cells/uL",
+    "type": "inclusion",
+    "category": "lab_value",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 1500.0,
+    "unit": "cells/uL",
+    "raw_expression": "ANC >= 1500 cells/uL",
+    "negated": false
+  },
+  {
+    "original_text": "Active brain metastases",
+    "type": "exclusion",
+    "category": "cns_metastases",
+    "parse_status": "parsed",
+    "negated": false
+  },
+  {
+    "original_text": "Prior treatment with trastuzumab within 28 days",
+    "type": "exclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "timeframe_operator": "within",
+    "timeframe_value": 28.0,
+    "timeframe_unit": "days",
+    "negated": false
+  },
+  {
+    "original_text": "Known hypersensitivity to study drug",
+    "type": "exclusion",
+    "category": "other",
+    "parse_status": "unparsed",
+    "negated": false,
+    "review_required": true,
+    "review_reason": "complex_criteria"
+  }
+]

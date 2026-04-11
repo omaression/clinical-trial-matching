@@ -1,0 +1,10 @@
+Inclusion Criteria:
+1. Age >= 18 years
+2. Histologically confirmed HER2-positive breast cancer
+3. ECOG performance status 0-1
+4. ANC >= 1500 cells/uL
+
+Exclusion Criteria:
+1. Active brain metastases
+2. Prior treatment with trastuzumab within 28 days
+3. Known hypersensitivity to study drug
