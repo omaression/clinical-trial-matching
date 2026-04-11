@@ -10,7 +10,7 @@ import pytest
 from app.extraction.coding.entity_coder import CodingResult
 from app.extraction.types import ClassifiedCriterion, CodedConcept, Entity, PipelineResult
 from app.ingestion.hasher import content_hash
-from app.ingestion.service import IngestionService
+from app.ingestion.service import IngestionResult, IngestionService
 from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
@@ -316,3 +316,47 @@ class TestContentHash:
         h1 = content_hash("Age >= 18")
         h2 = content_hash("Age >= 21")
         assert h1 != h2
+
+
+class TestSearchAndIngest:
+    def test_search_and_ingest_keeps_partial_batch_outcomes(self, service):
+        studies = [
+            {"protocolSection": {"identificationModule": {"nctId": "NCTGOOD001"}}},
+            {"protocolSection": {"identificationModule": {"nctId": "NCTSKIP001"}}},
+            {"protocolSection": {"identificationModule": {"nctId": "NCTFAIL001"}}},
+            {"protocolSection": {"identificationModule": {}}},
+        ]
+        ingest_results = {
+            "NCTGOOD001": IngestionResult(trial=Trial(id=uuid.uuid4(), nct_id="NCTGOOD001"), criteria_count=4),
+            "NCTSKIP001": IngestionResult(
+                trial=Trial(id=uuid.uuid4(), nct_id="NCTSKIP001"),
+                criteria_count=0,
+                skipped=True,
+            ),
+        }
+
+        def _ingest(nct_id):
+            if nct_id == "NCTFAIL001":
+                raise RuntimeError("boom")
+            return ingest_results[nct_id]
+
+        with (
+            patch.object(service._client, "search_studies", return_value=studies),
+            patch.object(service, "ingest", side_effect=_ingest),
+            patch.object(service._db, "rollback") as rollback,
+        ):
+            results = service.search_and_ingest(condition="breast cancer", limit=4)
+
+        assert len(results) == 4
+        assert [result.nct_id for result in results] == ["NCTGOOD001", "NCTSKIP001", "NCTFAIL001", None]
+        assert results[0].trial is not None
+        assert results[0].criteria_count == 4
+        assert results[0].skipped is False
+        assert results[0].error_message is None
+        assert results[1].trial is not None
+        assert results[1].skipped is True
+        assert results[2].trial is None
+        assert results[2].error_message == "boom"
+        assert results[3].trial is None
+        assert results[3].error_message == "Search result missing NCT ID"
+        rollback.assert_called_once()

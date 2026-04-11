@@ -8,6 +8,7 @@ import docker
 import pytest
 from fastapi.testclient import TestClient
 
+from app.ingestion.service import SearchIngestTrialResult
 from app.main import app
 from app.models.database import ExtractedCriterion, PipelineRun, Trial
 
@@ -239,7 +240,6 @@ class TestGetTrial:
         assert data["official_title"] is not None
         assert data["conditions"] == ["Breast Cancer"]
         assert data["sponsor"] == "Test Sponsor"
-        # Criteria summary stats per spec
         assert "criteria_summary" in data
         assert data["criteria_summary"]["total"] == 2
         assert data["criteria_summary"]["review_pending"] == 1
@@ -250,7 +250,7 @@ class TestGetTrial:
         assert response.status_code == 404
 
     def test_get_by_nct_id(self, client, db_session):
-        trial, _, _, _ = _seed_trial(db_session, nct_id="NCT99887766")
+        _seed_trial(db_session, nct_id="NCT99887766")
         response = client.get("/api/v1/trials/nct/NCT99887766")
         assert response.status_code == 200
         data = response.json()
@@ -288,6 +288,54 @@ class TestGetTrial:
         response = client.get(f"/api/v1/trials/{trial.id}")
         assert response.status_code == 200
         assert response.json()["criteria_summary"]["total"] == 1
+
+
+@pytestmark_docker
+class TestSearchIngestEndpoint:
+    def test_search_ingest_reports_attempted_skipped_and_failed(self, client):
+        success_trial = Trial(id=uuid.uuid4(), nct_id="NCTGOOD001")
+        skipped_trial = Trial(id=uuid.uuid4(), nct_id="NCTSKIP001")
+        service_results = [
+            SearchIngestTrialResult(
+                nct_id="NCTGOOD001",
+                trial=success_trial,
+                criteria_count=5,
+            ),
+            SearchIngestTrialResult(
+                nct_id="NCTSKIP001",
+                trial=skipped_trial,
+                skipped=True,
+            ),
+            SearchIngestTrialResult(
+                nct_id="NCTFAIL001",
+                error_message="boom",
+            ),
+            SearchIngestTrialResult(
+                nct_id=None,
+                error_message="Search result missing NCT ID",
+            ),
+        ]
+
+        with patch("app.api.routes.trials.IngestionService.search_and_ingest", return_value=service_results):
+            response = client.post(
+                "/api/v1/trials/search-ingest",
+                json={"condition": "breast cancer", "limit": 4},
+            )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["attempted"] == 4
+        assert data["ingested"] == 1
+        assert data["skipped"] == 1
+        assert data["failed"] == 2
+        assert data["trials"][0]["status"] == "ingested"
+        assert data["trials"][0]["trial_id"] == str(success_trial.id)
+        assert data["trials"][1]["status"] == "skipped"
+        assert data["trials"][1]["trial_id"] == str(skipped_trial.id)
+        assert data["trials"][2]["status"] == "failed"
+        assert data["trials"][2]["error_message"] == "boom"
+        assert data["trials"][3]["nct_id"] is None
+        assert data["trials"][3]["error_message"] == "Search result missing NCT ID"
 
 
 @pytestmark_docker

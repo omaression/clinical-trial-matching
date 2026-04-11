@@ -28,6 +28,15 @@ class IngestionResult:
     diff_summary: dict | None = None
 
 
+@dataclass
+class SearchIngestTrialResult:
+    nct_id: str | None
+    trial: Trial | None = None
+    criteria_count: int = 0
+    skipped: bool = False
+    error_message: str | None = None
+
+
 class IngestionService:
     def __init__(self, db: Session):
         self._db = db
@@ -165,17 +174,41 @@ class IngestionService:
         status: str | None = None,
         phase: str | None = None,
         limit: int = 25,
-    ) -> list[IngestionResult]:
+    ) -> list[SearchIngestTrialResult]:
         """Search ClinicalTrials.gov and ingest matching studies."""
         studies = self._client.search_studies(
             condition=condition, status=status, phase=phase, limit=limit,
         )
-        results = []
+        results: list[SearchIngestTrialResult] = []
         for study in studies:
             nct_id = study.get("protocolSection", {}).get("identificationModule", {}).get("nctId")
-            if nct_id:
+            if not nct_id:
+                results.append(
+                    SearchIngestTrialResult(
+                        nct_id=None,
+                        error_message="Search result missing NCT ID",
+                    )
+                )
+                continue
+
+            try:
                 result = self.ingest(nct_id)
-                results.append(result)
+                results.append(
+                    SearchIngestTrialResult(
+                        nct_id=nct_id,
+                        trial=result.trial,
+                        criteria_count=result.criteria_count,
+                        skipped=result.skipped,
+                    )
+                )
+            except Exception as exc:
+                self._db.rollback()
+                results.append(
+                    SearchIngestTrialResult(
+                        nct_id=nct_id,
+                        error_message=str(exc),
+                    )
+                )
         return results
 
     def _content_hash_material(self, raw_json: dict) -> dict:

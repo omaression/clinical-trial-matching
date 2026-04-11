@@ -77,14 +77,19 @@ class IngestResponse(APIModel):
 
 
 class SearchIngestTrialResponse(APIModel):
-    nct_id: str
-    trial_id: UUID
+    nct_id: str | None = None
+    trial_id: UUID | None = None
     criteria_count: int
     skipped: bool
+    status: Literal["ingested", "skipped", "failed"]
+    error_message: str | None = None
 
 
 class SearchIngestResponse(APIModel):
+    attempted: int
     ingested: int
+    skipped: int
+    failed: int
     trials: list[SearchIngestTrialResponse]
 
 

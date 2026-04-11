@@ -59,14 +59,26 @@ def search_and_ingest(request: SearchIngestRequest, db: Session = Depends(get_db
         phase=request.phase,
         limit=request.limit,
     )
+    ingested = sum(1 for result in results if result.trial and not result.skipped and not result.error_message)
+    skipped = sum(1 for result in results if result.skipped and not result.error_message)
+    failed = sum(1 for result in results if result.error_message)
     return SearchIngestResponse(
-        ingested=len(results),
+        attempted=len(results),
+        ingested=ingested,
+        skipped=skipped,
+        failed=failed,
         trials=[
             SearchIngestTrialResponse(
-                nct_id=result.trial.nct_id,
-                trial_id=result.trial.id,
+                nct_id=result.nct_id,
+                trial_id=result.trial.id if result.trial else None,
                 criteria_count=result.criteria_count,
                 skipped=result.skipped,
+                status=(
+                    "failed"
+                    if result.error_message
+                    else "skipped" if result.skipped else "ingested"
+                ),
+                error_message=result.error_message,
             )
             for result in results
         ],
