@@ -1,0 +1,75 @@
+[
+  {
+    "original_text": "* Has documented disease progression after prior PD-1 therapy",
+    "type": "inclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has provided tissue from a newly obtained biopsy of a tumor lesion",
+    "type": "inclusion",
+    "category": "procedural_requirement",
+    "parse_status": "parsed",
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has received previous treatment with an agent targeting KRAS",
+    "type": "exclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has active central nervous system metastases",
+    "type": "exclusion",
+    "category": "cns_metastases",
+    "parse_status": "parsed",
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has active inflammatory bowel disease requiring immunosuppressive medication",
+    "type": "exclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "logic_operator": "OR",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has previous history of inflammatory bowel disease",
+    "type": "exclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "logic_operator": "OR",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has uncontrolled or significant cardiovascular disorder prior to allocation/randomization",
+    "type": "exclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "logic_operator": "OR",
+    "review_required": false
+  },
+  {
+    "original_text": "* Has uncontrolled or significant cerebrovascular disease prior to allocation/randomization",
+    "type": "exclusion",
+    "category": "diagnosis",
+    "parse_status": "parsed",
+    "logic_operator": "OR",
+    "review_required": false
+  },
+  {
+    "original_text": "* Have not adequately recovered from major surgery or have ongoing surgical complications",
+    "type": "exclusion",
+    "category": "procedural_requirement",
+    "parse_status": "parsed",
+    "logic_operator": "OR",
+    "negated": true,
+    "review_required": false
+  }
+]

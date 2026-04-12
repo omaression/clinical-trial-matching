@@ -1,0 +1,10 @@
+Inclusion Criteria:
+* Has documented disease progression after prior PD-1 therapy
+* Has provided tissue from a newly obtained biopsy of a tumor lesion
+
+Exclusion Criteria:
+* Has received previous treatment with an agent targeting KRAS
+* Has active central nervous system metastases
+* Has active inflammatory bowel disease requiring immunosuppressive medication or previous history of inflammatory bowel disease
+* Has uncontrolled or significant cardiovascular disorder or cerebrovascular disease prior to allocation/randomization
+* Have not adequately recovered from major surgery or have ongoing surgical complications
