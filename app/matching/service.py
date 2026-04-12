@@ -398,6 +398,14 @@ class PatientMatchService:
                     criterion.type,
                     _numeric_criterion_satisfied(criterion, float(patient.ecog_status)),
                 )
+        elif criterion.category == "administrative_requirement":
+            outcome = _evaluate_patient_flag_match(criterion, patient)
+        elif criterion.category == "behavioral_constraint":
+            outcome = _evaluate_patient_flag_match(criterion, patient)
+        elif criterion.category == "reproductive_status":
+            outcome = _evaluate_patient_flag_match(criterion, patient)
+        elif criterion.category == "device_constraint":
+            outcome = _evaluate_patient_flag_match(criterion, patient)
 
         return outcome or "unknown"
 
@@ -509,6 +517,29 @@ def _parse_age_years(value: str | None) -> float | None:
     if not match:
         return None
     return float(match.group(1))
+
+
+def _evaluate_patient_flag_match(criterion: ExtractedCriterion, patient: Patient) -> str | None:
+    flag_match = _parse_patient_flag_expression(criterion.value_text)
+    if not flag_match:
+        return None
+
+    field_name, expected_value = flag_match
+    actual_value = getattr(patient, field_name, None)
+    if actual_value is None:
+        return None
+    return _criterion_boolean_outcome(criterion.type, actual_value is expected_value)
+
+
+def _parse_patient_flag_expression(value_text: str | None) -> tuple[str, bool] | None:
+    if not value_text or ":" not in value_text:
+        return None
+    field_name, raw_value = value_text.split(":", 1)
+    normalized_field = field_name.strip()
+    normalized_value = raw_value.strip().casefold()
+    if normalized_value not in {"true", "false"}:
+        return None
+    return normalized_field, normalized_value == "true"
 
 
 def _sex_matches(criterion: ExtractedCriterion, patient_sex: str) -> bool | None:
@@ -701,6 +732,20 @@ def _build_extracted_explanation(
             }
             for medication in patient.medications
         ]
+    elif criterion.category in {
+        "administrative_requirement",
+        "behavioral_constraint",
+        "reproductive_status",
+        "device_constraint",
+    }:
+        evidence["patient_flags"] = {
+            "can_consent": patient.can_consent,
+            "protocol_compliant": patient.protocol_compliant,
+            "claustrophobic": patient.claustrophobic,
+            "motion_intolerant": patient.motion_intolerant,
+            "pregnant": patient.pregnant,
+            "mr_device_present": patient.mr_device_present,
+        }
     elif criterion.category in {"performance_status"}:
         evidence["patient_ecog_status"] = patient.ecog_status
     else:

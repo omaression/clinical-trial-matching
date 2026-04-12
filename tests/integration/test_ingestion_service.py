@@ -273,6 +273,69 @@ class TestIngestSingleTrial:
         assert INCLUSION_INTRO_TEXT not in criteria_by_text
         assert EXCLUSION_INTRO_TEXT not in criteria_by_text
 
+    def test_ingest_general_admin_behavioral_and_empty_fhir_regression(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        mock_resp = copy.deepcopy(mock_resp)
+        mock_resp["protocolSection"]["eligibilityModule"]["eligibilityCriteria"] = (
+            "Inclusion Criteria:\n"
+            "* Histologically confirmed breast cancer, non-small cell lung cancer, colorectal cancer, "
+            "or pancreatic cancer requiring palliative radiation\n"
+            "* Able to comprehend and provide informed consent in English\n"
+            "Exclusion Criteria:\n"
+            "* Adults unable to consent\n"
+            "* Unable to comply with protocol procedures\n"
+            "* Contraindication to MRI due to claustrophobia\n"
+            "* Unable to remain still during MRI acquisition\n"
+            "* Presence of an MR-incompatible pacemaker\n"
+            "* Pregnant women\n"
+            "* Receiving systemic corticosteroids within 14 days before enrollment\n"
+            "* Stage IV disease\n"
+        )
+
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).all()
+        criteria_by_text = {criterion.original_text: criterion for criterion in criteria}
+        diagnosis_line = (
+            "* Histologically confirmed breast cancer, non-small cell lung cancer, colorectal cancer, "
+            "or pancreatic cancer requiring palliative radiation"
+        )
+        corticosteroid_line = "* Receiving systemic corticosteroids within 14 days before enrollment"
+
+        assert criteria_by_text[diagnosis_line].category == "diagnosis"
+        assert (
+            criteria_by_text["* Able to comprehend and provide informed consent in English"].category
+            == "administrative_requirement"
+        )
+        assert criteria_by_text["* Adults unable to consent"].category == "administrative_requirement"
+        assert criteria_by_text["* Unable to comply with protocol procedures"].category == "administrative_requirement"
+        assert criteria_by_text["* Contraindication to MRI due to claustrophobia"].category == "behavioral_constraint"
+        assert criteria_by_text["* Unable to remain still during MRI acquisition"].category == "behavioral_constraint"
+        assert criteria_by_text["* Presence of an MR-incompatible pacemaker"].category == "device_constraint"
+        assert criteria_by_text["* Pregnant women"].category == "reproductive_status"
+        assert criteria_by_text[corticosteroid_line].category == "concomitant_medication"
+        assert criteria_by_text["* Stage IV disease"].category == "disease_stage"
+        assert all(
+            not (criterion.category == "other" and criterion.parse_status == "unparsed")
+            for criterion in criteria
+        )
+
+        fhir = db_session.query(FHIRResearchStudy).filter_by(trial_id=trial.id).one()
+        exported_texts = {
+            item["valueString"]
+            for group in fhir.resource.get("extension", [])
+            for extension in group["extension"]
+            for item in extension["extension"]
+            if item["url"] == "text"
+        }
+        assert "* Able to comprehend and provide informed consent in English" not in exported_texts
+        assert "* Adults unable to consent" not in exported_texts
+        assert "* Contraindication to MRI due to claustrophobia" not in exported_texts
+        assert "* Pregnant women" not in exported_texts
+        assert "* Stage IV disease" in exported_texts
+
     def test_prior_therapy_coding_skips_biomarker_entities_even_when_catalog_matches(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
         pipeline_result = PipelineResult(

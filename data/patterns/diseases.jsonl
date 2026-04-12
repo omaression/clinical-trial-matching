@@ -32,6 +32,18 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "severe"}, {"LOWER": "pulmonary"}, {"LOWER": "compromise"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "pulmonary"}, {"LOWER": "illness"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "pulmonary"}, {"LOWER": "illnesses"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "uncontrolled"}, {"LOWER": "infection"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "diabetes"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "connective"}, {"LOWER": "tissue"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumor"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumour"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumors"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumours"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "cns"}, {"LOWER": "tumor"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "cns"}, {"LOWER": "tumour"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "second"}, {"LOWER": "malignancy"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "additional"}, {"LOWER": "malignancy"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "concurrent"}, {"LOWER": "malignancy"}]}
 {"label": "DISEASE", "pattern": "pneumonitis"}
 {"label": "DISEASE", "pattern": [{"LOWER": "interstitial"}, {"LOWER": "lung"}, {"LOWER": "disease"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "leptomeningeal"}, {"LOWER": "disease"}]}

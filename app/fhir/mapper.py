@@ -132,14 +132,38 @@ class FHIRMapper:
         for c in criteria:
             if c.parse_status not in ("parsed", "partial"):
                 continue
-            if c.category == "procedural_requirement":
+            if c.category in {
+                "other",
+                "procedural_requirement",
+                "administrative_requirement",
+                "behavioral_constraint",
+                "reproductive_status",
+                "device_constraint",
+            }:
                 continue
             if c.review_status == "rejected":
                 continue
             if c.review_required and c.review_status not in {"accepted", "corrected"}:
                 continue
+            if not self._has_semantic_payload(c):
+                continue
             exportable.append(c)
         return exportable
+
+    def _has_semantic_payload(self, criterion: ExtractedCriterion) -> bool:
+        if criterion.coded_concepts:
+            return True
+        if criterion.operator or criterion.value_low is not None or criterion.value_high is not None or criterion.unit:
+            return True
+        if getattr(criterion, "value_text", None):
+            return True
+        if (
+            getattr(criterion, "timeframe_operator", None)
+            or getattr(criterion, "timeframe_value", None) is not None
+            or getattr(criterion, "timeframe_unit", None)
+        ):
+            return True
+        return False
 
     def _criterion_to_extension(self, criterion: ExtractedCriterion) -> dict:
         ext = {
@@ -155,8 +179,18 @@ class FHIRMapper:
             ext["extension"].append({"url": "valueLow", "valueDecimal": criterion.value_low})
         if criterion.value_high is not None:
             ext["extension"].append({"url": "valueHigh", "valueDecimal": criterion.value_high})
+        if getattr(criterion, "value_text", None):
+            ext["extension"].append({"url": "valueText", "valueString": criterion.value_text})
         if criterion.unit:
             ext["extension"].append({"url": "unit", "valueString": criterion.unit})
+        if criterion.negated:
+            ext["extension"].append({"url": "negated", "valueBoolean": True})
+        if getattr(criterion, "timeframe_operator", None):
+            ext["extension"].append({"url": "timeframeOperator", "valueString": criterion.timeframe_operator})
+        if getattr(criterion, "timeframe_value", None) is not None:
+            ext["extension"].append({"url": "timeframeValue", "valueDecimal": criterion.timeframe_value})
+        if getattr(criterion, "timeframe_unit", None):
+            ext["extension"].append({"url": "timeframeUnit", "valueString": criterion.timeframe_unit})
         if criterion.coded_concepts:
             for concept in (criterion.coded_concepts if isinstance(criterion.coded_concepts, list) else []):
                 if isinstance(concept, dict):

@@ -156,8 +156,8 @@ class TestCategoryAssignment:
 
     def test_disease_with_stage_modifier_stays_diagnosis_primary(self, classifier):
         result = classifier.classify(
-            "Histologically confirmed metastatic non-small cell lung cancer",
-            [Entity(text="non-small cell lung cancer", label="DISEASE", start=34, end=61)],
+            "Has histologically confirmed diagnosis of metastatic non-small cell lung cancer",
+            [Entity(text="non-small cell lung cancer", label="DISEASE", start=46, end=73)],
         )
         assert result.category == "diagnosis"
 
@@ -223,6 +223,92 @@ class TestCategoryAssignment:
             [],
         )
         assert result.category == "organ_function"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+
+    def test_informed_consent_requirement_becomes_administrative_constraint(self, classifier):
+        result = classifier.classify(
+            "Able to comprehend and provide informed consent in English.",
+            [],
+        )
+        assert result.category == "administrative_requirement"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "can_consent:true"
+
+    def test_protocol_compliance_requirement_becomes_administrative_constraint(self, classifier):
+        result = classifier.classify(
+            "Willing and able to comply with scheduled visits, treatment plan, laboratory tests, and study procedures.",
+            [],
+        )
+        assert result.category == "administrative_requirement"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "protocol_compliant:true"
+
+    def test_claustrophobia_becomes_behavioral_constraint(self, classifier):
+        result = classifier.classify(
+            "Contraindication to MRI due to claustrophobia.",
+            [],
+        )
+        assert result.category == "behavioral_constraint"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "claustrophobic:true"
+
+    def test_motion_intolerance_becomes_behavioral_constraint(self, classifier):
+        result = classifier.classify(
+            "Unable to remain still during MRI acquisition.",
+            [],
+        )
+        assert result.category == "behavioral_constraint"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "motion_intolerant:true"
+
+    def test_pregnancy_exclusion_becomes_reproductive_status(self, classifier):
+        result = classifier.classify(
+            "Pregnant or breastfeeding women are excluded.",
+            [],
+        )
+        assert result.category == "reproductive_status"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "pregnant:true"
+
+    def test_mr_incompatible_device_becomes_device_constraint(self, classifier):
+        result = classifier.classify(
+            "Presence of an MRI-incompatible pacemaker.",
+            [],
+        )
+        assert result.category == "device_constraint"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "mr_device_present:true"
+
+    def test_systemic_corticosteroid_exclusion_becomes_concomitant_medication(self, classifier):
+        result = classifier.classify(
+            "Receiving systemic corticosteroids within 14 days before enrollment.",
+            [],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "parsed"
+
+    def test_diagnosis_list_with_palliative_radiation_stays_diagnosis(self, classifier):
+        result = classifier.classify(
+            (
+                "Histologically confirmed breast cancer, non-small cell lung cancer, "
+                "or gastrointestinal cancer requiring palliative radiation."
+            ),
+            [
+                Entity(text="breast cancer", label="DISEASE", start=25, end=38),
+                Entity(text="non-small cell lung cancer", label="DISEASE", start=40, end=66),
+                Entity(text="gastrointestinal cancer", label="DISEASE", start=71, end=94),
+            ],
+        )
+        assert result.category == "diagnosis"
+
+    def test_stage_text_sets_semantic_value_text(self, classifier):
+        result = classifier.classify(
+            "Stage IV or unresectable disease",
+            [],
+        )
+        assert result.category == "disease_stage"
+        assert result.value_text == "stage iv"
         assert result.parse_status == "parsed"
         assert result.review_required is False
 

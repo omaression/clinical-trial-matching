@@ -33,6 +33,47 @@ export default async function PatientsPage() {
               <input className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="birth_date" placeholder="Birth date YYYY-MM-DD" />
               <input className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="ecog_status" placeholder="ECOG" />
             </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="can_consent" defaultValue="">
+                <option value="">Can consent</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="protocol_compliant" defaultValue="">
+                <option value="">Protocol compliant</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="is_healthy_volunteer" defaultValue="">
+                <option value="">Healthy volunteer</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="claustrophobic" defaultValue="">
+                <option value="">Claustrophobic</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="motion_intolerant" defaultValue="">
+                <option value="">Motion intolerant</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="pregnant" defaultValue="">
+                <option value="">Pregnant</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+            <div className="grid gap-4 md:grid-cols-1">
+              <select className="rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="mr_device_present" defaultValue="">
+                <option value="">MR-incompatible device present</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
             <textarea className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="conditions" placeholder="One condition per line" />
             <textarea className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="biomarkers" placeholder="One biomarker per line" />
             <textarea className="min-h-24 rounded-2xl border border-ink/10 bg-sand/70 px-4 py-3" name="medications" placeholder="One active medication per line" />

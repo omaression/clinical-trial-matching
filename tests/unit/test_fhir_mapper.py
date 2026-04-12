@@ -128,6 +128,51 @@ class TestCriteriaExclusion:
         resource = mapper.to_research_study(sample_trial, criteria)
         assert "extension" not in resource
 
+    def test_semantically_empty_other_criteria_are_excluded(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="exclusion",
+                category="other",
+                original_text="Must not have contraindications to MRI",
+                review_status="accepted",
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        assert "extension" not in resource
+
+    def test_behavioral_constraints_are_excluded_even_if_review_cleared(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="exclusion",
+                category="behavioral_constraint",
+                original_text="Claustrophobia preventing MRI",
+                value_text="claustrophobic:true",
+                review_status="accepted",
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        assert "extension" not in resource
+
+    def test_stage_criteria_with_semantic_value_text_export(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="inclusion",
+                category="disease_stage",
+                original_text="Stage IV disease",
+                value_text="stage iv",
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        inclusion_group = next(
+            extension for extension in resource["extension"] if extension["url"].endswith("inclusion")
+        )
+        flattened = {
+            item["url"]: item.get("valueString")
+            for item in inclusion_group["extension"][0]["extension"]
+            if "valueString" in item
+        }
+        assert flattened["valueText"] == "stage iv"
+
     def test_logic_group_metadata_is_preserved_on_exported_criteria(self, mapper, sample_trial):
         criteria = [
             _make_criterion(
@@ -136,6 +181,7 @@ class TestCriteriaExclusion:
                 original_text="Active inflammatory bowel disease",
                 logic_group_id="group-123",
                 logic_operator="OR",
+                coded_concepts=[{"system": "mesh", "code": "D015212", "display": "Inflammatory Bowel Diseases"}],
             ),
             _make_criterion(
                 type="exclusion",
@@ -143,6 +189,7 @@ class TestCriteriaExclusion:
                 original_text="Previous history of inflammatory bowel disease",
                 logic_group_id="group-123",
                 logic_operator="OR",
+                coded_concepts=[{"system": "mesh", "code": "D015212", "display": "Inflammatory Bowel Diseases"}],
             ),
         ]
         resource = mapper.to_research_study(sample_trial, criteria)

@@ -76,7 +76,7 @@ class TestNct07286149Signals:
         assert result.criteria[0].category == "molecular_alteration"
 
     def test_nsclc_line_stays_diagnosis_primary(self, pipeline):
-        text = "Has histologically confirmed advanced or metastatic non-small cell lung cancer (NSCLC)"
+        text = "Has histologically confirmed diagnosis of advanced or metastatic non-small cell lung cancer (NSCLC)"
         result = pipeline.extract(text)
         assert result.criteria_count == 1
         assert result.criteria[0].category == "diagnosis"
@@ -162,6 +162,45 @@ class TestNct07286149Signals:
         assert all(criterion.category == "procedural_requirement" for criterion in result.criteria)
         assert all(criterion.review_required is False for criterion in result.criteria)
         assert any(entity.label == "PROCEDURE" for criterion in result.criteria for entity in criterion.entities)
+
+    def test_administrative_behavioral_and_device_constraints_are_not_unparsed(self, pipeline):
+        text = (
+            "Exclusion Criteria:\n"
+            "- Adults unable to consent\n"
+            "- Unable to comply with protocol procedures\n"
+            "- Claustrophobia that prevents MRI completion\n"
+            "- Unable to remain still during MRI acquisition\n"
+            "- Presence of an MR-incompatible pacemaker\n"
+            "- Pregnant women\n"
+            "- Receiving systemic corticosteroids\n"
+        )
+        result = pipeline.extract(text)
+        categories = [criterion.category for criterion in result.criteria]
+        assert "administrative_requirement" in categories
+        assert "behavioral_constraint" in categories
+        assert "device_constraint" in categories
+        assert "reproductive_status" in categories
+        assert "concomitant_medication" in categories
+        assert all(
+            not (criterion.category == "other" and criterion.parse_status == "unparsed")
+            for criterion in result.criteria
+        )
+
+    def test_primary_brain_tumor_is_retained_alongside_cns_disease_mentions(self, pipeline):
+        text = "Patients with primary brain tumors or active CNS metastases are excluded."
+        result = pipeline.extract(text)
+        disease_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DISEASE"]
+        assert any("primary brain tumor" in entity for entity in disease_entities)
+        assert any("cns metastases" in entity or "central nervous system" in entity for entity in disease_entities)
+
+    def test_diagnosis_enumeration_with_palliative_radiation_stays_diagnosis(self, pipeline):
+        text = (
+            "Histologically confirmed breast cancer, non-small cell lung cancer, colorectal cancer, "
+            "or pancreatic cancer requiring palliative radiation are eligible."
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "diagnosis"
 
     def test_pd_l1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior programmed death-ligand 1 (PD-L1) therapy"

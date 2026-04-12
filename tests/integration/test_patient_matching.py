@@ -83,6 +83,12 @@ class TestPatientEndpoints:
                 "sex": "female",
                 "birth_date": "1985-01-01",
                 "ecog_status": 1,
+                "can_consent": True,
+                "protocol_compliant": True,
+                "claustrophobic": False,
+                "motion_intolerant": False,
+                "pregnant": False,
+                "mr_device_present": False,
                 "conditions": [
                     {
                         "description": "Metastatic breast cancer",
@@ -114,10 +120,13 @@ class TestPatientEndpoints:
         assert response.status_code == 201
         patient_id = response.json()["id"]
         assert response.json()["conditions"][0]["description"] == "Metastatic breast cancer"
+        assert response.json()["can_consent"] is True
+        assert response.json()["mr_device_present"] is False
 
         fetched = client.get(f"/api/v1/patients/{patient_id}")
         assert fetched.status_code == 200
         assert fetched.json()["biomarkers"][0]["coded_concepts"][0]["code"] == "C68748"
+        assert fetched.json()["protocol_compliant"] is True
 
     def test_patch_patient_replaces_nested_fact_lists(self, client):
         created = client.post(
@@ -402,3 +411,67 @@ class TestPatientMatching:
         }
         assert outcomes["Metastatic breast cancer"] == "matched"
         assert outcomes["Metastatic melanoma"] == "not_matched"
+
+    def test_boolean_backed_categories_drive_matching_and_unknowns(self, client, db_session):
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000006",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "administrative_requirement",
+                    "original_text": "Able to provide informed consent",
+                    "value_text": "can_consent:true",
+                },
+                {
+                    "type": "exclusion",
+                    "category": "behavioral_constraint",
+                    "original_text": "Claustrophobia preventing MRI",
+                    "value_text": "claustrophobic:true",
+                },
+                {
+                    "type": "exclusion",
+                    "category": "device_constraint",
+                    "original_text": "Presence of an MR-incompatible pacemaker",
+                    "value_text": "mr_device_present:true",
+                },
+                {
+                    "type": "exclusion",
+                    "category": "reproductive_status",
+                    "original_text": "Pregnant women are excluded",
+                    "value_text": "pregnant:true",
+                },
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-flags",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "can_consent": True,
+                "claustrophobic": False,
+                "pregnant": False,
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000006")
+        assert result["overall_status"] == "possible"
+        assert result["unknown_count"] == 1
+
+        detail = client.get(f"/api/v1/matches/{result['id']}")
+        assert detail.status_code == 200
+        outcomes = {
+            item["criterion_text"]: item["outcome"]
+            for item in detail.json()["criteria"]
+            if item["source_type"] == "extracted"
+        }
+        assert outcomes["Able to provide informed consent"] == "matched"
+        assert outcomes["Claustrophobia preventing MRI"] == "not_triggered"
+        assert outcomes["Pregnant women are excluded"] == "not_triggered"
+        assert outcomes["Presence of an MR-incompatible pacemaker"] == "unknown"

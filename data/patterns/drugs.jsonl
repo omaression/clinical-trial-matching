@@ -27,3 +27,11 @@
 {"label": "DRUG", "pattern": [{"LOWER": "agent"}, {"LOWER": "targeting"}, {"LOWER": "kras"}]}
 {"label": "DRUG", "pattern": [{"LOWER": "kras"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "targeted"}, {"LOWER": "therapy"}]}
 {"label": "DRUG", "pattern": [{"LOWER": "kras"}, {"LOWER": "inhibitor"}]}
+{"label": "DRUG", "pattern": [{"LOWER": "systemic"}, {"LOWER": "corticosteroids"}]}
+{"label": "DRUG", "pattern": [{"LOWER": "systemic"}, {"LOWER": "steroids"}]}
+{"label": "DRUG", "pattern": "corticosteroids"}
+{"label": "DRUG", "pattern": "steroids"}
+{"label": "DRUG", "pattern": "prednisone"}
+{"label": "DRUG", "pattern": "dexamethasone"}
+{"label": "DRUG", "pattern": "methylprednisolone"}
+{"label": "DRUG", "pattern": "prednisolone"}

@@ -42,6 +42,12 @@ export default async function PatientDetailPage({
             <p>Sex: {patient.sex ?? "Unknown"}</p>
             <p>Birth date: {patient.birth_date ? formatDate(patient.birth_date) : "Unavailable"}</p>
             <p>ECOG: {patient.ecog_status ?? "Unavailable"}</p>
+            <p>Can consent: {patient.can_consent === null || patient.can_consent === undefined ? "Unknown" : patient.can_consent ? "Yes" : "No"}</p>
+            <p>Protocol compliant: {patient.protocol_compliant === null || patient.protocol_compliant === undefined ? "Unknown" : patient.protocol_compliant ? "Yes" : "No"}</p>
+            <p>Claustrophobic: {patient.claustrophobic === null || patient.claustrophobic === undefined ? "Unknown" : patient.claustrophobic ? "Yes" : "No"}</p>
+            <p>Motion intolerant: {patient.motion_intolerant === null || patient.motion_intolerant === undefined ? "Unknown" : patient.motion_intolerant ? "Yes" : "No"}</p>
+            <p>Pregnant: {patient.pregnant === null || patient.pregnant === undefined ? "Unknown" : patient.pregnant ? "Yes" : "No"}</p>
+            <p>MR-incompatible device present: {patient.mr_device_present === null || patient.mr_device_present === undefined ? "Unknown" : patient.mr_device_present ? "Yes" : "No"}</p>
             <p>Conditions: {patient.conditions.map((item) => item.description).join(", ") || "None"}</p>
             <p>Biomarkers: {patient.biomarkers.map((item) => item.description).join(", ") || "None"}</p>
             <p>Medications: {patient.medications.map((item) => item.description).join(", ") || "None"}</p>

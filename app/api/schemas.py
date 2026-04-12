@@ -269,6 +269,12 @@ class PatientCreateRequest(APIModel):
     birth_date: date | None = None
     ecog_status: int | None = Field(default=None, ge=0, le=5)
     is_healthy_volunteer: bool | None = None
+    can_consent: bool | None = None
+    protocol_compliant: bool | None = None
+    claustrophobic: bool | None = None
+    motion_intolerant: bool | None = None
+    pregnant: bool | None = None
+    mr_device_present: bool | None = None
     country: str | None = None
     state: str | None = None
     city: str | None = None
@@ -287,6 +293,12 @@ class PatientUpdateRequest(APIModel):
     birth_date: date | None = None
     ecog_status: int | None = Field(default=None, ge=0, le=5)
     is_healthy_volunteer: bool | None = None
+    can_consent: bool | None = None
+    protocol_compliant: bool | None = None
+    claustrophobic: bool | None = None
+    motion_intolerant: bool | None = None
+    pregnant: bool | None = None
+    mr_device_present: bool | None = None
     country: str | None = None
     state: str | None = None
     city: str | None = None
@@ -349,6 +361,12 @@ class PatientSummary(APIModel):
     birth_date: date | None = None
     ecog_status: int | None = None
     is_healthy_volunteer: bool | None = None
+    can_consent: bool | None = None
+    protocol_compliant: bool | None = None
+    claustrophobic: bool | None = None
+    motion_intolerant: bool | None = None
+    pregnant: bool | None = None
+    mr_device_present: bool | None = None
     country: str | None = None
     state: str | None = None
     city: str | None = None

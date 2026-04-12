@@ -169,6 +169,12 @@ export type PatientSummary = {
   birth_date?: string | null;
   ecog_status?: number | null;
   is_healthy_volunteer?: boolean | null;
+  can_consent?: boolean | null;
+  protocol_compliant?: boolean | null;
+  claustrophobic?: boolean | null;
+  motion_intolerant?: boolean | null;
+  pregnant?: boolean | null;
+  mr_device_present?: boolean | null;
   country?: string | null;
   state?: string | null;
   city?: string | null;
@@ -297,6 +303,12 @@ export type PatientCreatePayload = {
   birth_date?: string;
   ecog_status?: number;
   is_healthy_volunteer?: boolean;
+  can_consent?: boolean;
+  protocol_compliant?: boolean;
+  claustrophobic?: boolean;
+  motion_intolerant?: boolean;
+  pregnant?: boolean;
+  mr_device_present?: boolean;
   country?: string;
   state?: string;
   city?: string;

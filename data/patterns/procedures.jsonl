@@ -5,3 +5,12 @@
 {"label": "PROCEDURE", "pattern": "biopsy"}
 {"label": "PROCEDURE", "pattern": [{"LOWER": "major"}, {"LOWER": "surgery"}]}
 {"label": "PROCEDURE", "pattern": [{"LOWER": "surgical"}, {"LOWER": "complications"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "informed"}, {"LOWER": "consent"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "written"}, {"LOWER": "informed"}, {"LOWER": "consent"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "protocol"}, {"LOWER": "compliance"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "mr"}, {"LOWER": "safety"}, {"LOWER": "questionnaire"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "mri"}, {"LOWER": "safety"}, {"LOWER": "questionnaire"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "claustrophobia"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "motion"}, {"LOWER": "intolerance"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "pacemaker"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "implantable"}, {"LOWER": "device"}]}

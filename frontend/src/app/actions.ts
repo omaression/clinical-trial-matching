@@ -12,6 +12,12 @@ const createPatientSchema = z.object({
   birth_date: z.string().trim().optional(),
   ecog_status: z.string().trim().optional(),
   is_healthy_volunteer: z.string().trim().optional(),
+  can_consent: z.string().trim().optional(),
+  protocol_compliant: z.string().trim().optional(),
+  claustrophobic: z.string().trim().optional(),
+  motion_intolerant: z.string().trim().optional(),
+  pregnant: z.string().trim().optional(),
+  mr_device_present: z.string().trim().optional(),
   conditions: z.string().trim().optional(),
   biomarkers: z.string().trim().optional(),
   medications: z.string().trim().optional(),
@@ -54,6 +60,16 @@ function safeNumber(value?: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function safeBoolean(value?: string): boolean | undefined {
+  if (value === "true") {
+    return true;
+  }
+  if (value === "false") {
+    return false;
+  }
+  return undefined;
+}
+
 function optionalFormString(formData: FormData, key: string): string | undefined {
   const value = formData.get(key);
   return typeof value === "string" ? value : undefined;
@@ -87,8 +103,13 @@ export async function createPatientAction(formData: FormData) {
     sex: parsed.sex,
     birth_date: parsed.birth_date || undefined,
     ecog_status: safeNumber(parsed.ecog_status),
-    is_healthy_volunteer:
-      parsed.is_healthy_volunteer === "true" ? true : parsed.is_healthy_volunteer === "false" ? false : undefined,
+    is_healthy_volunteer: safeBoolean(parsed.is_healthy_volunteer),
+    can_consent: safeBoolean(parsed.can_consent),
+    protocol_compliant: safeBoolean(parsed.protocol_compliant),
+    claustrophobic: safeBoolean(parsed.claustrophobic),
+    motion_intolerant: safeBoolean(parsed.motion_intolerant),
+    pregnant: safeBoolean(parsed.pregnant),
+    mr_device_present: safeBoolean(parsed.mr_device_present),
     conditions: splitLines(parsed.conditions).map((description) => ({ description })),
     biomarkers: splitLines(parsed.biomarkers).map((description) => ({ description })),
     medications: splitLines(parsed.medications).map((description) => ({ description, active: true })),

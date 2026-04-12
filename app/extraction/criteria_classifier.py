@@ -21,6 +21,10 @@ _PRIOR_THERAPY_TEXT_PATTERN = re.compile(
     r"biologic(?:al)?\s+therapy)\b",
     re.I,
 )
+_STRONG_PRIOR_THERAPY_ANCHOR_PATTERN = re.compile(
+    r"\b(?:prior|previous|received|receipt\s+of|progress(?:ed)?\s+on|failed|refractory|after|during|history\s+of)\b",
+    re.I,
+)
 _TARGETED_EXPOSURE_PATTERN = re.compile(
     r"\b(?:received|receiving|treated|treatment|therapy|agent|drug|inhibitor|antibody)\b.*"
     r"\b(?:targeting|targeted|directed\s+against)\b"
@@ -61,12 +65,58 @@ _ORGAN_FUNCTION_PATTERN = re.compile(
 _CURRENT_CONDITION_PATTERN = re.compile(
     r"\b(?:active infection|immunodeficiency|pneumonitis|interstitial lung disease|"
     r"inflammatory bowel disease|cardiovascular disorder|cerebrovascular disease|"
-    r"pulmonary illnesses?)\b",
+    r"pulmonary illnesses?|primary brain tumors?|primary cns tumors?|uncontrolled (?:infection|diabetes)|"
+    r"connective tissue disease|second malignan(?:cy|cies)|additional malignan(?:cy|cies)|"
+    r"concurrent malignan(?:cy|cies))\b",
     re.I,
 )
 _PROCEDURAL_PATTERN = re.compile(
     r"\b(?:archival\s+tumou?r\s+tissue|newly\s+obtained\s+biopsy|provided\s+tissue\s+prior\s+to|"
     r"recovered\s+from\s+major\s+surgery|major\s+surgery|surgical\s+complications?)\b",
+    re.I,
+)
+_ADMINISTRATIVE_CONSENT_POSITIVE_PATTERN = re.compile(
+    r"\b(?:provide|provided|give|given|sign|signed|understand|understood)\b.{0,40}\binformed consent\b"
+    r"|\bable to consent\b"
+    r"|\bwilling and able\b.{0,50}\binformed consent\b",
+    re.I,
+)
+_ADMINISTRATIVE_CONSENT_NEGATIVE_PATTERN = re.compile(
+    r"\b(?:unable|cannot|can't|inability)\b.{0,40}\b(?:consent|provide informed consent|sign informed consent)\b"
+    r"|\badults?\s+unable\s+to\s+consent\b"
+    r"|\binability to provide informed consent\b",
+    re.I,
+)
+_ADMINISTRATIVE_PROTOCOL_POSITIVE_PATTERN = re.compile(
+    r"\b(?:willing and able|able|ability|willing(?:ness)?)\b.{0,70}\b(?:comply|adhere|follow)\b.{0,70}"
+    r"\b(?:protocol|study procedures?|scheduled visits?|treatment plan|laboratory tests?)\b",
+    re.I,
+)
+_ADMINISTRATIVE_PROTOCOL_NEGATIVE_PATTERN = re.compile(
+    r"\b(?:unable|cannot|can't|inability|unwilling(?:ness)?)\b.{0,70}\b(?:comply|adhere|follow)\b.{0,70}"
+    r"\b(?:protocol|study procedures?|scheduled visits?|treatment plan|laboratory tests?)\b",
+    re.I,
+)
+_BEHAVIORAL_CLAUSTROPHOBIA_PATTERN = re.compile(r"\bclaustrophobi(?:a|c)\b", re.I)
+_BEHAVIORAL_MOTION_PATTERN = re.compile(
+    r"\b(?:motion intolerance|unable to remain still|cannot remain still|unable to lie still|cannot lie still|"
+    r"unable to tolerate (?:mri|pet|scan|imaging)|inability to tolerate (?:mri|pet|scan|imaging)|"
+    r"dyspnea precluding the ability to follow breath-hold instructions)\b",
+    re.I,
+)
+_REPRODUCTIVE_PATTERN = re.compile(
+    r"\b(?:pregnan(?:cy|t)|non[- ]pregnant|negative pregnancy test|breastfeeding|lactating|nursing)\b",
+    re.I,
+)
+_DEVICE_PATTERN = re.compile(
+    r"\b(?:contraindication to mri|mri contraindication|mr[- ]?(?:unsafe|incompatible)|pacemakers?|"
+    r"defibrillators?|cochlear implants?|aneurysm clips?|metallic implants?|implantable devices?|"
+    r"neurostimulators?|mr devices?)\b",
+    re.I,
+)
+_CORTICOSTEROID_PATTERN = re.compile(
+    r"\b(?:systemic\s+corticosteroids?|corticosteroids?|systemic\s+steroids?|glucocorticoids?|"
+    r"prednisone|dexamethasone|methylprednisolone|prednisolone)\b",
     re.I,
 )
 _EXPLICIT_DIAGNOSIS_PATTERN = re.compile(
@@ -77,8 +127,16 @@ _CONFIRMED_DISEASE_PATTERN = re.compile(
     r"\b(?:confirmed|histologically|cytologically|pathologically)\b",
     re.I,
 )
+_DISEASE_ENUMERATION_HINT_PATTERN = re.compile(
+    r"\b(?:solid tumou?rs?|cancers?|carcinomas?|malignan(?:cy|cies)|neoplasms?)\b",
+    re.I,
+)
 _NUMERIC_STAGE_PATTERN = re.compile(
     r"\bstage\s+[0-9ivx]+[a-c]?(?:\s+or\s+[0-9ivx]+[a-c]?)?\b",
+    re.I,
+)
+_TEXT_STAGE_VALUE_PATTERN = re.compile(
+    r"\b(stage\s+[0-9ivx]+[a-c]?(?:\s+or\s+[0-9ivx]+[a-c]?)?|unresectable|metastatic|locally advanced)\b",
     re.I,
 )
 _COMPLEXITY_SIGNALS = re.compile(
@@ -160,10 +218,12 @@ class RuleBasedClassifier:
             neg_result = self._negation.resolve(criterion_text, [])
             if neg_result.has_exception:
                 exception_temporal = self._temporal.parse(neg_result.exception_text or "")
+                text_category = self._assign_category_from_text(criterion_text)
                 return ClassifiedCriterion(
                     original_text=criterion_text,
                     type="inclusion",
-                    category=self._assign_category_from_text(criterion_text),
+                    category=text_category,
+                    value_text=self._semantic_value_text(text_category, criterion_text),
                     parse_status="partial",
                     negated=neg_result.negated,
                     timeframe_operator=exception_temporal.operator if exception_temporal else None,
@@ -193,6 +253,7 @@ class RuleBasedClassifier:
                 type="inclusion",
                 category=category,
                 parse_status=parse_status,
+                value_text=self._semantic_value_text(category, criterion_text),
                 confidence=confidence,
                 review_required=review_required,
                 review_reason=review_reason,
@@ -231,6 +292,8 @@ class RuleBasedClassifier:
             qual_match = _BIOMARKER_QUALIFIER.search(criterion_text)
             if qual_match:
                 value_text = qual_match.group(1).lower()
+        if not value_text:
+            value_text = self._semantic_value_text(category, criterion_text)
 
         if category == "concomitant_medication" and _VACCINE_PATTERN.search(criterion_text):
             return ClassifiedCriterion(
@@ -276,6 +339,16 @@ class RuleBasedClassifier:
 
         if _AGE_PATTERN.search(text) or ("MEASURE" in labels and "year" in text.lower()):
             return "age"
+        if self._is_diagnosis_primary(text, entities):
+            return "diagnosis"
+        if self._administrative_value(text):
+            return "administrative_requirement"
+        if self._behavioral_value(text):
+            return "behavioral_constraint"
+        if self._reproductive_value(text):
+            return "reproductive_status"
+        if self._device_value(text):
+            return "device_constraint"
         if _CNS_PATTERN.search(text):
             return "cns_metastases"
         if _LINE_PATTERN.search(text):
@@ -288,24 +361,15 @@ class RuleBasedClassifier:
             return "diagnosis"
         if "BIOMARKER" in labels and _TARGETED_EXPOSURE_PATTERN.search(text):
             return "prior_therapy"
+        if _CORTICOSTEROID_PATTERN.search(text):
+            return "concomitant_medication"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
             return "prior_therapy"
         if "DRUG" in labels:
-            return "prior_therapy"
+            return "concomitant_medication" if _CORTICOSTEROID_PATTERN.search(text) else "prior_therapy"
         if _STAGE_PATTERN.search(text):
             if _NUMERIC_STAGE_PATTERN.search(text) or _TNM_STAGE_PATTERN.search(text):
                 return "disease_stage"
-            if (
-                "DISEASE" in labels
-                and (
-                    _EXPLICIT_DIAGNOSIS_PATTERN.search(text)
-                    or (
-                        _CONFIRMED_DISEASE_PATTERN.search(text)
-                        and self._has_specific_disease_phrase(entities)
-                    )
-                )
-            ):
-                return "diagnosis"
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
             return "histology"
@@ -339,6 +403,14 @@ class RuleBasedClassifier:
         """Fallback: classify by text patterns when no entities."""
         if _AGE_PATTERN.search(text):
             return "age"
+        if self._administrative_value(text):
+            return "administrative_requirement"
+        if self._behavioral_value(text):
+            return "behavioral_constraint"
+        if self._reproductive_value(text):
+            return "reproductive_status"
+        if self._device_value(text):
+            return "device_constraint"
         if _CNS_PATTERN.search(text):
             return "cns_metastases"
         if _PROCEDURAL_PATTERN.search(text):
@@ -350,6 +422,8 @@ class RuleBasedClassifier:
         if _HISTOLOGY_PATTERN.search(text):
             return "histology"
         if _VACCINE_PATTERN.search(text):
+            return "concomitant_medication"
+        if _CORTICOSTEROID_PATTERN.search(text):
             return "concomitant_medication"
         if _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
@@ -367,7 +441,16 @@ class RuleBasedClassifier:
         category = self._assign_category_from_text(text)
         if category == "histology":
             return category, "parsed", 0.6, False, None
-        if category in {"diagnosis", "cns_metastases", "procedural_requirement"}:
+        if category in {
+            "diagnosis",
+            "cns_metastases",
+            "disease_stage",
+            "procedural_requirement",
+            "administrative_requirement",
+            "behavioral_constraint",
+            "reproductive_status",
+            "device_constraint",
+        }:
             return category, "parsed", 0.6, False, None
         if category == "concomitant_medication" and _VACCINE_PATTERN.search(text):
             return category, "partial", 0.3, True, "complex_criteria"
@@ -385,6 +468,75 @@ class RuleBasedClassifier:
         has_biomarker_signal = "BIOMARKER" in labels or _MOLECULAR_PATTERN.search(text)
         has_stage_signal = _STAGE_PATTERN.search(text) or _TNM_STAGE_PATTERN.search(text)
         return bool(has_biomarker_signal and has_stage_signal)
+
+    def _is_diagnosis_primary(self, text: str, entities: list[Entity]) -> bool:
+        disease_entities = [entity for entity in entities if entity.label == "DISEASE"]
+        if not disease_entities:
+            return False
+        if _NUMERIC_STAGE_PATTERN.search(text) or _TNM_STAGE_PATTERN.search(text):
+            return False
+        if any(entity.label == "BIOMARKER" for entity in entities):
+            return False
+        if _CURRENT_CONDITION_PATTERN.search(text):
+            return True
+        if _EXPLICIT_DIAGNOSIS_PATTERN.search(text):
+            return True
+        if len(disease_entities) >= 2 and not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text):
+            return True
+        if (
+            len(disease_entities) >= 1
+            and _DISEASE_ENUMERATION_HINT_PATTERN.search(text)
+            and not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text)
+        ):
+            return True
+        return False
+
+    def _administrative_value(self, text: str) -> str | None:
+        if _ADMINISTRATIVE_CONSENT_NEGATIVE_PATTERN.search(text):
+            return "can_consent:false"
+        if _ADMINISTRATIVE_CONSENT_POSITIVE_PATTERN.search(text):
+            return "can_consent:true"
+        if _ADMINISTRATIVE_PROTOCOL_NEGATIVE_PATTERN.search(text):
+            return "protocol_compliant:false"
+        if _ADMINISTRATIVE_PROTOCOL_POSITIVE_PATTERN.search(text):
+            return "protocol_compliant:true"
+        return None
+
+    def _behavioral_value(self, text: str) -> str | None:
+        if _BEHAVIORAL_CLAUSTROPHOBIA_PATTERN.search(text):
+            return "claustrophobic:true"
+        if _BEHAVIORAL_MOTION_PATTERN.search(text):
+            return "motion_intolerant:true"
+        return None
+
+    def _reproductive_value(self, text: str) -> str | None:
+        if not _REPRODUCTIVE_PATTERN.search(text):
+            return None
+        if re.search(r"\b(?:non[- ]pregnant|negative pregnancy test)\b", text, re.I):
+            return "pregnant:false"
+        if re.search(r"\b(?:pregnan(?:cy|t))\b", text, re.I):
+            return "pregnant:true"
+        return None
+
+    def _device_value(self, text: str) -> str | None:
+        if _DEVICE_PATTERN.search(text):
+            return "mr_device_present:true"
+        return None
+
+    def _semantic_value_text(self, category: str, text: str) -> str | None:
+        if category == "administrative_requirement":
+            return self._administrative_value(text)
+        if category == "behavioral_constraint":
+            return self._behavioral_value(text)
+        if category == "reproductive_status":
+            return self._reproductive_value(text)
+        if category == "device_constraint":
+            return self._device_value(text)
+        if category == "disease_stage":
+            match = _TEXT_STAGE_VALUE_PATTERN.search(text)
+            if match:
+                return match.group(1).lower()
+        return None
 
     def _has_nested_therapy_requirements(self, text: str, category_hint: str) -> bool:
         if category_hint not in {"prior_therapy", "line_of_therapy"}:
