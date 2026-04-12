@@ -1,7 +1,7 @@
 import pytest
-import uuid
+
 from app.fhir.mapper import FHIRMapper
-from app.models.database import Trial, ExtractedCriterion
+from app.models.database import Trial
 
 
 @pytest.fixture
@@ -109,6 +109,18 @@ class TestCriteriaExclusion:
                 coded_concepts=[{"system": "nci_thesaurus", "code": "C126815", "display": "KRAS Mutation Positive"}],
                 review_required=True,
                 review_status="pending",
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        assert "extension" not in resource
+
+    def test_procedural_requirements_are_excluded(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="inclusion",
+                category="procedural_requirement",
+                original_text="Provides archival tumor tissue sample",
+                parse_status="parsed",
             ),
         ]
         resource = mapper.to_research_study(sample_trial, criteria)

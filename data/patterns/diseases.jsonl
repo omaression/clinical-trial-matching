@@ -18,8 +18,16 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "hiv"}, {"LOWER": "infection"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "human"}, {"LOWER": "immunodeficiency"}, {"LOWER": "virus"}]}
 {"label": "DISEASE", "pattern": "immunodeficiency"}
+{"label": "DISEASE", "pattern": [{"LOWER": "active"}, {"LOWER": "infection"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "inflammatory"}, {"LOWER": "bowel"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cardiovascular"}, {"LOWER": "disorder"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cerebrovascular"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "pulmonary"}, {"LOWER": "illness"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "pulmonary"}, {"LOWER": "illnesses"}]}
 {"label": "DISEASE", "pattern": "pneumonitis"}
 {"label": "DISEASE", "pattern": [{"LOWER": "interstitial"}, {"LOWER": "lung"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "leptomeningeal"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "carcinomatous"}, {"LOWER": "meningitis"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "corneal"}, {"LOWER": "disease"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "dry"}, {"LOWER": "eye"}, {"LOWER": "syndrome"}]}
 {"label": "DISEASE", "pattern": "blepharitis"}

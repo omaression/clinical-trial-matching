@@ -291,3 +291,51 @@ class TestPatientMatching:
             "NCT10000002",
             "NCT10000003",
         }.issubset({item["trial_nct_id"] for item in listing.json()["items"]})
+
+    def test_procedural_requirements_are_skipped_in_matching(self, client, db_session):
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000004",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                },
+                {
+                    "type": "inclusion",
+                    "category": "procedural_requirement",
+                    "original_text": "Provides archival tumor tissue sample",
+                },
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-procedural",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "conditions": [
+                    {
+                        "description": "Metastatic breast cancer",
+                        "coded_concepts": [{"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}],
+                    }
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000004")
+        assert result["overall_status"] == "eligible"
+
+        detail = client.get(f"/api/v1/matches/{result['id']}")
+        assert detail.status_code == 200
+        categories = {item["category"] for item in detail.json()["criteria"]}
+        assert "procedural_requirement" not in categories

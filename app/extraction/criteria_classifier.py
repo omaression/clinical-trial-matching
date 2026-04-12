@@ -64,6 +64,11 @@ _CURRENT_CONDITION_PATTERN = re.compile(
     r"pulmonary illnesses?)\b",
     re.I,
 )
+_PROCEDURAL_PATTERN = re.compile(
+    r"\b(?:archival\s+tumou?r\s+tissue|newly\s+obtained\s+biopsy|provided\s+tissue\s+prior\s+to|"
+    r"recovered\s+from\s+major\s+surgery|major\s+surgery|surgical\s+complications?)\b",
+    re.I,
+)
 _EXPLICIT_DIAGNOSIS_PATTERN = re.compile(
     r"\b(?:diagnosis|diagnosed with)\b",
     re.I,
@@ -275,6 +280,8 @@ class RuleBasedClassifier:
             return "cns_metastases"
         if _LINE_PATTERN.search(text):
             return "line_of_therapy"
+        if _PROCEDURAL_PATTERN.search(text):
+            return "procedural_requirement"
         if "BIOMARKER" in labels and _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
         if _CURRENT_CONDITION_PATTERN.search(text):
@@ -334,6 +341,8 @@ class RuleBasedClassifier:
             return "age"
         if _CNS_PATTERN.search(text):
             return "cns_metastases"
+        if _PROCEDURAL_PATTERN.search(text):
+            return "procedural_requirement"
         if _CURRENT_CONDITION_PATTERN.search(text):
             return "diagnosis"
         if _STAGE_PATTERN.search(text):
@@ -357,6 +366,8 @@ class RuleBasedClassifier:
     def _classify_text_only(self, text: str) -> tuple[str, str, float, bool, str | None]:
         category = self._assign_category_from_text(text)
         if category == "histology":
+            return category, "parsed", 0.6, False, None
+        if category in {"diagnosis", "cns_metastases", "procedural_requirement"}:
             return category, "parsed", 0.6, False, None
         if category == "concomitant_medication" and _VACCINE_PATTERN.search(text):
             return category, "partial", 0.3, True, "complex_criteria"

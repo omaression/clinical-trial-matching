@@ -290,4 +290,4 @@ Exclusion Criteria:
 
     def test_all_extracted(self, pipeline):
         result = pipeline.extract(self.TEXT)
-        assert result.criteria_count == 2
+        assert result.criteria_count == 3

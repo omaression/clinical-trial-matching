@@ -29,6 +29,19 @@ class TestStructuredHeaders:
         for r in results:
             assert not r.text.startswith(("1.", "2.", "3."))
 
+    def test_section_intro_lines_are_not_emitted_as_criteria(self, splitter):
+        text = (
+            "Inclusion Criteria:\n"
+            "The main inclusion criteria include but are not limited to the following:\n"
+            "1. Age >= 18 years\n"
+            "Exclusion Criteria:\n"
+            "The main exclusion criteria include but are not limited to the following:\n"
+            "1. No active infection\n"
+        )
+        results = splitter.split(text)
+        texts = [result.text for result in results]
+        assert texts == ["Age >= 18 years", "No active infection"]
+
 
 class TestMissingHeaders:
     def test_polarity_fallback(self, splitter):

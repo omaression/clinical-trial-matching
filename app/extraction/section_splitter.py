@@ -6,6 +6,10 @@ from app.extraction.types import CriterionText
 _INCLUSION_HEADER = re.compile(r"(?i)^\s*(inclusion\s+criteria|eligibility\s+criteria|inclusion)\s*:?\s*$")
 _EXCLUSION_HEADER = re.compile(r"(?i)^\s*(exclusion\s+criteria|exclusion)\s*:?\s*$")
 _NUMBERED_ITEM = re.compile(r"^\s*(?:\d+[\.\)]\s*|-\s*|•\s*)")
+_SECTION_INTRO = re.compile(
+    r"(?i)^\s*the\s+main\s+(?:inclusion|exclusion)\s+criteria\s+include(?:\s+but\s+are\s+not\s+limited\s+to)?"
+    r"\s+the\s+following\s*:?\s*$"
+)
 
 # Polarity signals for fallback classification
 _EXCLUSION_SIGNALS = [
@@ -75,6 +79,9 @@ class SectionSplitter:
                 flush_current()
                 current_type = "exclusion"
                 continue
+            if _SECTION_INTRO.match(stripped):
+                flush_current()
+                continue
 
             if _NUMBERED_ITEM.match(line):
                 flush_current()
@@ -113,6 +120,9 @@ class SectionSplitter:
         for line in lines:
             stripped = line.strip()
             if not stripped:
+                continue
+            if _SECTION_INTRO.match(stripped):
+                flush_current()
                 continue
             if _NUMBERED_ITEM.match(line):
                 flush_current()

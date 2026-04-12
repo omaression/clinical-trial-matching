@@ -50,6 +50,15 @@ _GENERIC_TREATMENT_CLASS_TERMS = {
     "hormonal therapy",
     "endocrine therapy",
 }
+_GENERIC_DIAGNOSIS_TERMS = {
+    "active infection",
+    "inflammatory bowel disease",
+    "cardiovascular disorder",
+    "cerebrovascular disease",
+    "pulmonary illness",
+    "pulmonary illnesses",
+    "carcinomatous meningitis",
+}
 _MATCH_TYPE_PRIORITY = {
     "exact": 0,
     "synonym": 1,
@@ -462,12 +471,23 @@ class IngestionService:
             and self._is_generic_treatment_entity(entity)
         ):
             return False
+        if (
+            category in {"diagnosis", "cns_metastases"}
+            and entity.label == "DISEASE"
+            and self._is_generic_diagnosis_entity(entity)
+        ):
+            return False
         return True
 
     def _is_generic_treatment_entity(self, entity: Entity) -> bool:
         source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
         normalized = " ".join(source.split())
         return normalized in _GENERIC_TREATMENT_CLASS_TERMS
+
+    def _is_generic_diagnosis_entity(self, entity: Entity) -> bool:
+        source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
+        normalized = " ".join(source.split())
+        return normalized in _GENERIC_DIAGNOSIS_TERMS
 
     def _coding_context_variants(self, criterion, entity: Entity) -> list[str]:
         if entity.label not in {"DISEASE", "DRUG", "BIOMARKER"}:

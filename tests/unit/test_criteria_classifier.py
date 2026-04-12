@@ -167,9 +167,27 @@ class TestCategoryAssignment:
             [],
         )
         assert result.category == "diagnosis"
-        assert result.parse_status == "partial"
-        assert result.review_required is True
-        assert result.review_reason == "complex_criteria"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+        assert result.review_reason is None
+
+    def test_text_only_cns_disease_becomes_parsed_without_review(self, classifier):
+        result = classifier.classify(
+            "Has evidence of any leptomeningeal disease",
+            [],
+        )
+        assert result.category == "cns_metastases"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+
+    def test_procedural_requirement_text_becomes_parsed_without_review(self, classifier):
+        result = classifier.classify(
+            "Provides archival tumor tissue sample of a tumor lesion not previously irradiated",
+            [],
+        )
+        assert result.category == "procedural_requirement"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
 
     def test_text_only_histology_becomes_parsed_without_review(self, classifier):
         result = classifier.classify(

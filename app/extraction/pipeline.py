@@ -1,3 +1,6 @@
+import re
+import uuid
+
 import spacy
 from spacy.language import Language
 
@@ -6,7 +9,7 @@ from app.extraction.abbreviation_resolver import AbbreviationResolver
 from app.extraction.criteria_classifier import RuleBasedClassifier
 from app.extraction.entity_ruler import load_entity_ruler
 from app.extraction.section_splitter import SectionSplitter
-from app.extraction.types import ClassifiedCriterion, Entity, PipelineResult
+from app.extraction.types import ClassifiedCriterion, CriterionText, Entity, PipelineResult
 
 
 class ExtractionPipeline:
@@ -53,41 +56,107 @@ class ExtractionPipeline:
 
         criteria: list[ClassifiedCriterion] = []
         for ct in criterion_texts:
-            # Stage 2: spaCy NER
-            doc = self._nlp(ct.text)
-            entities = [
-                Entity(text=ent.text, label=ent.label_, start=ent.start_char, end=ent.end_char)
-                for ent in doc.ents
-            ]
-            dynamic_abbreviations = {}
-            doc_extensions = getattr(doc._, "abbreviations", None)
-            if doc_extensions:
-                dynamic_abbreviations = {
-                    abbreviation.text.lower(): str(abbreviation._.long_form)
-                    for abbreviation in doc._.abbreviations
-                    if getattr(abbreviation._, "long_form", None)
-                }
-
-            # Stage 2.5: Abbreviation Resolver
-            entities = self._abbreviation_resolver.resolve(
-                entities,
-                ct.text,
-                dynamic_abbreviations=dynamic_abbreviations,
-            )
-            entities = self._suppress_redundant_entities(entities)
-
-            # Stage 3: Criteria Classifier
-            classified = self._classifier.classify(ct.text, entities)
-            # Override type from Stage 1
-            classified = classified.model_copy(update={
-                "type": ct.type,
-                "review_required": classified.review_required or ct.review_required,
-                "review_reason": classified.review_reason or ct.review_reason,
-            })
-
-            criteria.append(classified)
+            criteria.extend(self._extract_criterion(ct))
 
         return PipelineResult(criteria=criteria, pipeline_version=settings.pipeline_version)
+
+    def _extract_criterion(self, ct: CriterionText, *, allow_decompose: bool = True) -> list[ClassifiedCriterion]:
+        entities = self._extract_entities(ct.text)
+        classified = self._classifier.classify(ct.text, entities)
+        classified = classified.model_copy(update={
+            "type": ct.type,
+            "review_required": classified.review_required or ct.review_required,
+            "review_reason": classified.review_reason or ct.review_reason,
+        })
+
+        if not allow_decompose:
+            return [classified]
+
+        split_clauses = self._split_compound_criterion(classified)
+        if not split_clauses:
+            return [classified]
+
+        shared_group_id = classified.logic_group_id or str(uuid.uuid4())
+        split_criteria: list[ClassifiedCriterion] = []
+        for clause in split_clauses:
+            derived = self._extract_criterion(
+                CriterionText(
+                    text=clause,
+                    type=ct.type,
+                    review_required=ct.review_required,
+                    review_reason=ct.review_reason,
+                ),
+                allow_decompose=False,
+            )[0]
+            derived = derived.model_copy(update={
+                "logic_group_id": shared_group_id,
+                "logic_operator": classified.logic_operator,
+            })
+            split_criteria.append(derived)
+        return split_criteria
+
+    def _extract_entities(self, criterion_text: str) -> list[Entity]:
+        doc = self._nlp(criterion_text)
+        entities = [
+            Entity(text=ent.text, label=ent.label_, start=ent.start_char, end=ent.end_char)
+            for ent in doc.ents
+        ]
+        dynamic_abbreviations = {}
+        doc_extensions = getattr(doc._, "abbreviations", None)
+        if doc_extensions:
+            dynamic_abbreviations = {
+                abbreviation.text.lower(): str(abbreviation._.long_form)
+                for abbreviation in doc._.abbreviations
+                if getattr(abbreviation._, "long_form", None)
+            }
+
+        entities = self._abbreviation_resolver.resolve(
+            entities,
+            criterion_text,
+            dynamic_abbreviations=dynamic_abbreviations,
+        )
+        return self._suppress_redundant_entities(entities)
+
+    def _split_compound_criterion(self, criterion: ClassifiedCriterion) -> list[str] | None:
+        if criterion.category not in {"diagnosis", "cns_metastases"}:
+            return None
+
+        previous_history_split = self._split_previous_history_clause(criterion.original_text)
+        if previous_history_split:
+            return previous_history_split
+
+        return self._split_entity_coordinated_clause(criterion.original_text, criterion.entities)
+
+    def _split_previous_history_clause(self, text: str) -> list[str] | None:
+        match = re.match(
+            r"^(?P<lemma>\*?\s*(?:has|have))\s+(?P<left>.+?)\s+or\s+(?P<right>previous history of .+)$",
+            text,
+            re.I,
+        )
+        if not match:
+            return None
+        return [
+            f"{match.group('lemma')} {match.group('left').strip()}",
+            f"{match.group('lemma')} {match.group('right').strip()}",
+        ]
+
+    def _split_entity_coordinated_clause(self, text: str, entities: list[Entity]) -> list[str] | None:
+        disease_entities = [entity for entity in entities if entity.label == "DISEASE"]
+        if len(disease_entities) != 2:
+            return None
+
+        for left, right in zip(disease_entities, disease_entities[1:]):
+            connector = text[left.end:right.start]
+            if not re.fullmatch(r"\s*(?:and/or|or)\s*", connector, re.I):
+                continue
+            prefix = text[:left.start]
+            suffix = text[right.end:]
+            left_clause = f"{prefix}{left.text}{suffix}".strip()
+            right_clause = f"{prefix}{right.text}{suffix}".strip()
+            if left_clause == text or right_clause == text:
+                continue
+            return [left_clause, right_clause]
+        return None
 
     def _suppress_redundant_entities(self, entities: list[Entity]) -> list[Entity]:
         filtered: list[Entity] = []

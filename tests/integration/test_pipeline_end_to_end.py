@@ -86,6 +86,7 @@ class TestNct07286149Signals:
         result = pipeline.extract(text)
         assert result.criteria_count == 1
         assert result.criteria[0].category == "diagnosis"
+        assert result.criteria[0].review_required is False
 
     def test_biomarker_targeting_therapy_line_routes_to_prior_therapy(self, pipeline):
         text = "Has received previous treatment with an agent targeting KRAS"
@@ -115,3 +116,42 @@ class TestNct07286149Signals:
         disease_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DISEASE"]
         assert any("kaposi" in entity and "sarcoma" in entity for entity in disease_entities)
         assert any("castleman" in entity and "disease" in entity for entity in disease_entities)
+
+    def test_ibd_compound_exclusion_splits_into_linked_criteria(self, pipeline):
+        text = (
+            "Has active inflammatory bowel disease requiring immunosuppressive medication "
+            "or previous history of inflammatory bowel disease"
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 2
+        assert all(criterion.category == "diagnosis" for criterion in result.criteria)
+        assert all(criterion.review_required is False for criterion in result.criteria)
+        logic_group_ids = {criterion.logic_group_id for criterion in result.criteria}
+        assert len(logic_group_ids) == 1
+        assert {criterion.logic_operator for criterion in result.criteria} == {"OR"}
+
+    def test_cardiovascular_compound_exclusion_splits_into_linked_criteria(self, pipeline):
+        text = (
+            "Has uncontrolled or significant cardiovascular disorder or cerebrovascular disease "
+            "prior to allocation/randomization"
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 2
+        assert all(criterion.category == "diagnosis" for criterion in result.criteria)
+        assert all(criterion.review_required is False for criterion in result.criteria)
+        logic_group_ids = {criterion.logic_group_id for criterion in result.criteria}
+        assert len(logic_group_ids) == 1
+        assert {criterion.logic_operator for criterion in result.criteria} == {"OR"}
+
+    def test_procedural_requirements_are_classified_structurally(self, pipeline):
+        text = (
+            "Inclusion Criteria:\n"
+            "The main inclusion criteria include but are not limited to the following:\n"
+            "1. Provides archival tumor tissue sample of a tumor lesion not previously irradiated\n"
+            "2. Has provided tissue prior to treatment allocation/randomization from a newly obtained biopsy "
+            "of a tumor lesion not previously irradiated\n"
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 2
+        assert all(criterion.category == "procedural_requirement" for criterion in result.criteria)
+        assert all(criterion.review_required is False for criterion in result.criteria)

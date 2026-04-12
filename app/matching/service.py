@@ -242,6 +242,8 @@ class PatientMatchService:
                 continue
             if uses_structured_sex and criterion.category == "sex":
                 continue
+            if criterion.category == "procedural_requirement":
+                continue
             evaluations.append(self._evaluate_extracted_criterion(patient, criterion))
 
         return evaluations

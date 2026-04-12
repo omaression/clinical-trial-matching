@@ -55,6 +55,18 @@ ILD_TEXT = (
     "steroids or has current pneumonitis/ILD"
 )
 ACTIVE_INFECTION_TEXT = "* Has an active infection requiring systemic therapy"
+IBD_ACTIVE_TEXT = "* Has active inflammatory bowel disease requiring immunosuppressive medication"
+IBD_HISTORY_TEXT = "* Has previous history of inflammatory bowel disease"
+CARDIOVASCULAR_TEXT = "* Has uncontrolled or significant cardiovascular disorder prior to allocation/randomization"
+CEREBROVASCULAR_TEXT = "* Has uncontrolled or significant cerebrovascular disease prior to allocation/randomization"
+ARCHIVAL_TISSUE_TEXT = "* Provides archival tumor tissue sample of a tumor lesion not previously irradiated"
+BIOPSY_TEXT = (
+    "* Has provided tissue prior to treatment allocation/randomization from a newly obtained biopsy "
+    "of a tumor lesion not previously irradiated"
+)
+SURGERY_TEXT = "* Have not adequately recovered from major surgery or have ongoing surgical complications"
+INCLUSION_INTRO_TEXT = "The main inclusion criteria include but are not limited to the following:"
+EXCLUSION_INTRO_TEXT = "The main exclusion criteria include but are not limited to the following:"
 
 
 def _docker_available():
@@ -252,9 +264,12 @@ class TestIngestSingleTrial:
         assert criteria_by_text[NSCLC_DIAGNOSIS_TEXT].category == "diagnosis"
         assert criteria_by_text[KRAS_G12C_TEXT].category == "molecular_alteration"
         assert criteria_by_text[ACTIVE_INFECTION_TEXT].category == "diagnosis"
+        assert criteria_by_text[ACTIVE_INFECTION_TEXT].review_required is False
         assert criteria_by_text[VACCINE_TEXT].category == "concomitant_medication"
         assert criteria_by_text[KRAS_TARGETING_THERAPY_TEXT].category == "prior_therapy"
         assert criteria_by_text[VACCINE_TEXT].review_required is True
+        assert INCLUSION_INTRO_TEXT not in criteria_by_text
+        assert EXCLUSION_INTRO_TEXT not in criteria_by_text
 
     def test_prior_therapy_coding_skips_biomarker_entities_even_when_catalog_matches(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
@@ -387,6 +402,35 @@ class TestIngestSingleTrial:
         assert criterion.review_required is False
         assert coded_keys == {("mesh", "D017563")}
 
+    def test_generic_diagnosis_mentions_do_not_force_review(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Has an active infection requiring systemic therapy",
+                    type="exclusion",
+                    category="diagnosis",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[Entity(text="active infection", label="DISEASE", start=7, end=23)],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.review_count == 0
+        assert criterion.review_required is False
+        assert criterion.coded_concepts == []
+
     def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
         for system, code, display, synonyms in [
             (
@@ -458,6 +502,22 @@ class TestIngestSingleTrial:
         assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
         assert criteria_by_text[ILD_TEXT].review_required is False
         assert coded_keys(KRAS_TARGETING_THERAPY_TEXT) == set()
+        assert criteria_by_text[ARCHIVAL_TISSUE_TEXT].category == "procedural_requirement"
+        assert criteria_by_text[ARCHIVAL_TISSUE_TEXT].review_required is False
+        assert criteria_by_text[BIOPSY_TEXT].category == "procedural_requirement"
+        assert criteria_by_text[BIOPSY_TEXT].review_required is False
+        assert criteria_by_text[SURGERY_TEXT].category == "procedural_requirement"
+        assert criteria_by_text[SURGERY_TEXT].review_required is False
+        assert criteria_by_text[ACTIVE_INFECTION_TEXT].review_required is False
+        assert criteria_by_text[IBD_ACTIVE_TEXT].logic_operator == "OR"
+        assert criteria_by_text[IBD_HISTORY_TEXT].logic_operator == "OR"
+        assert criteria_by_text[IBD_ACTIVE_TEXT].logic_group_id == criteria_by_text[IBD_HISTORY_TEXT].logic_group_id
+        assert criteria_by_text[CARDIOVASCULAR_TEXT].logic_operator == "OR"
+        assert criteria_by_text[CEREBROVASCULAR_TEXT].logic_operator == "OR"
+        assert (
+            criteria_by_text[CARDIOVASCULAR_TEXT].logic_group_id
+            == criteria_by_text[CEREBROVASCULAR_TEXT].logic_group_id
+        )
         kaposi_castleman_codes = coded_keys(
             "* HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease"
         )

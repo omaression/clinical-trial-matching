@@ -1,6 +1,14 @@
 [
   {
-    "original_text": "No active brain metastases or leptomeningeal disease",
+    "original_text": "No active brain metastases",
+    "type": "exclusion",
+    "category": "cns_metastases",
+    "parse_status": "parsed",
+    "negated": true,
+    "logic_operator": "OR"
+  },
+  {
+    "original_text": "No active leptomeningeal disease",
     "type": "exclusion",
     "category": "cns_metastases",
     "parse_status": "parsed",

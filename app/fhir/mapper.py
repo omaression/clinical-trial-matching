@@ -13,11 +13,51 @@ _STATUS_MAP = {
 }
 
 _PHASE_MAP = {
-    "PHASE1": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/research-study-phase", "code": "phase-1", "display": "Phase 1"}]},
-    "PHASE2": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/research-study-phase", "code": "phase-2", "display": "Phase 2"}]},
-    "PHASE3": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/research-study-phase", "code": "phase-3", "display": "Phase 3"}]},
-    "PHASE4": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/research-study-phase", "code": "phase-4", "display": "Phase 4"}]},
-    "EARLY_PHASE1": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/research-study-phase", "code": "early-phase-1", "display": "Early Phase 1"}]},
+    "PHASE1": {
+        "coding": [
+            {
+                "system": "http://terminology.hl7.org/CodeSystem/research-study-phase",
+                "code": "phase-1",
+                "display": "Phase 1",
+            }
+        ]
+    },
+    "PHASE2": {
+        "coding": [
+            {
+                "system": "http://terminology.hl7.org/CodeSystem/research-study-phase",
+                "code": "phase-2",
+                "display": "Phase 2",
+            }
+        ]
+    },
+    "PHASE3": {
+        "coding": [
+            {
+                "system": "http://terminology.hl7.org/CodeSystem/research-study-phase",
+                "code": "phase-3",
+                "display": "Phase 3",
+            }
+        ]
+    },
+    "PHASE4": {
+        "coding": [
+            {
+                "system": "http://terminology.hl7.org/CodeSystem/research-study-phase",
+                "code": "phase-4",
+                "display": "Phase 4",
+            }
+        ]
+    },
+    "EARLY_PHASE1": {
+        "coding": [
+            {
+                "system": "http://terminology.hl7.org/CodeSystem/research-study-phase",
+                "code": "early-phase-1",
+                "display": "Early Phase 1",
+            }
+        ]
+    },
 }
 
 _ELIGIBILITY_EXT_URL = "http://hl7.org/fhir/StructureDefinition/researchStudy-eligibility"
@@ -91,6 +131,8 @@ class FHIRMapper:
         exportable = []
         for c in criteria:
             if c.parse_status not in ("parsed", "partial"):
+                continue
+            if c.category == "procedural_requirement":
                 continue
             if c.review_status == "rejected":
                 continue
