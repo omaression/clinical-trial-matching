@@ -390,8 +390,11 @@ class IngestionService:
                 coding_result = self._coder.code_entity(
                     entity,
                     context_variants=self._coding_context_variants(criterion, entity),
+                    allow_fuzzy=self._should_allow_fuzzy_coding(criterion.category, entity),
                 )
                 coded_concepts.extend(coding_result.concepts)
+                if self._should_ignore_coding_review(criterion.category, entity, coding_result):
+                    continue
                 if coding_result.review_required:
                     if coding_result.review_reason:
                         coding_review_reasons.add(coding_result.review_reason)
@@ -426,6 +429,7 @@ class IngestionService:
                 review_required=review_required,
                 review_reason=review_reason,
                 review_status="pending" if review_required else None,
+                original_extracted=self._criterion_provenance_snapshot(criterion),
                 pipeline_version=settings.pipeline_version,
                 pipeline_run_id=run.id,
             )
@@ -471,12 +475,6 @@ class IngestionService:
             and self._is_generic_treatment_entity(entity)
         ):
             return False
-        if (
-            category in {"diagnosis", "cns_metastases"}
-            and entity.label == "DISEASE"
-            and self._is_generic_diagnosis_entity(entity)
-        ):
-            return False
         return True
 
     def _is_generic_treatment_entity(self, entity: Entity) -> bool:
@@ -488,6 +486,30 @@ class IngestionService:
         source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
         normalized = " ".join(source.split())
         return normalized in _GENERIC_DIAGNOSIS_TERMS
+
+    def _should_allow_fuzzy_coding(self, category: str, entity: Entity) -> bool:
+        if (
+            category in {"diagnosis", "cns_metastases"}
+            and entity.label == "DISEASE"
+            and self._is_generic_diagnosis_entity(entity)
+        ):
+            return False
+        return True
+
+    def _criterion_provenance_snapshot(self, criterion) -> dict | None:
+        source_sentence = getattr(criterion, "source_sentence", None)
+        if source_sentence and source_sentence != criterion.original_text:
+            return {"source_sentence": source_sentence}
+        return None
+
+    def _should_ignore_coding_review(self, category: str, entity: Entity, coding_result) -> bool:
+        return (
+            category in {"diagnosis", "cns_metastases"}
+            and entity.label == "DISEASE"
+            and self._is_generic_diagnosis_entity(entity)
+            and not coding_result.concepts
+            and coding_result.review_reason == "uncoded_entity"
+        )
 
     def _coding_context_variants(self, criterion, entity: Entity) -> list[str]:
         if entity.label not in {"DISEASE", "DRUG", "BIOMARKER"}:

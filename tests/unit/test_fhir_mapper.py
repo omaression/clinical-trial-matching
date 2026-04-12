@@ -33,6 +33,8 @@ def _make_criterion(**kwargs):
         "coded_concepts": [],
         "review_required": False,
         "review_status": None,
+        "logic_group_id": None,
+        "logic_operator": "AND",
         "operator": None,
         "value_low": None,
         "value_high": None,
@@ -125,3 +127,34 @@ class TestCriteriaExclusion:
         ]
         resource = mapper.to_research_study(sample_trial, criteria)
         assert "extension" not in resource
+
+    def test_logic_group_metadata_is_preserved_on_exported_criteria(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="exclusion",
+                category="diagnosis",
+                original_text="Active inflammatory bowel disease",
+                logic_group_id="group-123",
+                logic_operator="OR",
+            ),
+            _make_criterion(
+                type="exclusion",
+                category="diagnosis",
+                original_text="Previous history of inflammatory bowel disease",
+                logic_group_id="group-123",
+                logic_operator="OR",
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        exclusion_group = next(
+            extension for extension in resource["extension"] if extension["url"].endswith("exclusion")
+        )
+        criterion_extensions = exclusion_group["extension"]
+        for criterion_extension in criterion_extensions:
+            flattened = {
+                item["url"]: item.get("valueString")
+                for item in criterion_extension["extension"]
+                if "valueString" in item
+            }
+            assert flattened["logicGroupId"] == "group-123"
+            assert flattened["logicOperator"] == "OR"

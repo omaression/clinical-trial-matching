@@ -64,6 +64,7 @@ class ExtractionPipeline:
         entities = self._extract_entities(ct.text)
         classified = self._classifier.classify(ct.text, entities)
         classified = classified.model_copy(update={
+            "source_sentence": ct.source_sentence or ct.text,
             "type": ct.type,
             "review_required": classified.review_required or ct.review_required,
             "review_reason": classified.review_reason or ct.review_reason,
@@ -85,6 +86,7 @@ class ExtractionPipeline:
                     type=ct.type,
                     review_required=ct.review_required,
                     review_reason=ct.review_reason,
+                    source_sentence=ct.source_sentence or ct.text,
                 ),
                 allow_decompose=False,
             )[0]

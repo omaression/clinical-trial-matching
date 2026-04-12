@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 import docker
@@ -339,3 +340,65 @@ class TestPatientMatching:
         assert detail.status_code == 200
         categories = {item["category"] for item in detail.json()["criteria"]}
         assert "procedural_requirement" not in categories
+
+    def test_or_grouped_criteria_do_not_force_all_branches(self, client, db_session):
+        group_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000005",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "logic_group_id": group_id,
+                    "logic_operator": "OR",
+                },
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic melanoma",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D008545", "display": "Melanoma"}
+                    ],
+                    "logic_group_id": group_id,
+                    "logic_operator": "OR",
+                },
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-or-group",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "conditions": [
+                    {
+                        "description": "Metastatic breast cancer",
+                        "coded_concepts": [{"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}],
+                    }
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000005")
+        assert result["overall_status"] == "eligible"
+        assert result["score"] == 1.0
+
+        detail = client.get(f"/api/v1/matches/{result['id']}")
+        assert detail.status_code == 200
+        outcomes = {
+            item["criterion_text"]: item["outcome"]
+            for item in detail.json()["criteria"]
+            if item["source_type"] == "extracted"
+        }
+        assert outcomes["Metastatic breast cancer"] == "matched"
+        assert outcomes["Metastatic melanoma"] == "not_matched"

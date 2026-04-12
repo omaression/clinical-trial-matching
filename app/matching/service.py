@@ -33,6 +33,8 @@ _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 class CriterionEvaluation:
     criterion_id: object | None
     pipeline_run_id: object | None
+    logic_group_id: object | None
+    logic_operator: str | None
     source_type: str
     source_label: str
     criterion_type: str
@@ -75,15 +77,18 @@ class PatientMatchService:
             evaluations = self._evaluate_trial(patient, trial, latest_run)
             if not evaluations:
                 continue
+            effective_evaluations = _collapse_logic_group_evaluations(evaluations)
 
             favorable_count = sum(
-                1 for evaluation in evaluations if evaluation.outcome in {"matched", "not_triggered"}
+                1 for evaluation in effective_evaluations if evaluation.outcome in {"matched", "not_triggered"}
             )
             unfavorable_count = sum(
-                1 for evaluation in evaluations if evaluation.outcome in {"not_matched", "triggered"}
+                1 for evaluation in effective_evaluations if evaluation.outcome in {"not_matched", "triggered"}
             )
-            unknown_count = sum(1 for evaluation in evaluations if evaluation.outcome == "unknown")
-            requires_review_count = sum(1 for evaluation in evaluations if evaluation.outcome == "requires_review")
+            unknown_count = sum(1 for evaluation in effective_evaluations if evaluation.outcome == "unknown")
+            requires_review_count = sum(
+                1 for evaluation in effective_evaluations if evaluation.outcome == "requires_review"
+            )
 
             if unfavorable_count > 0:
                 overall_status = "ineligible"
@@ -97,7 +102,7 @@ class PatientMatchService:
             summary_explanation = _build_summary_explanation(
                 trial=trial,
                 overall_status=overall_status,
-                evaluations=evaluations,
+                evaluations=effective_evaluations,
             )
 
             result = MatchResult(
@@ -187,6 +192,8 @@ class PatientMatchService:
                 CriterionEvaluation(
                     criterion_id=None,
                     pipeline_run_id=latest_run.id if latest_run else None,
+                    logic_group_id=None,
+                    logic_operator=None,
                     source_type="structured",
                     source_label="ClinicalTrials.gov",
                     criterion_type="inclusion",
@@ -204,6 +211,8 @@ class PatientMatchService:
                 CriterionEvaluation(
                     criterion_id=None,
                     pipeline_run_id=latest_run.id if latest_run else None,
+                    logic_group_id=None,
+                    logic_operator=None,
                     source_type="structured",
                     source_label="ClinicalTrials.gov",
                     criterion_type="inclusion",
@@ -221,6 +230,8 @@ class PatientMatchService:
                 CriterionEvaluation(
                     criterion_id=None,
                     pipeline_run_id=latest_run.id if latest_run else None,
+                    logic_group_id=None,
+                    logic_operator=None,
                     source_type="structured",
                     source_label="ClinicalTrials.gov",
                     criterion_type="inclusion",
@@ -342,6 +353,8 @@ class PatientMatchService:
         return CriterionEvaluation(
             criterion_id=criterion.id,
             pipeline_run_id=criterion.pipeline_run_id,
+            logic_group_id=criterion.logic_group_id,
+            logic_operator=criterion.logic_operator,
             source_type="extracted",
             source_label="criterion",
             criterion_type=criterion.type,
@@ -402,6 +415,82 @@ def _latest_completed_run(trial: Trial) -> PipelineRun | None:
         ),
         reverse=True,
     )[0]
+
+
+def _collapse_logic_group_evaluations(evaluations: list[CriterionEvaluation]) -> list[CriterionEvaluation]:
+    collapsed: list[CriterionEvaluation] = []
+    grouped: dict[tuple[object, str], list[CriterionEvaluation]] = {}
+
+    for evaluation in evaluations:
+        if not evaluation.logic_group_id or evaluation.logic_operator != "OR":
+            collapsed.append(evaluation)
+            continue
+        grouped.setdefault((evaluation.logic_group_id, evaluation.logic_operator), []).append(evaluation)
+
+    for (_, _), members in grouped.items():
+        collapsed.append(_collapse_or_group(members))
+
+    return collapsed
+
+
+def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvaluation:
+    exemplar = evaluations[0]
+    outcomes = {evaluation.outcome for evaluation in evaluations}
+
+    if exemplar.criterion_type == "inclusion":
+        if "matched" in outcomes:
+            outcome = "matched"
+            explanation_text = "At least one OR-linked inclusion branch is satisfied."
+            explanation_type = "logic_group_match"
+        elif "requires_review" in outcomes:
+            outcome = "requires_review"
+            explanation_text = "An OR-linked inclusion branch still requires manual review."
+            explanation_type = "logic_group_review_required"
+        elif "unknown" in outcomes:
+            outcome = "unknown"
+            explanation_text = "Available patient data is insufficient to resolve an OR-linked inclusion branch."
+            explanation_type = "logic_group_unknown"
+        else:
+            outcome = "not_matched"
+            explanation_text = "None of the OR-linked inclusion branches are satisfied."
+            explanation_type = "logic_group_mismatch"
+    else:
+        if "triggered" in outcomes:
+            outcome = "triggered"
+            explanation_text = "At least one OR-linked exclusion branch is triggered."
+            explanation_type = "logic_group_blocker"
+        elif "requires_review" in outcomes:
+            outcome = "requires_review"
+            explanation_text = "An OR-linked exclusion branch still requires manual review."
+            explanation_type = "logic_group_review_required"
+        elif "unknown" in outcomes:
+            outcome = "unknown"
+            explanation_text = "Available patient data is insufficient to resolve an OR-linked exclusion branch."
+            explanation_type = "logic_group_unknown"
+        else:
+            outcome = "not_triggered"
+            explanation_text = "None of the OR-linked exclusion branches are triggered."
+            explanation_type = "logic_group_clear"
+
+    return CriterionEvaluation(
+        criterion_id=None,
+        pipeline_run_id=exemplar.pipeline_run_id,
+        logic_group_id=exemplar.logic_group_id,
+        logic_operator=exemplar.logic_operator,
+        source_type=exemplar.source_type,
+        source_label=exemplar.source_label,
+        criterion_type=exemplar.criterion_type,
+        category=exemplar.category,
+        criterion_text=exemplar.criterion_text,
+        outcome=outcome,
+        explanation_text=explanation_text,
+        explanation_type=explanation_type,
+        evidence_payload={
+            "logic_group_id": str(exemplar.logic_group_id),
+            "logic_operator": exemplar.logic_operator,
+            "member_outcomes": [evaluation.outcome for evaluation in evaluations],
+        },
+    )
 
 
 def _patient_age_years(birth_date: date | None) -> float | None:

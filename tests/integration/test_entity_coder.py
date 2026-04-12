@@ -53,7 +53,13 @@ def seed_lookups(db_session):
         CodingLookup(system="loinc", code="751-8", display="Neutrophils [#/volume] in Blood",
                       synonyms=["anc", "absolute neutrophil count"]),
     ]
-    db_session.add_all(lookups)
+    for lookup in lookups:
+        existing = db_session.query(CodingLookup).filter_by(system=lookup.system, code=lookup.code).first()
+        if existing:
+            existing.display = lookup.display
+            existing.synonyms = lookup.synonyms
+        else:
+            db_session.add(lookup)
     db_session.flush()
     return lookups
 
@@ -204,3 +210,20 @@ class TestDeterministicResolution:
         result = coder.code_entity(entity, context_variants=["interstitial lung disease"])
         assert result.concepts[0].system == "mesh"
         assert result.concepts[0].code == "D017563"
+
+    def test_disabling_fuzzy_still_allows_synonym_resolution_for_broad_disease_terms(self, coder, db_session):
+        db_session.add(
+            CodingLookup(
+                system="mesh",
+                code="D002318",
+                display="Cardiovascular Diseases",
+                synonyms=["cardiovascular disorder", "cardiovascular disease"],
+            )
+        )
+        db_session.flush()
+
+        entity = Entity(text="cardiovascular disorder", label="DISEASE", start=0, end=24)
+        result = coder.code_entity(entity, allow_fuzzy=False)
+        assert result.concepts[0].system == "mesh"
+        assert result.concepts[0].code == "D002318"
+        assert result.concepts[0].match_type == "synonym"

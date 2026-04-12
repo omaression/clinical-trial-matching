@@ -532,7 +532,7 @@ def _ensure_reviewable_criterion(criterion: ExtractedCriterion, db: Session) -> 
 
 
 def _correction_snapshot(criterion: ExtractedCriterion) -> dict[str, Any]:
-    return {
+    snapshot = {
         "type": criterion.type,
         "category": criterion.category,
         "parse_status": criterion.parse_status,
@@ -551,6 +551,9 @@ def _correction_snapshot(criterion: ExtractedCriterion) -> dict[str, Any]:
         "coded_concepts": criterion.coded_concepts,
         "confidence": criterion.confidence,
     }
+    if isinstance(criterion.original_extracted, dict) and criterion.original_extracted.get("source_sentence"):
+        snapshot["source_sentence"] = criterion.original_extracted["source_sentence"]
+    return snapshot
 
 
 def _trial_summary(trial: Trial) -> TrialSummary:

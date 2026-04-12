@@ -67,7 +67,13 @@ class EntityCoder:
     def __init__(self, db: Session):
         self._db = db
 
-    def code_entity(self, entity: Entity, context_variants: list[str] | None = None) -> CodingResult:
+    def code_entity(
+        self,
+        entity: Entity,
+        context_variants: list[str] | None = None,
+        *,
+        allow_fuzzy: bool = True,
+    ) -> CodingResult:
         systems = _SYSTEMS_BY_LABEL.get(entity.label)
         if not systems:
             return CodingResult(
@@ -98,9 +104,10 @@ class EntityCoder:
                 return result
 
         # Tier 3: Fuzzy match via pg_trgm similarity, with a safe Python fallback.
-        result = self._fuzzy_match(lookup_variants, systems)
-        if result:
-            return result
+        if allow_fuzzy:
+            result = self._fuzzy_match(lookup_variants, systems)
+            if result:
+                return result
 
         # Tier 4: No match
         return CodingResult(

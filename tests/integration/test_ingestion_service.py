@@ -512,12 +512,24 @@ class TestIngestSingleTrial:
         assert criteria_by_text[IBD_ACTIVE_TEXT].logic_operator == "OR"
         assert criteria_by_text[IBD_HISTORY_TEXT].logic_operator == "OR"
         assert criteria_by_text[IBD_ACTIVE_TEXT].logic_group_id == criteria_by_text[IBD_HISTORY_TEXT].logic_group_id
+        assert criteria_by_text[IBD_ACTIVE_TEXT].original_extracted == {
+            "source_sentence": (
+                "* Has active inflammatory bowel disease requiring immunosuppressive medication "
+                "or previous history of inflammatory bowel disease"
+            )
+        }
         assert criteria_by_text[CARDIOVASCULAR_TEXT].logic_operator == "OR"
         assert criteria_by_text[CEREBROVASCULAR_TEXT].logic_operator == "OR"
         assert (
             criteria_by_text[CARDIOVASCULAR_TEXT].logic_group_id
             == criteria_by_text[CEREBROVASCULAR_TEXT].logic_group_id
         )
+        assert criteria_by_text[CARDIOVASCULAR_TEXT].original_extracted == {
+            "source_sentence": (
+                "* Has uncontrolled or significant cardiovascular disorder or cerebrovascular disease "
+                "prior to allocation/randomization"
+            )
+        }
         kaposi_castleman_codes = coded_keys(
             "* HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease"
         )

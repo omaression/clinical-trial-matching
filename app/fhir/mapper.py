@@ -168,4 +168,13 @@ class FHIRMapper:
                             "display": concept.get("display", ""),
                         },
                     })
+        if criterion.logic_group_id:
+            ext["extension"].append({
+                "url": "logicGroupId",
+                "valueString": str(criterion.logic_group_id),
+            })
+            ext["extension"].append({
+                "url": "logicOperator",
+                "valueString": criterion.logic_operator,
+            })
         return ext

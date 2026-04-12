@@ -114,6 +114,7 @@ def seeded_logic_group_criterion(db_session):
         logic_group_id=logic_group_id, logic_operator="OR",
         confidence=0.60, review_required=True, review_reason="fuzzy_match",
         review_status="pending", coded_concepts=[],
+        original_extracted={"source_sentence": "Has melanoma or breast cancer"},
         pipeline_version="0.1.0", pipeline_run_id=run.id,
     )
     db_session.add(criterion)
@@ -215,6 +216,7 @@ class TestCorrect:
         assert response.json()["original_extracted"]["logic_group_id"] == str(
             seeded_logic_group_criterion.logic_group_id
         )
+        assert response.json()["original_extracted"]["source_sentence"] == "Has melanoma or breast cancer"
 
 
 class TestReject:

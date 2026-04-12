@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import Protocol
 
 from pydantic import BaseModel, Field
@@ -12,6 +11,7 @@ class CriterionText(BaseModel):
     type: str  # "inclusion" | "exclusion"
     review_required: bool = False
     review_reason: str | None = None
+    source_sentence: str | None = None
 
 
 class Entity(BaseModel):
@@ -60,6 +60,7 @@ class CodedConcept(BaseModel):
 class ClassifiedCriterion(BaseModel):
     """Fully classified criterion — output of Stage 3, enriched by Stage 4."""
     original_text: str
+    source_sentence: str | None = None
     type: str  # inclusion / exclusion
     category: str
     parse_status: str = "parsed"  # parsed / partial / unparsed
