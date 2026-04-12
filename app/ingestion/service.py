@@ -51,6 +51,14 @@ _GENERIC_TREATMENT_CLASS_TERMS = {
     "hormonal therapy",
     "endocrine therapy",
 }
+_REVIEW_NEUTRAL_TREATMENT_CLASS_TERMS = {
+    "pd-1 therapy",
+    "pd-1/pd-l1 therapy",
+    "pd-1/pd-l1 inhibitor therapy",
+    "agent targeting kras",
+    "kras-targeted therapy",
+    "kras inhibitor",
+}
 _GENERIC_DIAGNOSIS_TERMS = {
     "active infection",
     "inflammatory bowel disease",
@@ -479,14 +487,18 @@ class IngestionService:
         return True
 
     def _is_generic_treatment_entity(self, entity: Entity) -> bool:
-        source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
-        normalized = " ".join(source.split())
-        return normalized in _GENERIC_TREATMENT_CLASS_TERMS
+        return self._normalized_entity_text(entity) in _GENERIC_TREATMENT_CLASS_TERMS
 
     def _is_generic_diagnosis_entity(self, entity: Entity) -> bool:
-        source = (entity.expanded_text or entity.text).casefold().replace("/", " ")
-        normalized = " ".join(source.split())
-        return normalized in _GENERIC_DIAGNOSIS_TERMS
+        return self._normalized_entity_text(entity) in _GENERIC_DIAGNOSIS_TERMS
+
+    def _is_review_neutral_treatment_entity(self, entity: Entity) -> bool:
+        return self._normalized_entity_text(entity) in _REVIEW_NEUTRAL_TREATMENT_CLASS_TERMS
+
+    def _normalized_entity_text(self, entity: Entity) -> str:
+        source = (entity.expanded_text or entity.text).casefold()
+        normalized = re.sub(r"\s+", " ", source).strip()
+        return normalized
 
     def _should_allow_fuzzy_coding(self, category: str, entity: Entity) -> bool:
         if (
@@ -504,13 +516,23 @@ class IngestionService:
         return None
 
     def _should_ignore_coding_review(self, category: str, entity: Entity, coding_result) -> bool:
-        return (
+        if (
             category in {"diagnosis", "cns_metastases"}
             and entity.label == "DISEASE"
             and self._is_generic_diagnosis_entity(entity)
             and not coding_result.concepts
             and coding_result.review_reason == "uncoded_entity"
-        )
+        ):
+            return True
+        if (
+            category in {"prior_therapy", "concomitant_medication"}
+            and entity.label == "DRUG"
+            and self._is_review_neutral_treatment_entity(entity)
+            and not coding_result.concepts
+            and coding_result.review_reason == "uncoded_entity"
+        ):
+            return True
+        return False
 
     def _coding_context_variants(self, criterion, entity: Entity) -> list[str]:
         if entity.label not in {"DISEASE", "DRUG", "BIOMARKER"}:

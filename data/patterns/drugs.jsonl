@@ -18,5 +18,12 @@
 {"label": "DRUG", "pattern": "methotrexate"}
 {"label": "DRUG", "pattern": "chemotherapy"}
 {"label": "DRUG", "pattern": "immunotherapy"}
+{"label": "DRUG", "pattern": "PD-1 therapy"}
 {"label": "DRUG", "pattern": "PD-L1 therapy"}
+{"label": "DRUG", "pattern": "PD-1/PD-L1 therapy"}
+{"label": "DRUG", "pattern": "PD-1/PD-L1 inhibitor therapy"}
+{"label": "DRUG", "pattern": [{"LOWER": "programmed"}, {"LOWER": "cell"}, {"LOWER": "death"}, {"LOWER": "protein"}, {"LOWER": "1"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "pd", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "1", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "therapy"}]}
 {"label": "DRUG", "pattern": [{"LOWER": "programmed"}, {"LOWER": "death"}, {"IS_PUNCT": true, "OP": "?"}, {"LOWER": "ligand"}, {"LOWER": "1"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "pd", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "l1", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "therapy"}]}
+{"label": "DRUG", "pattern": [{"LOWER": "agent"}, {"LOWER": "targeting"}, {"LOWER": "kras"}]}
+{"label": "DRUG", "pattern": [{"LOWER": "kras"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "targeted"}, {"LOWER": "therapy"}]}
+{"label": "DRUG", "pattern": [{"LOWER": "kras"}, {"LOWER": "inhibitor"}]}

@@ -169,3 +169,31 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
         assert any("therapy" in entity for entity in drug_entities)
+
+    def test_pd_1_therapy_phrase_emits_drug_entity(self, pipeline):
+        text = "Has progressed after prior PD-1 therapy"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
+        assert "pd-1 therapy" in drug_entities
+
+    def test_pd_1_pd_l1_inhibitor_phrase_emits_drug_entity(self, pipeline):
+        text = "Has progressed after prior PD-1/PD-L1 inhibitor therapy"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
+        assert "pd-1/pd-l1 inhibitor therapy" in drug_entities
+
+    def test_agent_targeting_kras_phrase_emits_drug_entity(self, pipeline):
+        text = "Has received previous treatment with an agent targeting KRAS"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
+        assert "agent targeting kras" in drug_entities
+
+    def test_kras_targeted_therapy_phrase_emits_drug_entity(self, pipeline):
+        text = "Has received previous KRAS-targeted therapy"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
+        assert "kras-targeted therapy" in drug_entities

@@ -355,6 +355,49 @@ class TestIngestSingleTrial:
         assert criterion.review_required is False
         assert criterion.coded_concepts == []
 
+    def test_unresolved_pd1_and_kras_therapy_classes_do_not_force_review(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Prior PD-1 therapy for metastatic disease",
+                    type="inclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[Entity(text="PD-1 therapy", label="DRUG", start=6, end=18)],
+                ),
+                ClassifiedCriterion(
+                    original_text="Has received previous treatment with an agent targeting KRAS",
+                    type="exclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.85,
+                    entities=[Entity(text="agent targeting KRAS", label="DRUG", start=37, end=57)],
+                ),
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = (
+            db_session.query(ExtractedCriterion)
+            .filter_by(trial_id=trial.id)
+            .order_by(ExtractedCriterion.original_text.asc())
+            .all()
+        )
+
+        assert result.review_count == 0
+        assert len(criteria) == 2
+        assert all(criterion.review_required is False for criterion in criteria)
+        assert all(criterion.coded_concepts == [] for criterion in criteria)
+
     def test_alias_paired_disease_mentions_use_peer_context_for_coding(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
         pipeline_result = PipelineResult(
