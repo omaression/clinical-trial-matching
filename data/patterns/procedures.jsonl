@@ -1,0 +1,7 @@
+{"label": "PROCEDURE", "pattern": [{"LOWER": "archival"}, {"LOWER": "tumor"}, {"LOWER": "tissue"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "archival"}, {"LOWER": "tumor"}, {"LOWER": "tissue"}, {"LOWER": "sample"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "provided"}, {"LOWER": "tissue"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "newly"}, {"LOWER": "obtained"}, {"LOWER": "biopsy"}]}
+{"label": "PROCEDURE", "pattern": "biopsy"}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "major"}, {"LOWER": "surgery"}]}
+{"label": "PROCEDURE", "pattern": [{"LOWER": "surgical"}, {"LOWER": "complications"}]}

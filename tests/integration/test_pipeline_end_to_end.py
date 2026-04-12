@@ -117,6 +117,12 @@ class TestNct07286149Signals:
         assert any("kaposi" in entity and "sarcoma" in entity for entity in disease_entities)
         assert any("castleman" in entity and "disease" in entity for entity in disease_entities)
 
+    def test_cns_metastases_line_keeps_specific_disease_entities(self, pipeline):
+        text = "Has known active central nervous system (CNS) metastases and/or carcinomatous meningitis"
+        result = pipeline.extract(text)
+        disease_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DISEASE"]
+        assert any("central nervous system" in entity or "cns metastases" in entity for entity in disease_entities)
+
     def test_ibd_compound_exclusion_splits_into_linked_criteria(self, pipeline):
         text = (
             "Has active inflammatory bowel disease requiring immunosuppressive medication "
@@ -155,3 +161,11 @@ class TestNct07286149Signals:
         assert result.criteria_count == 2
         assert all(criterion.category == "procedural_requirement" for criterion in result.criteria)
         assert all(criterion.review_required is False for criterion in result.criteria)
+        assert any(entity.label == "PROCEDURE" for criterion in result.criteria for entity in criterion.entities)
+
+    def test_pd_l1_therapy_phrase_emits_drug_entity(self, pipeline):
+        text = "Has progressed after prior programmed death-ligand 1 (PD-L1) therapy"
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
+        assert any("therapy" in entity for entity in drug_entities)

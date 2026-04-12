@@ -7,6 +7,10 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "brain"}, {"LOWER": "metastases"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "brain"}, {"LOWER": "metastasis"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "metastases"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "metastasis"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "central"}, {"LOWER": "nervous"}, {"LOWER": "system"}, {"LOWER": {"IN": ["metastases", "metastasis"]}}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "central"}, {"LOWER": "nervous"}, {"LOWER": "system"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "cns", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": {"IN": ["metastases", "metastasis"]}}]}
 {"label": "DISEASE", "pattern": "melanoma"}
 {"label": "DISEASE", "pattern": "lymphoma"}
 {"label": "DISEASE", "pattern": "leukemia"}
@@ -21,7 +25,11 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "active"}, {"LOWER": "infection"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "inflammatory"}, {"LOWER": "bowel"}, {"LOWER": "disease"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "cardiovascular"}, {"LOWER": "disorder"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cardiovascular"}, {"LOWER": "disease"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "cerebrovascular"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "cerebrovascular"}, {"LOWER": "disorder"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "clinically"}, {"LOWER": "severe"}, {"LOWER": "pulmonary"}, {"LOWER": "compromise"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "severe"}, {"LOWER": "pulmonary"}, {"LOWER": "compromise"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "pulmonary"}, {"LOWER": "illness"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "pulmonary"}, {"LOWER": "illnesses"}]}
 {"label": "DISEASE", "pattern": "pneumonitis"}

@@ -38,10 +38,22 @@ def seed_lookups(db_session):
                       synonyms=["sclc", "small cell lung cancer"]),
         CodingLookup(system="mesh", code="D015658", display="HIV Infections",
                       synonyms=["hiv infection", "human immunodeficiency virus infection"]),
+        CodingLookup(system="mesh", code="D007239", display="Infections",
+                      synonyms=["infection", "active infection"]),
         CodingLookup(system="mesh", code="D007153", display="Immunologic Deficiency Syndromes",
                       synonyms=["immunodeficiency", "immune deficiency"]),
+        CodingLookup(system="mesh", code="D015212", display="Inflammatory Bowel Diseases",
+                      synonyms=["inflammatory bowel disease", "active inflammatory bowel disease"]),
+        CodingLookup(system="mesh", code="D002318", display="Cardiovascular Diseases",
+                      synonyms=["cardiovascular disorder", "cardiovascular disease"]),
+        CodingLookup(system="mesh", code="D002561", display="Cerebrovascular Disorders",
+                      synonyms=["cerebrovascular disease", "cerebrovascular disorder"]),
+        CodingLookup(system="mesh", code="D012131", display="Respiratory Insufficiency",
+                      synonyms=["pulmonary compromise", "clinically severe pulmonary compromise"]),
         CodingLookup(system="mesh", code="D017563", display="Lung Diseases, Interstitial",
                       synonyms=["interstitial lung disease", "ild", "pneumonitis interstitial"]),
+        CodingLookup(system="mesh", code="D001859", display="Brain Neoplasms",
+                      synonyms=["brain metastases", "cns metastases", "central nervous system metastases"]),
         CodingLookup(system="mesh", code="D003316", display="Corneal Diseases",
                       synonyms=["corneal disease", "corneal diseases"]),
         CodingLookup(system="mesh", code="D015352", display="Dry Eye Syndromes",
@@ -50,6 +62,14 @@ def seed_lookups(db_session):
                       synonyms=["blepharitis", "meibomian gland disease"]),
         CodingLookup(system="nci_thesaurus", code="C1647", display="Trastuzumab",
                       synonyms=["herceptin"]),
+        CodingLookup(system="nci_thesaurus", code="C128057", display="anti-PD-L1 monoclonal antibody",
+                      synonyms=["pd-l1 therapy", "programmed death-ligand 1 therapy"]),
+        CodingLookup(system="snomed_ct", code="17636008", display="Specimen collection",
+                      synonyms=["archival tumor tissue sample", "archival tumor tissue"]),
+        CodingLookup(system="snomed_ct", code="86273004", display="Biopsy",
+                      synonyms=["newly obtained biopsy", "tumor biopsy"]),
+        CodingLookup(system="snomed_ct", code="387713003", display="Surgical procedure",
+                      synonyms=["major surgery", "surgical complications"]),
         CodingLookup(system="loinc", code="751-8", display="Neutrophils [#/volume] in Blood",
                       synonyms=["anc", "absolute neutrophil count"]),
     ]
@@ -192,7 +212,13 @@ class TestDeterministicResolution:
     def test_codes_infectious_pulmonary_and_ophthalmology_terms(self, coder):
         cases = [
             ("HIV infection", "D015658"),
+            ("active infection", "D007239"),
             ("immunodeficiency", "D007153"),
+            ("inflammatory bowel disease", "D015212"),
+            ("cardiovascular disorder", "D002318"),
+            ("cerebrovascular disease", "D002561"),
+            ("cns metastases", "D001859"),
+            ("clinically severe pulmonary compromise", "D012131"),
             ("interstitial lung disease", "D017563"),
             ("corneal disease", "D003316"),
             ("dry eye syndrome", "D015352"),
@@ -211,19 +237,28 @@ class TestDeterministicResolution:
         assert result.concepts[0].system == "mesh"
         assert result.concepts[0].code == "D017563"
 
-    def test_disabling_fuzzy_still_allows_synonym_resolution_for_broad_disease_terms(self, coder, db_session):
-        db_session.add(
-            CodingLookup(
-                system="mesh",
-                code="D002318",
-                display="Cardiovascular Diseases",
-                synonyms=["cardiovascular disorder", "cardiovascular disease"],
-            )
-        )
-        db_session.flush()
-
+    def test_disabling_fuzzy_still_allows_synonym_resolution_for_broad_disease_terms(self, coder):
         entity = Entity(text="cardiovascular disorder", label="DISEASE", start=0, end=24)
         result = coder.code_entity(entity, allow_fuzzy=False)
         assert result.concepts[0].system == "mesh"
         assert result.concepts[0].code == "D002318"
         assert result.concepts[0].match_type == "synonym"
+
+    def test_scopes_procedure_entities_to_snomed(self, coder):
+        cases = [
+            ("archival tumor tissue sample", "17636008"),
+            ("newly obtained biopsy", "86273004"),
+            ("major surgery", "387713003"),
+        ]
+
+        for text, expected_code in cases:
+            entity = Entity(text=text, label="PROCEDURE", start=0, end=len(text))
+            result = coder.code_entity(entity)
+            assert result.concepts[0].system == "snomed_ct"
+            assert result.concepts[0].code == expected_code
+
+    def test_codes_pd_l1_therapy_class_to_nci_when_phrase_is_specific(self, coder):
+        entity = Entity(text="PD-L1 therapy", label="DRUG", start=0, end=13)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "nci_thesaurus"
+        assert result.concepts[0].code == "C128057"

@@ -31,7 +31,22 @@ MESH_DISEASES = [
     ("D010051", "Ovarian Neoplasms", ["ovarian cancer", "ovarian carcinoma"]),
     ("D011471", "Prostatic Neoplasms", ["prostate cancer", "prostatic carcinoma"]),
     ("D064129", "Prostatic Neoplasms, Castration-Resistant", ["mcrpc", "castration-resistant prostate cancer", "crpc"]),
-    ("D001859", "Brain Neoplasms", ["brain cancer", "brain tumor", "brain metastases", "brain metastasis"]),
+    (
+        "D001859",
+        "Brain Neoplasms",
+        [
+            "brain cancer",
+            "brain tumor",
+            "brain metastases",
+            "brain metastasis",
+            "cns metastases",
+            "cns metastasis",
+            "central nervous system metastases",
+            "central nervous system metastasis",
+            "active cns metastases",
+            "active central nervous system metastases",
+        ],
+    ),
     ("D055756", "Leptomeningeal Carcinomatosis", ["leptomeningeal disease", "leptomeningeal metastases"]),
     (
         "D015658",
@@ -54,6 +69,27 @@ MESH_DISEASES = [
         "D017563",
         "Lung Diseases, Interstitial",
         ["interstitial lung disease", "interstitial lung diseases", "ild", "pneumonitis interstitial"],
+    ),
+    (
+        "D012131",
+        "Respiratory Insufficiency",
+        ["pulmonary compromise", "severe pulmonary compromise", "clinically severe pulmonary compromise"],
+    ),
+    ("D007239", "Infections", ["infection", "active infection"]),
+    (
+        "D015212",
+        "Inflammatory Bowel Diseases",
+        ["inflammatory bowel disease", "active inflammatory bowel disease"],
+    ),
+    (
+        "D002318",
+        "Cardiovascular Diseases",
+        ["cardiovascular disorder", "cardiovascular disease", "significant cardiovascular disorder"],
+    ),
+    (
+        "D002561",
+        "Cerebrovascular Disorders",
+        ["cerebrovascular disease", "cerebrovascular disorder"],
     ),
     ("D003316", "Corneal Diseases", ["corneal disease", "corneal diseases"]),
     ("D015352", "Dry Eye Syndromes", ["dry eye syndrome", "dry eye", "dry eyes"]),
@@ -149,6 +185,17 @@ NCI_DRUGS = [
     ("C62563", "Trametinib", ["mekinist"]),
     ("C62564", "Vemurafenib", ["zelboraf"]),
     ("C62565", "Encorafenib", ["braftovi"]),
+    (
+        "C128057",
+        "anti-PD-L1 monoclonal antibody",
+        [
+            "pd-l1 therapy",
+            "pd l1 therapy",
+            "pd-l1 inhibitor therapy",
+            "programmed death-ligand 1 therapy",
+            "programmed death ligand 1 therapy",
+        ],
+    ),
     ("C1794", "Capecitabine", ["xeloda"]),
     ("C1900", "Irinotecan", ["camptosar"]),
     ("C510", "Fluorouracil", ["5-fu", "5fu", "5 fluorouracil"]),
@@ -184,6 +231,17 @@ NCI_SCALES = [
     ("C28007", "Karnofsky Performance Status", ["kps", "karnofsky", "karnofsky performance status"]),
 ]
 
+# SNOMED CT procedure/specimen codes
+SNOMED_PROCEDURES = [
+    (
+        "17636008",
+        "Specimen collection",
+        ["archival tumor tissue", "archival tumor tissue sample", "tumor tissue sample", "provided tissue"],
+    ),
+    ("86273004", "Biopsy", ["newly obtained biopsy", "tumor biopsy"]),
+    ("387713003", "Surgical procedure", ["major surgery", "surgical complications"]),
+]
+
 
 def seed():
     db = SessionLocal()
@@ -194,6 +252,7 @@ def seed():
         for system, rows in (
             ("mesh", MESH_DISEASES),
             ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
+            ("snomed_ct", SNOMED_PROCEDURES),
             ("loinc", LOINC_LABS),
         ):
             for code, display, synonyms in rows:

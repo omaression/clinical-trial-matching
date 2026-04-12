@@ -65,6 +65,8 @@ BIOPSY_TEXT = (
     "of a tumor lesion not previously irradiated"
 )
 SURGERY_TEXT = "* Have not adequately recovered from major surgery or have ongoing surgical complications"
+CNS_METASTASES_TEXT = "* Has known active central nervous system (CNS) metastases"
+CARCINOMATOUS_MENINGITIS_TEXT = "* Has known carcinomatous meningitis"
 INCLUSION_INTRO_TEXT = "The main inclusion criteria include but are not limited to the following:"
 EXCLUSION_INTRO_TEXT = "The main exclusion criteria include but are not limited to the following:"
 
@@ -441,9 +443,46 @@ class TestIngestSingleTrial:
             ),
             (
                 "mesh",
+                "D001859",
+                "Brain Neoplasms",
+                [
+                    "brain metastases",
+                    "cns metastases",
+                    "central nervous system metastases",
+                    "active cns metastases",
+                    "active central nervous system metastases",
+                ],
+            ),
+            (
+                "mesh",
                 "D015658",
                 "HIV Infections",
                 ["hiv infection", "human immunodeficiency virus infection", "well-controlled hiv"],
+            ),
+            ("mesh", "D007239", "Infections", ["infection", "active infection"]),
+            (
+                "mesh",
+                "D015212",
+                "Inflammatory Bowel Diseases",
+                ["inflammatory bowel disease", "active inflammatory bowel disease"],
+            ),
+            (
+                "mesh",
+                "D002318",
+                "Cardiovascular Diseases",
+                ["cardiovascular disorder", "cardiovascular disease"],
+            ),
+            (
+                "mesh",
+                "D002561",
+                "Cerebrovascular Disorders",
+                ["cerebrovascular disease", "cerebrovascular disorder"],
+            ),
+            (
+                "mesh",
+                "D012131",
+                "Respiratory Insufficiency",
+                ["pulmonary compromise", "clinically severe pulmonary compromise"],
             ),
             ("mesh", "D007153", "Immunologic Deficiency Syndromes", ["immunodeficiency", "immune deficiency"]),
             ("mesh", "D017563", "Lung Diseases, Interstitial", ["interstitial lung disease", "ild"]),
@@ -468,6 +507,20 @@ class TestIngestSingleTrial:
                 ],
             ),
             ("nci_thesaurus", "C126815", "KRAS Mutation Positive", ["kras", "kras g12c", "kras g12c mutation"]),
+            (
+                "nci_thesaurus",
+                "C128057",
+                "anti-PD-L1 monoclonal antibody",
+                ["pd-l1 therapy", "programmed death-ligand 1 therapy"],
+            ),
+            (
+                "snomed_ct",
+                "17636008",
+                "Specimen collection",
+                ["archival tumor tissue", "archival tumor tissue sample", "provided tissue"],
+            ),
+            ("snomed_ct", "86273004", "Biopsy", ["newly obtained biopsy", "tumor biopsy"]),
+            ("snomed_ct", "387713003", "Surgical procedure", ["major surgery", "surgical complications"]),
         ]:
             existing = db_session.query(CodingLookup).filter_by(system=system, code=code).first()
             if existing:
@@ -496,12 +549,22 @@ class TestIngestSingleTrial:
             }
 
         assert ("mesh", "D002289") in coded_keys(NSCLC_DIAGNOSIS_TEXT)
+        assert ("mesh", "D001859") in coded_keys(CNS_METASTASES_TEXT)
         assert ("nci_thesaurus", "C126815") in coded_keys(KRAS_G12C_TEXT)
+        assert ("nci_thesaurus", "C128057") in coded_keys(PD1_THERAPY_TEXT)
         assert ("mesh", "D015658") in coded_keys(HIV_TEXT)
+        assert ("mesh", "D007239") in coded_keys(ACTIVE_INFECTION_TEXT)
+        assert ("mesh", "D015212") in coded_keys(IBD_ACTIVE_TEXT)
+        assert ("mesh", "D015212") in coded_keys(IBD_HISTORY_TEXT)
+        assert ("mesh", "D002318") in coded_keys(CARDIOVASCULAR_TEXT)
+        assert ("mesh", "D002561") in coded_keys(CEREBROVASCULAR_TEXT)
         assert ("mesh", "D007153") in coded_keys(IMMUNODEFICIENCY_TEXT)
         assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
         assert criteria_by_text[ILD_TEXT].review_required is False
         assert coded_keys(KRAS_TARGETING_THERAPY_TEXT) == set()
+        assert ("snomed_ct", "17636008") in coded_keys(ARCHIVAL_TISSUE_TEXT)
+        assert ("snomed_ct", "86273004") in coded_keys(BIOPSY_TEXT)
+        assert ("snomed_ct", "387713003") in coded_keys(SURGERY_TEXT)
         assert criteria_by_text[ARCHIVAL_TISSUE_TEXT].category == "procedural_requirement"
         assert criteria_by_text[ARCHIVAL_TISSUE_TEXT].review_required is False
         assert criteria_by_text[BIOPSY_TEXT].category == "procedural_requirement"

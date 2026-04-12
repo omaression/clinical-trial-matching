@@ -17,7 +17,7 @@ class CriterionText(BaseModel):
 class Entity(BaseModel):
     """A recognized entity span from Stage 2 NER."""
     text: str
-    label: str  # DISEASE, DRUG, BIOMARKER, LAB_TEST, MEASURE, PERF_SCALE, TIMEFRAME, THERAPY_LINE
+    label: str  # DISEASE, DRUG, PROCEDURE, BIOMARKER, LAB_TEST, MEASURE, PERF_SCALE, TIMEFRAME
     start: int
     end: int
     expanded_text: str | None = None  # From Stage 2.5 abbreviation resolver
@@ -51,7 +51,7 @@ class TemporalModifier(BaseModel):
 
 class CodedConcept(BaseModel):
     """A mapped coding system reference."""
-    system: str  # mesh, nci_thesaurus, loinc
+    system: str  # mesh, nci_thesaurus, snomed_ct, loinc
     code: str
     display: str
     match_type: str = "exact"  # exact, synonym, fuzzy

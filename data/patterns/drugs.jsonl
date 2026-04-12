@@ -18,3 +18,5 @@
 {"label": "DRUG", "pattern": "methotrexate"}
 {"label": "DRUG", "pattern": "chemotherapy"}
 {"label": "DRUG", "pattern": "immunotherapy"}
+{"label": "DRUG", "pattern": "PD-L1 therapy"}
+{"label": "DRUG", "pattern": [{"LOWER": "programmed"}, {"LOWER": "death"}, {"IS_PUNCT": true, "OP": "?"}, {"LOWER": "ligand"}, {"LOWER": "1"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "pd", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "l1", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "therapy"}]}

@@ -6,6 +6,7 @@ from app.scripts.seed import (
     NCI_BIOMARKERS,
     NCI_DRUGS,
     NCI_SCALES,
+    SNOMED_PROCEDURES,
     _merge_synonyms,
 )
 
@@ -18,6 +19,7 @@ def _catalog_rows():
     for system, rows in (
         ("mesh", MESH_DISEASES),
         ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
+        ("snomed_ct", SNOMED_PROCEDURES),
         ("loinc", LOINC_LABS),
     ):
         for code, display, _synonyms in rows:
@@ -31,6 +33,12 @@ def test_seed_catalog_includes_common_disease_alias_variants():
     assert "non-small-cell lung cancer" in synonyms["Carcinoma, Non-Small-Cell Lung"]
     assert "hiv infection" in synonyms["HIV Infections"]
     assert "interstitial lung disease" in synonyms["Lung Diseases, Interstitial"]
+    assert "active cns metastases" in synonyms["Brain Neoplasms"]
+    assert "active inflammatory bowel disease" in synonyms["Inflammatory Bowel Diseases"]
+    assert "cardiovascular disorder" in synonyms["Cardiovascular Diseases"]
+    assert "cerebrovascular disease" in synonyms["Cerebrovascular Disorders"]
+    assert "active infection" in synonyms["Infections"]
+    assert "clinically severe pulmonary compromise" in synonyms["Respiratory Insufficiency"]
     assert "meibomian gland dysfunction" in synonyms["Blepharitis"]
     assert "kaposi's sarcoma" in synonyms["Sarcoma, Kaposi"]
     assert "multicentric castleman disease" in synonyms["Castleman Disease"]
@@ -52,8 +60,17 @@ def test_seed_catalog_includes_common_drug_and_lab_alias_variants():
     assert "ado trastuzumab emtansine" in drug_synonyms["T-DM1"]
     assert "fam trastuzumab deruxtecan" in drug_synonyms["Trastuzumab Deruxtecan"]
     assert "5 fluorouracil" in drug_synonyms["Fluorouracil"]
+    assert "pd-l1 therapy" in drug_synonyms["anti-PD-L1 monoclonal antibody"]
     assert "absolute neutrophils" in lab_synonyms["Neutrophils [#/volume] in Blood"]
     assert "serum creatinine level" in lab_synonyms["Creatinine [Mass/volume] in Serum"]
+
+
+def test_seed_catalog_includes_common_procedural_alias_variants():
+    synonyms = _synonyms_by_display(SNOMED_PROCEDURES)
+
+    assert "archival tumor tissue sample" in synonyms["Specimen collection"]
+    assert "newly obtained biopsy" in synonyms["Biopsy"]
+    assert "major surgery" in synonyms["Surgical procedure"]
 
 
 def test_seed_catalog_uses_unique_codes_within_each_system():

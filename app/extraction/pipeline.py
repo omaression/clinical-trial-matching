@@ -11,6 +11,13 @@ from app.extraction.entity_ruler import load_entity_ruler
 from app.extraction.section_splitter import SectionSplitter
 from app.extraction.types import ClassifiedCriterion, CriterionText, Entity, PipelineResult
 
+_LONG_FORM_DRUG_PATTERNS = (
+    re.compile(
+        r"programmed\s+death(?:-|\s+)ligand\s+1\s*\(\s*PD(?:-|\s*)L1\s*\)\s*therapy",
+        re.I,
+    ),
+)
+
 
 class ExtractionPipeline:
     """Orchestrates the 6-stage NLP extraction pipeline."""
@@ -103,6 +110,7 @@ class ExtractionPipeline:
             Entity(text=ent.text, label=ent.label_, start=ent.start_char, end=ent.end_char)
             for ent in doc.ents
         ]
+        entities = self._augment_missing_entities(criterion_text, entities)
         dynamic_abbreviations = {}
         doc_extensions = getattr(doc._, "abbreviations", None)
         if doc_extensions:
@@ -118,6 +126,30 @@ class ExtractionPipeline:
             dynamic_abbreviations=dynamic_abbreviations,
         )
         return self._suppress_redundant_entities(entities)
+
+    def _augment_missing_entities(self, criterion_text: str, entities: list[Entity]) -> list[Entity]:
+        augmented = list(entities)
+        for pattern in _LONG_FORM_DRUG_PATTERNS:
+            for match in pattern.finditer(criterion_text):
+                if self._has_overlapping_label(augmented, "DRUG", match.start(), match.end()):
+                    continue
+                augmented.append(
+                    Entity(
+                        text=match.group(0),
+                        label="DRUG",
+                        start=match.start(),
+                        end=match.end(),
+                    )
+                )
+        return augmented
+
+    def _has_overlapping_label(self, entities: list[Entity], label: str, start: int, end: int) -> bool:
+        for entity in entities:
+            if entity.label != label:
+                continue
+            if max(start, entity.start) < min(end, entity.end):
+                return True
+        return False
 
     def _split_compound_criterion(self, criterion: ClassifiedCriterion) -> list[str] | None:
         if criterion.category not in {"diagnosis", "cns_metastases"}:

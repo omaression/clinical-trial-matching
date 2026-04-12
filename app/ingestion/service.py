@@ -37,6 +37,7 @@ _CODABLE_ENTITY_LABELS_BY_CATEGORY = {
     "biomarker": {"BIOMARKER"},
     "lab_value": {"LAB_TEST"},
     "performance_status": {"PERF_SCALE"},
+    "procedural_requirement": {"PROCEDURE"},
 }
 _GENERIC_TREATMENT_CLASS_TERMS = {
     "chemotherapy",

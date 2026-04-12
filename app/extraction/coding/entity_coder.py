@@ -18,11 +18,12 @@ class CodingResult:
     review_reason: str | None = "uncoded_entity"
 
 
-_SYSTEM_PRIORITY = ("mesh", "nci_thesaurus", "loinc")
+_SYSTEM_PRIORITY = ("mesh", "nci_thesaurus", "snomed_ct", "loinc")
 _SYSTEMS_BY_LABEL = {
     "DISEASE": ("mesh",),
     "BIOMARKER": ("nci_thesaurus",),
     "DRUG": ("nci_thesaurus",),
+    "PROCEDURE": ("snomed_ct",),
     "PERF_SCALE": ("nci_thesaurus",),
     "LAB_TEST": ("loinc",),
 }
@@ -62,7 +63,7 @@ _FUZZY_STOPWORDS = {
 
 
 class EntityCoder:
-    """Stage 4: Map entities to MeSH / NCI Thesaurus / LOINC."""
+    """Stage 4: Map entities to MeSH / NCI Thesaurus / SNOMED CT / LOINC."""
 
     def __init__(self, db: Session):
         self._db = db
