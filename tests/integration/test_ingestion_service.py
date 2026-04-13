@@ -531,8 +531,43 @@ class TestIngestSingleTrial:
             criterion.original_text: criterion.confidence_factors["therapy_class_grounding"][0]["status"]
             for criterion in criteria
         }
-        assert statuses["Has received previous treatment with an agent targeting KRAS"] == "recognized_ungrounded"
-        assert statuses["Prior PD-1 therapy for metastatic disease"] == "recognized_ungrounded"
+        assert statuses["Has received previous treatment with an agent targeting KRAS"] == "blocked_missing_safe_source"
+        assert statuses["Prior PD-1 therapy for metastatic disease"] == "blocked_missing_safe_source"
+
+    def test_combined_pd1_pdl1_inhibitor_therapy_is_flagged_as_missing_safe_source(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Prior PD-1/PD-L1 inhibitor therapy for metastatic disease",
+                    type="inclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.78,
+                    entities=[Entity(text="PD-1/PD-L1 inhibitor therapy", label="DRUG", start=6, end=34)],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.review_count == 0
+        assert criterion.review_required is False
+        assert criterion.coded_concepts == []
+        assert criterion.confidence_factors["therapy_class_grounding"] == [
+            {
+                "term": "pd-1/pd-l1 inhibitor therapy",
+                "status": "blocked_missing_safe_source",
+            }
+        ]
 
     def test_pd_l1_therapy_class_is_grounded_exactly_without_review(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()

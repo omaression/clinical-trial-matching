@@ -61,6 +61,14 @@ _PHASE_MAP = {
 }
 
 _ELIGIBILITY_EXT_URL = "http://hl7.org/fhir/StructureDefinition/researchStudy-eligibility"
+_INTERNAL_ONLY_ELIGIBILITY_CATEGORIES = {
+    "administrative_requirement",
+    "behavioral_constraint",
+    "reproductive_status",
+    "device_constraint",
+    "procedural_requirement",
+    "disease_status",
+}
 
 
 class FHIRMapper:
@@ -132,24 +140,19 @@ class FHIRMapper:
         for c in criteria:
             if c.parse_status not in ("parsed", "partial"):
                 continue
-            if c.category in {
-                "other",
-                "procedural_requirement",
-                "administrative_requirement",
-                "behavioral_constraint",
-                "reproductive_status",
-                "device_constraint",
-                "disease_status",
-            }:
+            if c.category == "other":
+                continue
+            if c.category in _INTERNAL_ONLY_ELIGIBILITY_CATEGORIES:
                 continue
             if c.category == "concomitant_medication" and (
                 getattr(c, "exception_logic", None)
                 or getattr(c, "allowance_text", None)
             ):
                 continue
-            if c.review_status == "rejected":
+            review_status = getattr(c, "review_status", None)
+            if review_status == "rejected":
                 continue
-            if c.review_required and c.review_status not in {"accepted", "corrected"}:
+            if c.review_required and review_status not in {"accepted", "corrected"}:
                 continue
             if not self._has_semantic_payload(c):
                 continue

@@ -58,6 +58,12 @@ _REVIEW_NEUTRAL_TREATMENT_CLASS_TERMS = {
     "pd-1/pd-l1 inhibitor therapy",
     "kras-targeted therapy",
 }
+_BLOCKED_THERAPY_CLASS_TERMS = {
+    "pd-1 therapy",
+    "pd-1/pd-l1 therapy",
+    "pd-1/pd-l1 inhibitor therapy",
+    "kras-targeted therapy",
+}
 _GENERIC_DIAGNOSIS_TERMS = {
     "active infection",
     "inflammatory bowel disease",
@@ -688,6 +694,11 @@ class IngestionService:
                 "term": canonical_term,
                 "status": "grounded",
                 "match_types": [concept.match_type for concept in coding_result.concepts if concept.match_type],
+            }
+        if canonical_term in _BLOCKED_THERAPY_CLASS_TERMS:
+            return {
+                "term": canonical_term,
+                "status": "blocked_missing_safe_source",
             }
         return {
             "term": canonical_term,
