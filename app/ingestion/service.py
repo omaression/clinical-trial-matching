@@ -21,6 +21,7 @@ from app.models.database import (
     Trial,
     TrialSite,
 )
+from app.scripts.seed import sync_coding_lookups
 from app.time_utils import parse_clinicaltrials_datetime, utc_now
 
 logger = logging.getLogger(__name__)
@@ -55,9 +56,7 @@ _REVIEW_NEUTRAL_TREATMENT_CLASS_TERMS = {
     "pd-1 therapy",
     "pd-1/pd-l1 therapy",
     "pd-1/pd-l1 inhibitor therapy",
-    "agent targeting kras",
     "kras-targeted therapy",
-    "kras inhibitor",
 }
 _GENERIC_DIAGNOSIS_TERMS = {
     "active infection",
@@ -109,7 +108,21 @@ class IngestionService:
         self._coder = EntityCoder(db)
         self._fhir_mapper = FHIRMapper()
 
+    def _ensure_coding_catalog(self) -> None:
+        inserted, updated, total = sync_coding_lookups(self._db)
+        self._db.flush()
+        if inserted or updated:
+            logger.info(
+                "synced coding lookup catalog for ingestion service",
+                extra={
+                    "inserted": inserted,
+                    "updated": updated,
+                    "total": total,
+                },
+            )
+
     def ingest(self, nct_id: str) -> IngestionResult:
+        self._ensure_coding_catalog()
         raw_json = self._client.fetch_study(nct_id)
         eligibility_text = self._extract_eligibility_text(raw_json)
         new_hash = content_hash(self._content_hash_material(raw_json))
@@ -171,6 +184,7 @@ class IngestionService:
 
     def re_extract(self, trial: Trial) -> IngestionResult:
         """Re-run the extraction pipeline on a trial's stored raw_json without re-fetching."""
+        self._ensure_coding_catalog()
         eligibility_text = self._extract_eligibility_text(trial.raw_json)
 
         previous_run = self._latest_completed_run(trial.id)
@@ -394,22 +408,30 @@ class IngestionService:
             confidence_factors = dict(criterion.confidence_factors or {})
             grounding_matches: list[str] = []
             coding_review_reasons = set()
+            therapy_grounding: list[dict[str, object]] = []
 
             for entity in criterion.entities:
-                if not self._should_code_entity(criterion.category, entity):
+                if not self._should_code_entity(criterion, entity):
                     continue
                 coding_result = self._coder.code_entity(
                     entity,
                     context_variants=self._coding_context_variants(criterion, entity),
                     allow_fuzzy=self._should_allow_fuzzy_coding(criterion.category, entity),
                 )
+                therapy_grounding_status = self._therapy_grounding_status(
+                    criterion.category,
+                    entity,
+                    coding_result,
+                )
+                if therapy_grounding_status:
+                    therapy_grounding.append(therapy_grounding_status)
                 coded_concepts.extend(coding_result.concepts)
                 if coding_result.concepts:
                     grounding_matches.extend(
                         concept.match_type for concept in coding_result.concepts if concept.match_type
                     )
                     confidence = self._merge_grounding_confidence(confidence, coding_result)
-                if self._should_ignore_coding_review(criterion.category, entity, coding_result):
+                if self._should_ignore_coding_review(criterion, entity, coding_result):
                     continue
                 if coding_result.review_required:
                     if coding_result.review_reason:
@@ -420,10 +442,17 @@ class IngestionService:
             if grounding_matches:
                 confidence_factors["ontology_grounding"] = grounding_matches
             confidence_factors["coded_concept_count"] = len(coded_concepts)
+            if therapy_grounding:
+                confidence_factors["therapy_class_grounding"] = therapy_grounding
 
             if coding_review_reasons and not review_required:
                 review_required = True
                 review_reason = self._aggregate_coding_review_reason(coding_review_reasons)
+            if review_required and review_reason in {"uncoded_entity", "mixed_coding_review"}:
+                confidence_factors["ungrounded_key_slots"] = self._ungrounded_key_slots(
+                    criterion,
+                    coded_concepts,
+                )
 
             db_criterion = ExtractedCriterion(
                 trial_id=trial.id,
@@ -450,6 +479,9 @@ class IngestionService:
                 disease_subtype=criterion.disease_subtype,
                 histology_text=criterion.histology_text,
                 assay_context=criterion.assay_context,
+                exception_logic=criterion.exception_logic,
+                exception_entities=list(criterion.exception_entities),
+                allowance_text=criterion.allowance_text,
                 logic_group_id=criterion.logic_group_id,
                 logic_operator=criterion.logic_operator,
                 coded_concepts=[c.model_dump() for c in coded_concepts],
@@ -492,11 +524,22 @@ class IngestionService:
             concept.display.casefold(),
         )
 
-    def _should_code_entity(self, category: str, entity: Entity) -> bool:
+    def _should_code_entity(self, criterion, entity: Entity) -> bool:
+        category = criterion.category
         allowed_labels = _CODABLE_ENTITY_LABELS_BY_CATEGORY.get(category)
         if allowed_labels is None:
             return False
         if entity.label not in allowed_labels:
+            return False
+        if (
+            category == "concomitant_medication"
+            and entity.label == "DRUG"
+            and any(
+                _clean_semantic_text(entity.expanded_text or entity.text)
+                == _clean_semantic_text(exception_entity)
+                for exception_entity in (criterion.exception_entities or [])
+            )
+        ):
             return False
         if (
             category in {"prior_therapy", "concomitant_medication"}
@@ -513,7 +556,8 @@ class IngestionService:
         return self._normalized_entity_text(entity) in _GENERIC_DIAGNOSIS_TERMS
 
     def _is_review_neutral_treatment_entity(self, entity: Entity) -> bool:
-        return self._normalized_entity_text(entity) in _REVIEW_NEUTRAL_TREATMENT_CLASS_TERMS
+        therapy_class = self._therapy_class_term(entity)
+        return therapy_class in _REVIEW_NEUTRAL_TREATMENT_CLASS_TERMS
 
     def _normalized_entity_text(self, entity: Entity) -> str:
         source = (entity.expanded_text or entity.text).casefold()
@@ -521,6 +565,12 @@ class IngestionService:
         return normalized
 
     def _should_allow_fuzzy_coding(self, category: str, entity: Entity) -> bool:
+        if (
+            category in {"prior_therapy", "concomitant_medication"}
+            and entity.label == "DRUG"
+            and self._therapy_class_term(entity) is not None
+        ):
+            return False
         if (
             category in {"diagnosis", "cns_metastases"}
             and entity.label == "DISEASE"
@@ -543,6 +593,12 @@ class IngestionService:
             snapshot["testing_modality"] = criterion.testing_modality
         if getattr(criterion, "assay_context", None):
             snapshot["assay_context"] = criterion.assay_context
+        if getattr(criterion, "exception_logic", None):
+            snapshot["exception_logic"] = criterion.exception_logic
+        if getattr(criterion, "exception_entities", None):
+            snapshot["exception_entities"] = list(criterion.exception_entities)
+        if getattr(criterion, "allowance_text", None):
+            snapshot["allowance_text"] = criterion.allowance_text
         return snapshot or None
 
     def _merge_grounding_confidence(self, confidence: float, coding_result) -> float:
@@ -555,7 +611,8 @@ class IngestionService:
             return min(confidence, 0.60)
         return confidence
 
-    def _should_ignore_coding_review(self, category: str, entity: Entity, coding_result) -> bool:
+    def _should_ignore_coding_review(self, criterion, entity: Entity, coding_result) -> bool:
+        category = criterion.category
         if (
             category in {"diagnosis", "cns_metastases"}
             and entity.label == "DISEASE"
@@ -572,6 +629,14 @@ class IngestionService:
             and coding_result.review_reason == "uncoded_entity"
         ):
             return True
+        if (
+            category == "concomitant_medication"
+            and getattr(criterion, "exception_logic", None)
+            and entity.label == "DRUG"
+            and not coding_result.concepts
+            and coding_result.review_reason == "uncoded_entity"
+        ):
+            return True
         return False
 
     def _coding_context_variants(self, criterion, entity: Entity) -> list[str]:
@@ -579,6 +644,9 @@ class IngestionService:
             return []
 
         variants: list[str] = []
+        therapy_class = self._therapy_class_term(entity)
+        if therapy_class and therapy_class not in variants:
+            variants.append(therapy_class)
         for peer in criterion.entities:
             if peer is entity or peer.label != entity.label:
                 continue
@@ -603,6 +671,63 @@ class IngestionService:
             if self._has_alias_separator(criterion_text, left, right):
                 return True
         return False
+
+    def _therapy_grounding_status(
+        self,
+        category: str,
+        entity: Entity,
+        coding_result,
+    ) -> dict[str, object] | None:
+        if category not in {"prior_therapy", "concomitant_medication"} or entity.label != "DRUG":
+            return None
+        canonical_term = self._therapy_class_term(entity)
+        if canonical_term is None:
+            return None
+        if coding_result.concepts:
+            return {
+                "term": canonical_term,
+                "status": "grounded",
+                "match_types": [concept.match_type for concept in coding_result.concepts if concept.match_type],
+            }
+        return {
+            "term": canonical_term,
+            "status": "recognized_ungrounded",
+        }
+
+    def _therapy_class_term(self, entity: Entity) -> str | None:
+        normalized = _clean_semantic_text(entity.expanded_text or entity.text)
+        has_pd1 = (
+            "pd 1" in normalized
+            or "programmed cell death protein 1" in normalized
+        )
+        has_pdl1 = (
+            "pd l1" in normalized
+            or "pdl1" in normalized
+            or "programmed death ligand 1" in normalized
+            or "programmed death ligands 1" in normalized
+        )
+        if has_pd1 and has_pdl1 and "inhibitor" in normalized:
+            return "pd-1/pd-l1 inhibitor therapy"
+        if has_pd1 and has_pdl1 and ("therapy" in normalized or "antibody" in normalized):
+            return "pd-1/pd-l1 therapy"
+        if has_pdl1 and ("therapy" in normalized or "inhibitor" in normalized or "antibody" in normalized):
+            return "pd-l1 therapy"
+        if has_pd1 and ("therapy" in normalized or "inhibitor" in normalized or "antibody" in normalized):
+            return "pd-1 therapy"
+        if "kras" in normalized and any(token in normalized for token in ("target", "inhibitor")):
+            return "kras-targeted therapy"
+        return None
+
+    def _ungrounded_key_slots(self, criterion, coded_concepts) -> list[str]:
+        if coded_concepts:
+            return []
+        if criterion.category in {"molecular_alteration", "biomarker"}:
+            return ["molecular_concept"]
+        if criterion.category in {"prior_therapy", "concomitant_medication"}:
+            return ["therapy_or_medication_concept"]
+        if criterion.category in {"diagnosis", "cns_metastases"}:
+            return ["diagnosis_concept"]
+        return []
 
     def _has_alias_separator(self, criterion_text: str, left: str, right: str) -> bool:
         patterns = (
@@ -675,3 +800,14 @@ class IngestionService:
                 status_module.get("lastUpdatePostDateStruct", {}).get("date")
             ),
         }
+
+
+def _clean_semantic_text(value: str | None) -> str:
+    if not value:
+        return ""
+    normalized = value.casefold()
+    normalized = normalized.replace("+", " positive ")
+    normalized = normalized.replace("/", " ")
+    normalized = normalized.replace("_", " ")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()

@@ -142,6 +142,11 @@ class FHIRMapper:
                 "disease_status",
             }:
                 continue
+            if c.category == "concomitant_medication" and (
+                getattr(c, "exception_logic", None)
+                or getattr(c, "allowance_text", None)
+            ):
+                continue
             if c.review_status == "rejected":
                 continue
             if c.review_required and c.review_status not in {"accepted", "corrected"}:

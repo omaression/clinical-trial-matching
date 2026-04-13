@@ -1,0 +1,32 @@
+[
+  {
+    "original_text": "Has received a live or live-attenuated vaccine within 30 days before the first dose of study intervention.",
+    "type": "exclusion",
+    "category": "concomitant_medication",
+    "parse_status": "parsed",
+    "timeframe_operator": "within",
+    "timeframe_value": 30.0,
+    "timeframe_unit": "days",
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "Systemic corticosteroids are excluded except for physiologic replacement doses of prednisone.",
+    "type": "exclusion",
+    "category": "concomitant_medication",
+    "parse_status": "parsed",
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers (except for systemic itraconazole, ketoconazole, posaconazole, or voriconazole, which should have been started at least 7 days prior to enrolment).",
+    "type": "exclusion",
+    "category": "concomitant_medication",
+    "parse_status": "parsed",
+    "timeframe_operator": "at_least",
+    "timeframe_value": 7.0,
+    "timeframe_unit": "days",
+    "logic_operator": "OR",
+    "review_required": false
+  }
+]

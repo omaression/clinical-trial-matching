@@ -87,6 +87,9 @@ class ClassifiedCriterion(BaseModel):
     disease_subtype: str | None = None
     histology_text: str | None = None
     assay_context: dict[str, object] | None = None
+    exception_logic: dict[str, object] | None = None
+    exception_entities: list[str] = Field(default_factory=list)
+    allowance_text: str | None = None
     # Logic grouping
     logic_group_id: str | None = None  # UUID as string
     logic_operator: str = "AND"

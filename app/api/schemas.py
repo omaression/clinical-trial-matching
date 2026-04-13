@@ -49,6 +49,9 @@ class CriterionCorrectionData(APIModel):
     disease_subtype: str | None = None
     histology_text: str | None = None
     assay_context: dict[str, Any] | None = None
+    exception_logic: dict[str, Any] | None = None
+    exception_entities: list[str] | None = None
+    allowance_text: str | None = None
     logic_group_id: UUID | None = None
     logic_operator: Literal["AND", "OR"] | None = None
     coded_concepts: list[CodedConceptUpdate] | None = None
@@ -172,6 +175,9 @@ class CriterionResponse(APIModel):
     disease_subtype: str | None = None
     histology_text: str | None = None
     assay_context: dict[str, Any] | None = None
+    exception_logic: dict[str, Any] | None = None
+    exception_entities: list[str] = Field(default_factory=list)
+    allowance_text: str | None = None
     logic_group_id: UUID | None = None
     logic_operator: str
     coded_concepts: list[CodedConceptResponse] = Field(default_factory=list)

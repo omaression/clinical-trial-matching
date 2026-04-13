@@ -1,0 +1,4 @@
+Exclusion Criteria:
+1. Has received a live or live-attenuated vaccine within 30 days before the first dose of study intervention.
+2. Systemic corticosteroids are excluded except for physiologic replacement doses of prednisone.
+3. Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers (except for systemic itraconazole, ketoconazole, posaconazole, or voriconazole, which should have been started at least 7 days prior to enrolment).

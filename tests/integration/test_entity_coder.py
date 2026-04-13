@@ -262,3 +262,14 @@ class TestDeterministicResolution:
         result = coder.code_entity(entity)
         assert result.concepts[0].system == "nci_thesaurus"
         assert result.concepts[0].code == "C128057"
+
+    def test_codes_long_form_pd_l1_therapy_class_to_nci_when_phrase_is_specific(self, coder):
+        entity = Entity(
+            text="programmed death-ligand 1 (PD-L1) therapy",
+            label="DRUG",
+            start=0,
+            end=42,
+        )
+        result = coder.code_entity(entity, allow_fuzzy=False)
+        assert result.concepts[0].system == "nci_thesaurus"
+        assert result.concepts[0].code == "C128057"

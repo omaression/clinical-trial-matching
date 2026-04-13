@@ -207,15 +207,24 @@ class TestCategoryAssignment:
         assert result.parse_status == "parsed"
         assert result.review_required is False
 
-    def test_text_only_live_vaccine_becomes_reviewable_concomitant_medication(self, classifier):
+    def test_text_only_live_vaccine_becomes_structured_concomitant_medication(self, classifier):
         result = classifier.classify(
             "Has received a live-attenuated vaccine within 30 days before enrollment",
             [Entity(text="30 days", label="DATE", start=42, end=49)],
         )
         assert result.category == "concomitant_medication"
-        assert result.parse_status == "partial"
-        assert result.review_required is True
-        assert result.review_reason == "complex_criteria"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "live-attenuated vaccine"
+        assert result.timeframe_operator == "within"
+        assert result.timeframe_value == 30
+        assert result.timeframe_unit == "days"
+        assert result.exception_logic == {
+            "mode": "washout_window",
+            "base_entities": ["live-attenuated vaccine"],
+            "has_timeframe": True,
+            "exception_text": None,
+        }
+        assert result.review_required is False
 
     def test_simple_organ_function_becomes_parsed_without_review(self, classifier):
         result = classifier.classify(
@@ -332,7 +341,7 @@ class TestCategoryAssignment:
         assert result.parse_status == "parsed"
         assert result.review_required is False
 
-    def test_text_only_cyp3a4_exception_becomes_reviewable_concomitant_medication(self, classifier):
+    def test_text_only_cyp3a4_exception_becomes_structured_concomitant_medication(self, classifier):
         result = classifier.classify(
             (
                 "Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers "
@@ -342,13 +351,27 @@ class TestCategoryAssignment:
             [Entity(text="at least 7 days", label="DATE", start=182, end=197)],
         )
         assert result.category == "concomitant_medication"
-        assert result.parse_status == "partial"
+        assert result.parse_status == "parsed"
         assert result.timeframe_operator == "at_least"
         assert result.timeframe_value == 7
         assert result.timeframe_unit == "days"
         assert result.logic_operator == "OR"
-        assert result.review_required is True
-        assert result.review_reason == "complex_criteria"
+        assert result.exception_logic == {
+            "mode": "prohibited_with_exception",
+            "base_entities": ["cyp3a4 inhibitors/inducers"],
+            "has_timeframe": True,
+            "exception_text": (
+                "for systemic itraconazole, ketoconazole, posaconazole, or "
+                "voriconazole, which should have been started at least 7 days prior to enrolment)."
+            ),
+        }
+        assert result.exception_entities == [
+            "itraconazole",
+            "ketoconazole",
+            "posaconazole",
+            "voriconazole",
+        ]
+        assert result.review_required is False
 
     def test_text_only_cyp3a4_washout_becomes_reviewable_concomitant_medication(self, classifier):
         result = classifier.classify(
@@ -370,8 +393,31 @@ class TestCategoryAssignment:
         assert result.timeframe_value == 14
         assert result.timeframe_unit == "days"
         assert result.logic_operator == "OR"
+        assert result.exception_logic == {
+            "mode": "washout_window",
+            "base_entities": ["cyp3a4 inhibitors/inducers"],
+            "has_timeframe": True,
+            "exception_text": None,
+        }
         assert result.review_required is True
         assert result.review_reason == "complex_criteria"
+
+    def test_corticosteroid_allowance_captures_structured_exception_logic(self, classifier):
+        result = classifier.classify(
+            "Systemic corticosteroids are excluded except for physiologic replacement doses of prednisone.",
+            [Entity(text="Systemic corticosteroids", label="DRUG", start=0, end=25)],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "systemic corticosteroids"
+        assert result.allowance_text == "physiologic replacement doses of prednisone"
+        assert result.exception_logic == {
+            "mode": "prohibited_with_allowance",
+            "base_entities": ["systemic corticosteroids"],
+            "has_timeframe": False,
+            "exception_text": "for physiologic replacement doses of prednisone.",
+        }
+        assert result.review_required is False
 
     def test_genetic_variants_text_routes_to_molecular_alteration(self, classifier):
         result = classifier.classify(

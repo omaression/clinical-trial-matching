@@ -66,6 +66,7 @@ def test_seed_catalog_includes_common_drug_and_lab_alias_variants():
     assert "fam trastuzumab deruxtecan" in drug_synonyms["Trastuzumab Deruxtecan"]
     assert "5 fluorouracil" in drug_synonyms["Fluorouracil"]
     assert "pd-l1 therapy" in drug_synonyms["anti-PD-L1 monoclonal antibody"]
+    assert "programmed death-ligand 1 (pd-l1) therapy" in drug_synonyms["anti-PD-L1 monoclonal antibody"]
     assert "absolute neutrophils" in lab_synonyms["Neutrophils [#/volume] in Blood"]
     assert "serum creatinine level" in lab_synonyms["Creatinine [Mass/volume] in Serum"]
 

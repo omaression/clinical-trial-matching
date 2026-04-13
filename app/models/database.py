@@ -147,6 +147,9 @@ class ExtractedCriterion(Base):
     disease_subtype = Column(String)
     histology_text = Column(String)
     assay_context = Column(JSONB)
+    exception_logic = Column(JSONB)
+    exception_entities = Column(JSONB, default=list)
+    allowance_text = Column(Text)
     # Logic grouping
     logic_group_id = Column(UUID(as_uuid=True))
     logic_operator = Column(String, nullable=False, default="AND")

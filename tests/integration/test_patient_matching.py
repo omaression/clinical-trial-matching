@@ -475,3 +475,69 @@ class TestPatientMatching:
         assert outcomes["Claustrophobia preventing MRI"] == "not_triggered"
         assert outcomes["Pregnant women are excluded"] == "not_triggered"
         assert outcomes["Presence of an MR-incompatible pacemaker"] == "unknown"
+
+    def test_medication_exception_logic_uses_unknowns_and_explicit_allowances(self, client, db_session):
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000007",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": "Live-attenuated vaccine within 30 days before enrollment",
+                    "value_text": "live-attenuated vaccine",
+                    "timeframe_operator": "within",
+                    "timeframe_value": 30.0,
+                    "timeframe_unit": "days",
+                    "exception_logic": {
+                        "mode": "washout_window",
+                        "base_entities": ["live-attenuated vaccine"],
+                        "has_timeframe": True,
+                        "exception_text": None,
+                    },
+                },
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": "Systemic corticosteroids except physiologic replacement doses",
+                    "value_text": "systemic corticosteroids",
+                    "allowance_text": "physiologic replacement doses",
+                    "exception_logic": {
+                        "mode": "prohibited_with_allowance",
+                        "base_entities": ["systemic corticosteroids"],
+                        "has_timeframe": False,
+                        "exception_text": "physiologic replacement doses",
+                    },
+                },
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-medication-exceptions",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "medications": [
+                    {"description": "live-attenuated vaccine", "active": True},
+                    {"description": "physiologic replacement prednisone", "active": True},
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000007")
+        assert result["overall_status"] == "possible"
+
+        detail = client.get(f"/api/v1/matches/{result['id']}")
+        assert detail.status_code == 200
+        outcomes = {
+            item["criterion_text"]: item["outcome"]
+            for item in detail.json()["criteria"]
+            if item["source_type"] == "extracted"
+        }
+        assert outcomes["Live-attenuated vaccine within 30 days before enrollment"] == "unknown"
+        assert outcomes["Systemic corticosteroids except physiologic replacement doses"] == "not_triggered"

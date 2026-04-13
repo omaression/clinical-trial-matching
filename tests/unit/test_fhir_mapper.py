@@ -153,6 +153,27 @@ class TestCriteriaExclusion:
         resource = mapper.to_research_study(sample_trial, criteria)
         assert "extension" not in resource
 
+    def test_structured_medication_exception_logic_is_excluded_from_fhir(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="exclusion",
+                category="concomitant_medication",
+                original_text="Live-attenuated vaccine within 30 days before enrollment",
+                value_text="live-attenuated vaccine",
+                timeframe_operator="within",
+                timeframe_value=30.0,
+                timeframe_unit="days",
+                exception_logic={
+                    "mode": "washout_window",
+                    "base_entities": ["live-attenuated vaccine"],
+                    "has_timeframe": True,
+                    "exception_text": None,
+                },
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        assert "extension" not in resource
+
     def test_stage_criteria_with_semantic_value_text_export(self, mapper, sample_trial):
         criteria = [
             _make_criterion(

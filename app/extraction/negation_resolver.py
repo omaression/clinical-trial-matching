@@ -20,6 +20,11 @@ _TEMPORAL_PATTERNS = [
 ]
 
 _OR_PATTERN = re.compile(r"\b(or|and/or)\b", re.I)
+_AND_OR_PATTERN = re.compile(r"\band/or\b", re.I)
+_NON_LOGICAL_OR_PATTERN = re.compile(
+    r"\b([a-z0-9]+)\s+or\s+\1(?:-[a-z0-9]+)+\s+[a-z0-9-]+\b",
+    re.I,
+)
 
 
 def _normalize_unit(unit: str) -> str:
@@ -56,7 +61,11 @@ class NegationResolver:
         # Check for negation trigger in main text
         neg_match = _NEGATION_TRIGGERS.search(masked_main_text)
         if not neg_match:
-            return NegationResult(negated=False)
+            return NegationResult(
+                negated=False,
+                has_exception=exception_text is not None,
+                exception_text=exception_text,
+            )
 
         # All entities after the negation trigger are negated
         neg_pos = neg_match.start()
@@ -95,6 +104,17 @@ class LogicGrouper:
     """Stage 3 sub-component: detect AND/OR relationships."""
 
     def detect(self, text: str) -> LogicResult:
-        if _OR_PATTERN.search(text):
+        if _AND_OR_PATTERN.search(text):
+            return LogicResult(operator="OR", group_id=str(uuid.uuid4()))
+        or_matches = list(re.finditer(r"\bor\b", text, re.I))
+        if not or_matches:
+            return LogicResult(operator="AND")
+        non_logical_spans = [match.span() for match in _NON_LOGICAL_OR_PATTERN.finditer(text)]
+        if non_logical_spans and all(
+            any(start <= match.start() and match.end() <= end for start, end in non_logical_spans)
+            for match in or_matches
+        ):
+            return LogicResult(operator="AND")
+        if or_matches:
             return LogicResult(operator="OR", group_id=str(uuid.uuid4()))
         return LogicResult(operator="AND")

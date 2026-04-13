@@ -391,7 +391,7 @@ class PatientMatchService:
             outcome = _evaluate_therapy_match(criterion, patient.therapies)
         elif criterion.category == "concomitant_medication":
             active_medications = [medication for medication in patient.medications if medication.active]
-            outcome = _evaluate_fact_match(criterion, active_medications)
+            outcome = _evaluate_medication_match(criterion, active_medications)
         elif criterion.category == "performance_status":
             if patient.ecog_status is not None:
                 outcome = _criterion_boolean_outcome(
@@ -597,6 +597,50 @@ def _evaluate_fact_match(
     return _criterion_boolean_outcome(criterion.type, matched)
 
 
+def _evaluate_medication_match(
+    criterion: ExtractedCriterion,
+    medications: Iterable[PatientMedication],
+) -> str | None:
+    medications = list(medications)
+    if not medications:
+        return None
+
+    matching_medications = [
+        medication for medication in medications if _fact_matches_criterion(medication, criterion)
+    ]
+    if not matching_medications:
+        return _criterion_boolean_outcome(criterion.type, False)
+
+    exception_entities = getattr(criterion, "exception_entities", None) or []
+    allowance_text = getattr(criterion, "allowance_text", None)
+    has_timeframe = (
+        getattr(criterion, "timeframe_operator", None)
+        or getattr(criterion, "timeframe_value", None) is not None
+        or getattr(criterion, "timeframe_unit", None)
+    )
+
+    disallowed_matches: list[PatientMedication] = []
+    requires_additional_context = False
+    for medication in matching_medications:
+        if _medication_matches_any_exception(medication, exception_entities):
+            continue
+        if allowance_text:
+            if _medication_matches_allowance(medication, allowance_text):
+                continue
+            requires_additional_context = True
+            continue
+        if has_timeframe:
+            requires_additional_context = True
+            continue
+        disallowed_matches.append(medication)
+
+    if disallowed_matches:
+        return _criterion_boolean_outcome(criterion.type, True)
+    if requires_additional_context:
+        return None
+    return _criterion_boolean_outcome(criterion.type, False)
+
+
 def _evaluate_lab_match(criterion: ExtractedCriterion, labs: Iterable[PatientLab]) -> str | None:
     labs = list(labs)
     if not labs:
@@ -672,6 +716,20 @@ def _text_overlaps(left: str | None, right: str | None) -> bool:
     return len(left_tokens.intersection(right_tokens)) >= 2
 
 
+def _medication_matches_any_exception(medication: PatientMedication, exception_entities: list[str]) -> bool:
+    return any(_text_overlaps(exception_entity, medication.description) for exception_entity in exception_entities)
+
+
+def _medication_matches_allowance(medication: PatientMedication, allowance_text: str | None) -> bool:
+    if not allowance_text:
+        return False
+    allowance = allowance_text.casefold()
+    description = (medication.description or "").casefold()
+    if "physiologic" in allowance or "physiological" in allowance:
+        return any(token in description for token in ("physiologic", "physiological", "replacement", "maintenance"))
+    return _text_overlaps(allowance_text, medication.description)
+
+
 def _normalized_tokens(text: str | None) -> set[str]:
     if not text:
         return set()
@@ -738,6 +796,9 @@ def _build_extracted_explanation(
             }
             for medication in patient.medications
         ]
+        evidence["exception_logic"] = getattr(criterion, "exception_logic", None)
+        evidence["exception_entities"] = getattr(criterion, "exception_entities", None)
+        evidence["allowance_text"] = getattr(criterion, "allowance_text", None)
     elif criterion.category in {
         "administrative_requirement",
         "behavioral_constraint",

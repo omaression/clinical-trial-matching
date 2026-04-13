@@ -19,6 +19,9 @@
 {"label": "DRUG", "pattern": "chemotherapy"}
 {"label": "DRUG", "pattern": "platinum-based chemotherapy"}
 {"label": "DRUG", "pattern": "immunotherapy"}
+{"label": "DRUG", "pattern": "live vaccine"}
+{"label": "DRUG", "pattern": "live-attenuated vaccine"}
+{"label": "DRUG", "pattern": "live or live-attenuated vaccine"}
 {"label": "DRUG", "pattern": "PD-1 therapy"}
 {"label": "DRUG", "pattern": "PD-L1 therapy"}
 {"label": "DRUG", "pattern": "PD-1/PD-L1 therapy"}
@@ -32,6 +35,10 @@
 {"label": "DRUG", "pattern": [{"LOWER": "systemic"}, {"LOWER": "steroids"}]}
 {"label": "DRUG", "pattern": "corticosteroids"}
 {"label": "DRUG", "pattern": "steroids"}
+{"label": "DRUG", "pattern": "itraconazole"}
+{"label": "DRUG", "pattern": "ketoconazole"}
+{"label": "DRUG", "pattern": "posaconazole"}
+{"label": "DRUG", "pattern": "voriconazole"}
 {"label": "DRUG", "pattern": "prednisone"}
 {"label": "DRUG", "pattern": "dexamethasone"}
 {"label": "DRUG", "pattern": "methylprednisolone"}

@@ -281,7 +281,13 @@ class TestIngestSingleTrial:
         assert criteria_by_text[VACCINE_TEXT].category == "concomitant_medication"
         assert criteria_by_text[KRAS_TARGETING_THERAPY_TEXT].category == "prior_therapy"
         assert criteria_by_text[PLATINUM_CHEMOTHERAPY_ATOMIC_TEXT].category == "prior_therapy"
-        assert criteria_by_text[VACCINE_TEXT].review_required is True
+        assert criteria_by_text[VACCINE_TEXT].review_required is False
+        assert criteria_by_text[VACCINE_TEXT].exception_logic == {
+            "mode": "washout_window",
+            "base_entities": ["live or live-attenuated vaccine"],
+            "has_timeframe": True,
+            "exception_text": None,
+        }
         assert INCLUSION_INTRO_TEXT not in criteria_by_text
         assert EXCLUSION_INTRO_TEXT not in criteria_by_text
 
@@ -333,6 +339,12 @@ class TestIngestSingleTrial:
         assert criteria_by_text["* Presence of an MR-incompatible pacemaker"].category == "device_constraint"
         assert criteria_by_text["* Pregnant women"].category == "reproductive_status"
         assert criteria_by_text[corticosteroid_line].category == "concomitant_medication"
+        assert criteria_by_text[corticosteroid_line].exception_logic == {
+            "mode": "washout_window",
+            "base_entities": ["systemic corticosteroids"],
+            "has_timeframe": True,
+            "exception_text": None,
+        }
         assert criteria_by_text["* Stage IV disease"].category == "disease_stage"
         assert all(
             not (criterion.category == "other" and criterion.parse_status == "unparsed")
@@ -413,22 +425,18 @@ class TestIngestSingleTrial:
             ],
             pipeline_version="0.1.0",
         )
-        db_session.add_all(
-            [
-                CodingLookup(
-                    system="nci_thesaurus",
-                    code="C128839",
-                    display="PD-L1 Positive",
-                    synonyms=["pd-l1", "pd-l1 positive"],
-                ),
-                CodingLookup(
-                    system="nci_thesaurus",
-                    code="C1647",
-                    display="Trastuzumab",
-                    synonyms=["trastuzumab", "herceptin"],
-                ),
-            ]
-        )
+        for system, code, display, synonyms in [
+            ("nci_thesaurus", "C128839", "PD-L1 Positive", ["pd-l1", "pd-l1 positive"]),
+            ("nci_thesaurus", "C1647", "Trastuzumab", ["trastuzumab", "herceptin"]),
+        ]:
+            existing = db_session.query(CodingLookup).filter_by(system=system, code=code).first()
+            if existing:
+                existing.display = display
+                existing.synonyms = _merge_synonyms(existing.synonyms or [], synonyms)
+            else:
+                db_session.add(
+                    CodingLookup(system=system, code=code, display=display, synonyms=synonyms)
+                )
         db_session.flush()
 
         with (
@@ -519,6 +527,137 @@ class TestIngestSingleTrial:
         assert len(criteria) == 2
         assert all(criterion.review_required is False for criterion in criteria)
         assert all(criterion.coded_concepts == [] for criterion in criteria)
+        statuses = {
+            criterion.original_text: criterion.confidence_factors["therapy_class_grounding"][0]["status"]
+            for criterion in criteria
+        }
+        assert statuses["Has received previous treatment with an agent targeting KRAS"] == "recognized_ungrounded"
+        assert statuses["Prior PD-1 therapy for metastatic disease"] == "recognized_ungrounded"
+
+    def test_pd_l1_therapy_class_is_grounded_exactly_without_review(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Prior PD-L1 therapy for metastatic disease",
+                    type="inclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.72,
+                    entities=[Entity(text="PD-L1 therapy", label="DRUG", start=6, end=19)],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.review_count == 0
+        assert criterion.review_required is False
+        assert criterion.coded_concepts == [
+            {
+                "system": "nci_thesaurus",
+                "code": "C128057",
+                "display": "anti-PD-L1 monoclonal antibody",
+                "match_type": "synonym",
+            }
+        ]
+        assert criterion.confidence >= 0.82
+        assert criterion.confidence_factors["therapy_class_grounding"] == [
+            {
+                "term": "pd-l1 therapy",
+                "status": "grounded",
+                "match_types": ["synonym"],
+            }
+        ]
+
+    def test_structured_medication_exception_semantics_persist_without_forcing_review(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text=VACCINE_TEXT,
+                    type="exclusion",
+                    category="concomitant_medication",
+                    parse_status="parsed",
+                    confidence=0.74,
+                    value_text="live or live-attenuated vaccine",
+                    timeframe_operator="within",
+                    timeframe_value=30.0,
+                    timeframe_unit="days",
+                    exception_logic={
+                        "mode": "washout_window",
+                        "base_entities": ["live or live-attenuated vaccine"],
+                        "has_timeframe": True,
+                        "exception_text": None,
+                    },
+                    entities=[Entity(text="live or live-attenuated vaccine", label="DRUG", start=16, end=46)],
+                ),
+                ClassifiedCriterion(
+                    original_text=(
+                        "Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers "
+                        "(except for systemic itraconazole, ketoconazole, posaconazole, or "
+                        "voriconazole, which should have been started at least 7 days prior to enrolment)."
+                    ),
+                    type="exclusion",
+                    category="concomitant_medication",
+                    parse_status="parsed",
+                    confidence=0.79,
+                    value_text="cyp3a4 inhibitors/inducers",
+                    timeframe_operator="at_least",
+                    timeframe_value=7.0,
+                    timeframe_unit="days",
+                    exception_logic={
+                        "mode": "prohibited_with_exception",
+                        "base_entities": ["cyp3a4 inhibitors/inducers"],
+                        "has_timeframe": True,
+                        "exception_text": "for systemic itraconazole, ketoconazole, posaconazole, or voriconazole",
+                    },
+                    exception_entities=[
+                        "itraconazole",
+                        "ketoconazole",
+                        "posaconazole",
+                        "voriconazole",
+                    ],
+                    entities=[Entity(text="CYP3A4 inhibitors/inducers", label="DRUG", start=43, end=68)],
+                ),
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = (
+            db_session.query(ExtractedCriterion)
+            .filter_by(trial_id=trial.id)
+            .order_by(ExtractedCriterion.original_text.asc())
+            .all()
+        )
+
+        assert result.review_count == 0
+        assert all(criterion.review_required is False for criterion in criteria)
+        vaccine = next(criterion for criterion in criteria if criterion.original_text == VACCINE_TEXT)
+        assert vaccine.exception_logic["mode"] == "washout_window"
+        assert vaccine.allowance_text is None
+        cyp = next(criterion for criterion in criteria if "CYP3A4" in criterion.original_text)
+        assert cyp.exception_entities == [
+            "itraconazole",
+            "ketoconazole",
+            "posaconazole",
+            "voriconazole",
+        ]
 
     def test_alias_paired_disease_mentions_use_peer_context_for_coding(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
@@ -541,14 +680,19 @@ class TestIngestSingleTrial:
             ],
             pipeline_version="0.1.0",
         )
-        db_session.add(
-            CodingLookup(
-                system="mesh",
-                code="D017563",
-                display="Lung Diseases, Interstitial",
-                synonyms=["interstitial lung disease", "ild"],
+        existing = db_session.query(CodingLookup).filter_by(system="mesh", code="D017563").first()
+        if existing:
+            existing.display = "Lung Diseases, Interstitial"
+            existing.synonyms = _merge_synonyms(existing.synonyms or [], ["interstitial lung disease", "ild"])
+        else:
+            db_session.add(
+                CodingLookup(
+                    system="mesh",
+                    code="D017563",
+                    display="Lung Diseases, Interstitial",
+                    synonyms=["interstitial lung disease", "ild"],
+                )
             )
-        )
         db_session.flush()
 
         with (
@@ -596,7 +740,14 @@ class TestIngestSingleTrial:
 
         assert result.review_count == 0
         assert criterion.review_required is False
-        assert criterion.coded_concepts == []
+        assert criterion.coded_concepts == [
+            {
+                "system": "mesh",
+                "code": "D007239",
+                "display": "Infections",
+                "match_type": "synonym",
+            }
+        ]
 
     def test_nct07286149_regression_codes_domain_concepts_when_catalog_is_available(self, service, db_session):
         for system, code, display, synonyms in [

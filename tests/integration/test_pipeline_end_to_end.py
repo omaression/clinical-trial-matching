@@ -100,14 +100,22 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         assert result.criteria[0].category == "prior_therapy"
 
-    def test_live_vaccine_line_becomes_reviewable_concomitant_medication(self, pipeline):
+    def test_live_vaccine_line_becomes_structured_concomitant_medication(self, pipeline):
         text = "Has received a live-attenuated vaccine within 30 days before the first dose"
         result = pipeline.extract(text)
         assert result.criteria_count == 1
         assert result.criteria[0].category == "concomitant_medication"
-        assert result.criteria[0].parse_status == "partial"
-        assert result.criteria[0].review_required is True
-        assert result.criteria[0].confidence > 0.3
+        assert result.criteria[0].parse_status == "parsed"
+        assert result.criteria[0].timeframe_operator == "within"
+        assert result.criteria[0].timeframe_value == 30
+        assert result.criteria[0].exception_logic == {
+            "mode": "washout_window",
+            "base_entities": ["live-attenuated vaccine"],
+            "has_timeframe": True,
+            "exception_text": None,
+        }
+        assert result.criteria[0].review_required is False
+        assert result.criteria[0].confidence >= 0.65
 
     def test_non_small_cell_line_keeps_specific_disease_entity(self, pipeline):
         text = "Has histologically confirmed metastatic non-small cell lung cancer"
@@ -258,6 +266,25 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
         assert any("therapy" in entity for entity in drug_entities)
+
+    def test_medication_exception_line_captures_exception_entities(self, pipeline):
+        text = (
+            "Concurrent use of weak, moderate and strong CYP3A4 inhibitors/inducers "
+            "(except for systemic itraconazole, ketoconazole, posaconazole, or "
+            "voriconazole, which should have been started at least 7 days prior to enrolment)."
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        criterion = result.criteria[0]
+        assert criterion.category == "concomitant_medication"
+        assert criterion.parse_status == "parsed"
+        assert criterion.exception_entities == [
+            "itraconazole",
+            "ketoconazole",
+            "posaconazole",
+            "voriconazole",
+        ]
+        assert criterion.review_required is False
 
     def test_progression_after_receiving_splits_into_atomic_prior_therapy_clauses(self, pipeline):
         text = (

@@ -104,3 +104,8 @@ class TestLogicGrouper:
         text = "Age >= 18 years"
         result = logic.detect(text)
         assert result.operator == "AND"
+
+    def test_ignores_descriptive_modifier_or_with_shared_head(self, logic):
+        text = "Has received a live or live-attenuated vaccine within 30 days"
+        result = logic.detect(text)
+        assert result.operator == "AND"

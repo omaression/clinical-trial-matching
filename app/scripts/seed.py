@@ -215,8 +215,11 @@ NCI_DRUGS = [
             "pd-l1 therapy",
             "pd l1 therapy",
             "pd-l1 inhibitor therapy",
+            "pd l1 inhibitor therapy",
             "programmed death-ligand 1 therapy",
             "programmed death ligand 1 therapy",
+            "programmed death-ligand 1 (pd-l1) therapy",
+            "programmed death ligand 1 (pd l1) therapy",
         ],
     ),
     ("C1794", "Capecitabine", ["xeloda"]),
@@ -269,33 +272,38 @@ SNOMED_PROCEDURES = [
 def seed():
     db = SessionLocal()
     try:
-        inserted = 0
-        updated = 0
-
-        for system, rows in (
-            ("mesh", MESH_DISEASES),
-            ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
-            ("snomed_ct", SNOMED_PROCEDURES),
-            ("loinc", LOINC_LABS),
-        ):
-            for code, display, synonyms in rows:
-                created, changed = _upsert_lookup(
-                    db=db,
-                    system=system,
-                    code=code,
-                    display=display,
-                    synonyms=synonyms,
-                )
-                inserted += int(created)
-                updated += int(changed)
-
+        inserted, updated, total = sync_coding_lookups(db)
         db.commit()
         print(f"Seeded {inserted} coding lookups.")
         print(f"Updated {updated} coding lookups.")
-        total = db.query(CodingLookup).count()
         print(f"Total coding lookups in database: {total}")
     finally:
         db.close()
+
+
+def sync_coding_lookups(db) -> tuple[int, int, int]:
+    inserted = 0
+    updated = 0
+
+    for system, rows in (
+        ("mesh", MESH_DISEASES),
+        ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
+        ("snomed_ct", SNOMED_PROCEDURES),
+        ("loinc", LOINC_LABS),
+    ):
+        for code, display, synonyms in rows:
+            created, changed = _upsert_lookup(
+                db=db,
+                system=system,
+                code=code,
+                display=display,
+                synonyms=synonyms,
+            )
+            inserted += int(created)
+            updated += int(changed)
+
+    total = db.query(CodingLookup).count()
+    return inserted, updated, total
 
 
 def _upsert_lookup(db, system: str, code: str, display: str, synonyms: list[str]) -> tuple[bool, bool]:

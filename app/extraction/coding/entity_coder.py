@@ -422,9 +422,10 @@ def _lookup_variants(entity: Entity, context_variants: list[str] | None = None) 
     for value in (entity.text, entity.expanded_text, *(context_variants or [])):
         if not value:
             continue
-        normalized = value.strip()
-        if normalized and normalized not in variants:
-            variants.append(normalized)
+        for variant in (value, _strip_parenthetical_alias(value)):
+            normalized = variant.strip()
+            if normalized and normalized not in variants:
+                variants.append(normalized)
     return variants
 
 
@@ -522,11 +523,21 @@ def _sql_synonym_variants(text: str) -> set[str]:
         stripped.casefold(),
         _normalize_text(text),
     }
+    stripped_alias = _strip_parenthetical_alias(stripped)
+    if stripped_alias and stripped_alias != stripped:
+        variants.add(stripped_alias)
+        variants.add(stripped_alias.casefold())
+        variants.add(_normalize_text(stripped_alias))
     collapsed = re.sub(r"\s+", " ", stripped.replace("/", " ").replace("_", " ").strip())
     if collapsed:
         variants.add(collapsed)
         variants.add(collapsed.casefold())
     return {variant for variant in variants if variant}
+
+
+def _strip_parenthetical_alias(text: str) -> str:
+    stripped = re.sub(r"\s*\((?:[a-z0-9][a-z0-9\-\/ ]{0,15})\)\s*", " ", text, flags=re.I)
+    return re.sub(r"\s+", " ", stripped).strip()
 
 
 def _system_rank(system: str, allowed_systems: tuple[str, ...]) -> int:

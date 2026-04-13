@@ -41,6 +41,10 @@ _VACCINE_PATTERN = re.compile(
     r"\b(?:live(?:-attenuated)?\s+vaccine|vaccines?)\b",
     re.I,
 )
+_LIVE_VACCINE_PATTERN = re.compile(
+    r"\b(?:live(?:\s+or\s+live-attenuated)?|live-attenuated)\s+vaccines?\b",
+    re.I,
+)
 _CYP_RESTRICTION_PATTERN = re.compile(
     r"(?:\bcyp[0-9a-z-]+\b.*\b(?:inhibitors?|inducers?)\b|\b(?:inhibitors?|inducers?)\b.*\bcyp[0-9a-z-]+\b)",
     re.I,
@@ -182,6 +186,11 @@ _BIOMARKER_QUALIFIER = re.compile(r"(positive|negative|high|low|overexpression|a
 _INCLUDING_PATTERN = re.compile(r"\bincluding\b", re.I)
 _AT_LEAST_COUNT_PATTERN = re.compile(r"\bat\s+least\s+[\d.]+\b", re.I)
 _ALLOWANCE_PATTERN = re.compile(r"\b(?:can\s+be\s+included|eligible)\b", re.I)
+_PHYSIOLOGIC_ALLOWANCE_PATTERN = re.compile(
+    r"\bphysiologic(?:al)?(?:\s+replacement)?\s+doses?\b[^.;)]*",
+    re.I,
+)
+_MEDICATION_EXCEPTION_TRUNCATION_PATTERN = re.compile(r"\b(?:which|that|who|when)\b", re.I)
 
 
 class RuleBasedClassifier:
@@ -200,7 +209,15 @@ class RuleBasedClassifier:
             if entities
             else self._assign_category_from_text(criterion_text)
         )
-        semantic_details = self._semantic_details(category_hint, criterion_text, entities)
+        neg_result = self._negation.resolve(criterion_text, entities)
+        temporal = self._temporal.parse(criterion_text)
+        semantic_details = self._semantic_details(
+            category_hint,
+            criterion_text,
+            entities,
+            neg_result=neg_result,
+            temporal=temporal,
+        )
         has_mixed_stage_biomarker = self._has_mixed_stage_biomarker_signals(
             criterion_text,
             labels,
@@ -213,6 +230,16 @@ class RuleBasedClassifier:
             criterion_text,
             category_hint,
         )
+        medication_requires_review = self._requires_medication_review(
+            criterion_text,
+            category_hint,
+            semantic_details,
+        )
+        medication_structured = (
+            category_hint == "concomitant_medication"
+            and semantic_details.get("exception_logic") is not None
+            and not medication_requires_review
+        )
 
         # Complexity check — flag complex criteria for review
         is_complex = bool(_COMPLEXITY_SIGNALS.search(criterion_text))
@@ -221,15 +248,16 @@ class RuleBasedClassifier:
             or has_nested_therapy_requirements
             or has_cns_exception_allowance
             or (
+                not medication_structured
+                and
                 is_complex and (
                     not entities
                     or len(entities) > 1
-                    or category_hint in {"concomitant_medication", "molecular_alteration"}
+                    or category_hint == "molecular_alteration"
+                    or medication_requires_review
                 )
             )
         ):
-            neg_result = self._negation.resolve(criterion_text, entities)
-            temporal = self._temporal.parse(neg_result.exception_text or criterion_text)
             logic = self._logic.detect(criterion_text)
             value_text = self._semantic_value_text(category_hint, criterion_text)
             confidence, confidence_factors = self._score_confidence(
@@ -260,6 +288,9 @@ class RuleBasedClassifier:
                 disease_subtype=semantic_details["disease_subtype"],
                 histology_text=semantic_details["histology_text"],
                 assay_context=semantic_details["assay_context"],
+                exception_logic=semantic_details["exception_logic"],
+                exception_entities=semantic_details["exception_entities"],
+                allowance_text=semantic_details["allowance_text"],
                 logic_group_id=logic.group_id,
                 logic_operator=logic.operator,
                 confidence=confidence,
@@ -270,11 +301,15 @@ class RuleBasedClassifier:
 
         # No entities → unparsed
         if not entities:
-            neg_result = self._negation.resolve(criterion_text, [])
             if neg_result.has_exception:
-                exception_temporal = self._temporal.parse(neg_result.exception_text or "")
                 text_category = self._assign_category_from_text(criterion_text)
-                semantic_details = self._semantic_details(text_category, criterion_text, [])
+                semantic_details = self._semantic_details(
+                    text_category,
+                    criterion_text,
+                    [],
+                    neg_result=neg_result,
+                    temporal=temporal,
+                )
                 value_text = self._semantic_value_text(text_category, criterion_text)
                 confidence, confidence_factors = self._score_confidence(
                     category=text_category,
@@ -282,7 +317,7 @@ class RuleBasedClassifier:
                     text=criterion_text,
                     entities=[],
                     quant=None,
-                    temporal=exception_temporal,
+                    temporal=temporal,
                     semantic_details=semantic_details,
                     value_text=value_text,
                 )
@@ -295,14 +330,17 @@ class RuleBasedClassifier:
                     value_text=value_text,
                     parse_status="partial",
                     negated=neg_result.negated,
-                    timeframe_operator=exception_temporal.operator if exception_temporal else None,
-                    timeframe_value=exception_temporal.value if exception_temporal else None,
-                    timeframe_unit=exception_temporal.unit if exception_temporal else None,
+                    timeframe_operator=temporal.operator if temporal else None,
+                    timeframe_value=temporal.value if temporal else None,
+                    timeframe_unit=temporal.unit if temporal else None,
                     specimen_type=semantic_details["specimen_type"],
                     testing_modality=semantic_details["testing_modality"],
                     disease_subtype=semantic_details["disease_subtype"],
                     histology_text=semantic_details["histology_text"],
                     assay_context=semantic_details["assay_context"],
+                    exception_logic=semantic_details["exception_logic"],
+                    exception_entities=semantic_details["exception_entities"],
+                    allowance_text=semantic_details["allowance_text"],
                     confidence=confidence,
                     confidence_factors=confidence_factors,
                     review_required=True,
@@ -324,7 +362,13 @@ class RuleBasedClassifier:
             category, parse_status, confidence, review_required, review_reason = self._classify_text_only(
                 criterion_text
             )
-            semantic_details = self._semantic_details(category, criterion_text, [])
+            semantic_details = self._semantic_details(
+                category,
+                criterion_text,
+                [],
+                neg_result=neg_result,
+                temporal=temporal,
+            )
             value_text = self._semantic_value_text(category, criterion_text)
             confidence, confidence_factors = self._score_confidence(
                 category=category,
@@ -332,7 +376,7 @@ class RuleBasedClassifier:
                 text=criterion_text,
                 entities=[],
                 quant=None,
-                temporal=None,
+                temporal=temporal,
                 semantic_details=semantic_details,
                 value_text=value_text,
                 base_override=confidence,
@@ -350,17 +394,14 @@ class RuleBasedClassifier:
                 disease_subtype=semantic_details["disease_subtype"],
                 histology_text=semantic_details["histology_text"],
                 assay_context=semantic_details["assay_context"],
+                exception_logic=semantic_details["exception_logic"],
+                exception_entities=semantic_details["exception_entities"],
+                allowance_text=semantic_details["allowance_text"],
                 confidence=confidence,
                 confidence_factors=confidence_factors,
                 review_required=review_required,
                 review_reason=review_reason,
             )
-
-        # Negation
-        neg_result = self._negation.resolve(criterion_text, entities)
-
-        # Temporal
-        temporal = self._temporal.parse(criterion_text)
 
         # Logic
         logic = self._logic.detect(criterion_text)
@@ -377,6 +418,14 @@ class RuleBasedClassifier:
 
         # Category
         category = self._assign_category(criterion_text, entities)
+        if category != category_hint:
+            semantic_details = self._semantic_details(
+                category,
+                criterion_text,
+                entities,
+                neg_result=neg_result,
+                temporal=temporal,
+            )
 
         if category == "age" and not quant and temporal and temporal.unit == "years":
             quant = self._age_quant_from_temporal(temporal, criterion_text)
@@ -391,42 +440,6 @@ class RuleBasedClassifier:
                 value_text = qual_match.group(1).lower()
         if not value_text:
             value_text = self._semantic_value_text(category, criterion_text)
-
-        if category == "concomitant_medication" and _VACCINE_PATTERN.search(criterion_text):
-            confidence, confidence_factors = self._score_confidence(
-                category=category,
-                parse_status="partial",
-                text=criterion_text,
-                entities=entities,
-                quant=quant,
-                temporal=temporal,
-                semantic_details=semantic_details,
-                value_text=value_text,
-            )
-            return ClassifiedCriterion(
-                original_text=criterion_text,
-                type="inclusion",
-                category=category,
-                primary_semantic_category=category,
-                secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
-                parse_status="partial",
-                entities=entities,
-                negated=neg_result.negated,
-                timeframe_operator=temporal.operator if temporal else None,
-                timeframe_value=temporal.value if temporal else None,
-                timeframe_unit=temporal.unit if temporal else None,
-                specimen_type=semantic_details["specimen_type"],
-                testing_modality=semantic_details["testing_modality"],
-                disease_subtype=semantic_details["disease_subtype"],
-                histology_text=semantic_details["histology_text"],
-                assay_context=semantic_details["assay_context"],
-                logic_group_id=logic.group_id,
-                logic_operator=logic.operator,
-                confidence=confidence,
-                confidence_factors=confidence_factors,
-                review_required=True,
-                review_reason="complex_criteria",
-            )
 
         confidence, confidence_factors = self._score_confidence(
             category=category,
@@ -462,6 +475,9 @@ class RuleBasedClassifier:
             disease_subtype=semantic_details["disease_subtype"],
             histology_text=semantic_details["histology_text"],
             assay_context=semantic_details["assay_context"],
+            exception_logic=semantic_details["exception_logic"],
+            exception_entities=semantic_details["exception_entities"],
+            allowance_text=semantic_details["allowance_text"],
             logic_group_id=logic.group_id,
             logic_operator=logic.operator,
             confidence=confidence,
@@ -489,6 +505,12 @@ class RuleBasedClassifier:
             return "line_of_therapy"
         if _PROCEDURAL_PATTERN.search(text):
             return "procedural_requirement"
+        if _VACCINE_PATTERN.search(text):
+            return "concomitant_medication"
+        if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
+            return "concomitant_medication"
+        if _CORTICOSTEROID_PATTERN.search(text):
+            return "concomitant_medication"
         if _DISEASE_STATUS_PATTERN.search(text) and not ("DRUG" in labels or _PRIOR_THERAPY_TEXT_PATTERN.search(text)):
             return "disease_status"
         if "BIOMARKER" in labels and _MOLECULAR_PATTERN.search(text):
@@ -497,22 +519,16 @@ class RuleBasedClassifier:
             return "diagnosis"
         if "BIOMARKER" in labels and _TARGETED_EXPOSURE_PATTERN.search(text):
             return "prior_therapy"
-        if _CORTICOSTEROID_PATTERN.search(text):
-            return "concomitant_medication"
         if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
             return "prior_therapy"
         if "DRUG" in labels:
-            return "concomitant_medication" if _CORTICOSTEROID_PATTERN.search(text) else "prior_therapy"
+            return "prior_therapy"
         if _STAGE_PATTERN.search(text):
             if _NUMERIC_STAGE_PATTERN.search(text) or _TNM_STAGE_PATTERN.search(text):
                 return "disease_stage"
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
             return "histology"
-        if _VACCINE_PATTERN.search(text):
-            return "concomitant_medication"
-        if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
-            return "concomitant_medication"
         if "PERF_SCALE" in labels:
             return "performance_status"
         if "BIOMARKER" in labels:
@@ -591,9 +607,13 @@ class RuleBasedClassifier:
             "device_constraint",
         }:
             return category, "parsed", 0.6, False, None
-        if category == "concomitant_medication" and _VACCINE_PATTERN.search(text):
-            return category, "partial", 0.3, True, "complex_criteria"
         if category == "concomitant_medication":
+            if _COMPLEXITY_SIGNALS.search(text) and not (
+                _VACCINE_PATTERN.search(text)
+                or _CORTICOSTEROID_PATTERN.search(text)
+                or _CYP_RESTRICTION_PATTERN.search(text)
+            ):
+                return category, "partial", 0.3, True, "complex_criteria"
             return category, "parsed", 0.6, False, None
         if category == "organ_function" and not _ORGAN_FUNCTION_COMPLEXITY_PATTERN.search(text):
             return category, "parsed", 0.6, False, None
@@ -680,6 +700,8 @@ class RuleBasedClassifier:
             return self._reproductive_value(text)
         if category == "device_constraint":
             return self._device_value(text)
+        if category == "concomitant_medication":
+            return self._infer_medication_base_text(text)
         if category == "disease_status":
             match = _DISEASE_STATUS_PATTERN.search(text)
             if match:
@@ -702,6 +724,147 @@ class RuleBasedClassifier:
             return False
         return bool(_ALLOWANCE_PATTERN.search(text) and _CNS_PATTERN.search(text))
 
+    def _requires_medication_review(
+        self,
+        text: str,
+        category_hint: str,
+        semantic_details: dict[str, object],
+    ) -> bool:
+        if category_hint != "concomitant_medication":
+            return False
+        if "whichever is longer" in text.casefold() or "whichever is shorter" in text.casefold():
+            return True
+        exception_logic = semantic_details.get("exception_logic")
+        if not exception_logic:
+            return False
+        if (
+            exception_logic.get("mode") == "prohibited_with_exception"
+            and not semantic_details.get("exception_entities")
+        ):
+            return True
+        return False
+
+    def _medication_semantics(
+        self,
+        text: str,
+        entities: list[Entity],
+        *,
+        neg_result,
+        temporal,
+    ) -> tuple[dict[str, object] | None, list[str], str | None]:
+        base_entities = self._medication_base_entities(text, entities, neg_result)
+        if not base_entities and not (
+            _VACCINE_PATTERN.search(text)
+            or _CORTICOSTEROID_PATTERN.search(text)
+            or _CYP_RESTRICTION_PATTERN.search(text)
+        ):
+            return None, [], None
+
+        exception_entities = self._medication_exception_entities(text, entities, neg_result)
+        allowance_text = self._medication_allowance_text(text, neg_result)
+        if not base_entities:
+            inferred = self._infer_medication_base_text(text)
+            if inferred:
+                base_entities = [inferred]
+
+        logic_mode = "restriction"
+        if temporal and base_entities:
+            logic_mode = "washout_window"
+        if exception_entities:
+            logic_mode = "prohibited_with_exception"
+        if allowance_text:
+            logic_mode = "prohibited_with_allowance"
+
+        if not base_entities and not exception_entities and not allowance_text:
+            return None, [], None
+
+        return (
+            {
+                "mode": logic_mode,
+                "base_entities": base_entities,
+                "has_timeframe": temporal is not None,
+                "exception_text": neg_result.exception_text if neg_result and neg_result.exception_text else None,
+            },
+            exception_entities,
+            allowance_text,
+        )
+
+    def _medication_base_entities(self, text: str, entities: list[Entity], neg_result) -> list[str]:
+        exception_start = None
+        if neg_result and neg_result.exception_text:
+            cue_match = re.search(r"\b(unless|except|provided that|other than)\b", text, re.I)
+            if cue_match:
+                exception_start = cue_match.start()
+
+        values: list[str] = []
+        for entity in entities:
+            if entity.label != "DRUG":
+                continue
+            if exception_start is not None and entity.start >= exception_start:
+                continue
+            normalized = _clean_medication_phrase(entity.expanded_text or entity.text)
+            if normalized and normalized not in values:
+                values.append(normalized)
+
+        if values:
+            return values
+
+        inferred = self._infer_medication_base_text(text)
+        return [inferred] if inferred else []
+
+    def _infer_medication_base_text(self, text: str) -> str | None:
+        live_vaccine = _LIVE_VACCINE_PATTERN.search(text) or _VACCINE_PATTERN.search(text)
+        if live_vaccine:
+            return _clean_medication_phrase(live_vaccine.group(0))
+        if _CYP_RESTRICTION_PATTERN.search(text):
+            return "cyp3a4 inhibitors/inducers"
+        corticosteroid_match = _CORTICOSTEROID_PATTERN.search(text)
+        if corticosteroid_match:
+            return _clean_medication_phrase(corticosteroid_match.group(0))
+        return None
+
+    def _medication_exception_entities(self, text: str, entities: list[Entity], neg_result) -> list[str]:
+        if not neg_result or not neg_result.exception_text:
+            return []
+        if _PHYSIOLOGIC_ALLOWANCE_PATTERN.search(neg_result.exception_text):
+            return []
+
+        exception_text = neg_result.exception_text
+        values: list[str] = []
+        exception_offset = text.casefold().find(exception_text.casefold())
+        if exception_offset >= 0:
+            exception_end = exception_offset + len(exception_text)
+            for entity in entities:
+                if entity.label != "DRUG":
+                    continue
+                if exception_offset <= entity.start < exception_end:
+                    normalized = _clean_medication_exception_entity(entity.expanded_text or entity.text)
+                    if normalized and normalized not in values:
+                        values.append(normalized)
+
+        if values:
+            return values
+
+        exception_body = _MEDICATION_EXCEPTION_TRUNCATION_PATTERN.split(exception_text, maxsplit=1)[0]
+        exception_body = re.sub(r"^for\s+", "", exception_body.strip(), flags=re.I)
+        raw_values = re.split(r"\s*,\s*|\s+\bor\b\s+|\s+\band/or\b\s+", exception_body)
+        for raw_value in raw_values:
+            normalized = _clean_medication_exception_entity(raw_value)
+            if normalized and normalized not in values:
+                values.append(normalized)
+        return values
+
+    def _medication_allowance_text(self, text: str, neg_result) -> str | None:
+        source_text = f"{text} {neg_result.exception_text}" if neg_result and neg_result.exception_text else text
+        match = _PHYSIOLOGIC_ALLOWANCE_PATTERN.search(source_text)
+        if match:
+            return _clean_medication_phrase(match.group(0))
+        if neg_result and neg_result.exception_text:
+            lowered = neg_result.exception_text.casefold()
+            if any(token in lowered for token in ("allowed", "permitted", "replacement dose")):
+                return neg_result.exception_text.strip()
+        return None
+
     def _age_quant_from_temporal(
         self, temporal, criterion_text: str
     ) -> QuantitativeValue | None:
@@ -718,11 +881,22 @@ class RuleBasedClassifier:
             raw_expression=criterion_text,
         )
 
-    def _semantic_details(self, category: str, text: str, entities: list[Entity]) -> dict[str, object]:
+    def _semantic_details(
+        self,
+        category: str,
+        text: str,
+        entities: list[Entity],
+        *,
+        neg_result=None,
+        temporal=None,
+    ) -> dict[str, object]:
         secondary_tags: list[str] = []
         specimen_types = _extract_specimen_types(text)
         testing_modalities = _extract_testing_modalities(text)
         assay_context: dict[str, object] | None = None
+        exception_logic: dict[str, object] | None = None
+        exception_entities: list[str] = []
+        allowance_text: str | None = None
 
         if specimen_types:
             secondary_tags.append("specimen_context")
@@ -745,6 +919,23 @@ class RuleBasedClassifier:
                 "specimen_types": specimen_types,
                 "testing_modalities": testing_modalities,
             }
+        if category == "concomitant_medication":
+            (
+                exception_logic,
+                exception_entities,
+                allowance_text,
+            ) = self._medication_semantics(
+                text,
+                entities,
+                neg_result=neg_result,
+                temporal=temporal,
+            )
+            if exception_logic:
+                secondary_tags.append("medication_logic")
+            if exception_entities:
+                secondary_tags.append("medication_exception_entities")
+            if allowance_text:
+                secondary_tags.append("medication_allowance")
 
         return {
             "secondary_semantic_tags": secondary_tags,
@@ -753,6 +944,9 @@ class RuleBasedClassifier:
             "disease_subtype": _extract_disease_subtype(text),
             "histology_text": _extract_histology_text(text),
             "assay_context": assay_context,
+            "exception_logic": exception_logic,
+            "exception_entities": exception_entities,
+            "allowance_text": allowance_text,
         }
 
     def _score_confidence(
@@ -795,6 +989,15 @@ class RuleBasedClassifier:
         if semantic_details.get("assay_context"):
             score += 0.06
             structured_components.append("assay_context")
+        if semantic_details.get("exception_logic"):
+            score += 0.06
+            structured_components.append("exception_logic")
+        if semantic_details.get("exception_entities"):
+            score += min(0.06, 0.02 * len(semantic_details["exception_entities"]))
+            structured_components.append("exception_entities")
+        if semantic_details.get("allowance_text"):
+            score += 0.04
+            structured_components.append("allowance_text")
         if semantic_details.get("disease_subtype"):
             score += 0.05
             structured_components.append("disease_subtype")
@@ -870,3 +1073,20 @@ def _criterion_is_overloaded(*, text: str, category: str, entities: list[Entity]
     if category == "molecular_alteration" and _STAGE_PATTERN.search(text):
         return True
     return False
+
+
+def _clean_medication_phrase(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = re.sub(r"^[*()\s]+|[*()\s]+$", "", value)
+    normalized = re.sub(r"^(?:and|or)\b\s*", "", normalized, flags=re.I)
+    normalized = re.sub(r"\s+", " ", normalized).strip(" ,;.")
+    return normalized.casefold() if normalized else None
+
+
+def _clean_medication_exception_entity(value: str | None) -> str | None:
+    normalized = _clean_medication_phrase(value)
+    if not normalized:
+        return None
+    normalized = re.sub(r"^systemic\s+", "", normalized, flags=re.I)
+    return normalized or None

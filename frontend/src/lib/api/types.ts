@@ -110,6 +110,9 @@ export type CriterionResponse = {
   disease_subtype?: string | null;
   histology_text?: string | null;
   assay_context?: Record<string, unknown> | null;
+  exception_logic?: Record<string, unknown> | null;
+  exception_entities: string[];
+  allowance_text?: string | null;
   logic_group_id?: string | null;
   logic_operator: string;
   coded_concepts: CodedConcept[];
