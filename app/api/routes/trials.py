@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import Any
 from uuid import UUID
 
@@ -17,6 +18,8 @@ from app.api.openapi import (
 from app.api.schemas import (
     CriteriaListResponse,
     CriteriaSummary,
+    CriterionFHIRProjectionListResponse,
+    CriterionFHIRProjectionResponse,
     CriterionResponse,
     IngestRequest,
     IngestResponse,
@@ -35,6 +38,7 @@ from app.api.schemas import (
 )
 from app.config import settings
 from app.db.session import get_db
+from app.fhir.criterion_projection import CriterionProjectionMapper
 from app.fhir.mapper import FHIRMapper
 from app.fhir.models import ResearchStudy
 from app.ingestion.service import IngestionService
@@ -251,6 +255,25 @@ def get_criterion(criterion_id: UUID, request: Request, db: Session = Depends(ge
     return _criterion_detail(criterion)
 
 
+@router.get(
+    "/criteria/{criterion_id}/fhir-projections",
+    response_model=CriterionFHIRProjectionListResponse,
+    responses=READ_ERROR_RESPONSES,
+)
+def get_criterion_fhir_projections(criterion_id: UUID, request: Request, db: Session = Depends(get_db)):
+    criterion = db.query(ExtractedCriterion).filter(ExtractedCriterion.id == criterion_id).first()
+    if not criterion:
+        raise HTTPException(status_code=404, detail="Criterion not found")
+    add_request_log_context(
+        request,
+        trial_id=criterion.trial_id,
+        pipeline_run_id=criterion.pipeline_run_id,
+    )
+    mapper = CriterionProjectionMapper(db)
+    projections = mapper.project_criterion(criterion)
+    return _projection_list_response(projections)
+
+
 @router.get("/trials/{trial_id}/fhir", responses=READ_ERROR_RESPONSES)
 def get_trial_fhir(trial_id: UUID, request: Request, db: Session = Depends(get_db)):
     add_request_log_context(request, trial_id=trial_id)
@@ -280,6 +303,22 @@ def get_trial_fhir(trial_id: UUID, request: Request, db: Session = Depends(get_d
         content=resource.model_dump_json(exclude_none=True),
         media_type="application/fhir+json",
     )
+
+
+@router.get(
+    "/trials/{trial_id}/fhir-projections",
+    response_model=CriterionFHIRProjectionListResponse,
+    responses=READ_ERROR_RESPONSES,
+)
+def get_trial_fhir_projections(trial_id: UUID, request: Request, db: Session = Depends(get_db)):
+    add_request_log_context(request, trial_id=trial_id)
+    _get_trial_or_404(trial_id, db)
+    criteria = _latest_trial_criteria_query(trial_id, db).order_by(ExtractedCriterion.created_at.asc()).all()
+    mapper = CriterionProjectionMapper(db)
+    projections = []
+    for criterion in criteria:
+        projections.extend(mapper.project_criterion(criterion))
+    return _projection_list_response(projections)
 
 
 @router.get("/review", response_model=ReviewQueueResponse, responses=PROTECTED_READ_RESPONSES)
@@ -663,6 +702,37 @@ def _criterion_detail(criterion: ExtractedCriterion) -> CriterionResponse:
         pipeline_version=criterion.pipeline_version,
         pipeline_run_id=criterion.pipeline_run_id,
         created_at=criterion.created_at,
+    )
+
+
+def _projection_list_response(projections) -> CriterionFHIRProjectionListResponse:
+    breakdown_by_status = Counter(projection.projection_status for projection in projections)
+    breakdown_by_resource_type = Counter(
+        projection.resource_type or "none" for projection in projections
+    )
+    return CriterionFHIRProjectionListResponse(
+        items=[
+            CriterionFHIRProjectionResponse(
+                criterion_id=projection.criterion_id,
+                trial_id=projection.trial_id,
+                criterion_category=projection.criterion_category,
+                criterion_type=projection.criterion_type,
+                mention_text=projection.mention_text,
+                normalized_term=projection.normalized_term,
+                resource_type=projection.resource_type,
+                projection_status=projection.projection_status,
+                terminology_status=projection.terminology_status,
+                review_required=projection.review_required,
+                system=projection.system,
+                code=projection.code,
+                display=projection.display,
+                resource=projection.resource,
+            )
+            for projection in projections
+        ],
+        total=len(projections),
+        breakdown_by_status=dict(sorted(breakdown_by_status.items())),
+        breakdown_by_resource_type=dict(sorted(breakdown_by_resource_type.items())),
     )
 
 

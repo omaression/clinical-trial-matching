@@ -5,36 +5,50 @@ They are intentionally lightweight — the full FHIR spec is complex, and
 we only model the subset used by the mapper.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class Identifier(BaseModel):
+class FHIRModel(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+
+class Identifier(FHIRModel):
     system: str | None = None
     value: str
 
 
-class Coding(BaseModel):
+class Coding(FHIRModel):
     system: str
     code: str
     display: str | None = None
 
 
-class CodeableConcept(BaseModel):
+class CodeableConcept(FHIRModel):
     coding: list[Coding] = Field(default_factory=list)
     text: str | None = None
 
 
-class Extension(BaseModel):
+class Reference(FHIRModel):
+    reference: str
+    display: str | None = None
+
+
+class Annotation(FHIRModel):
+    text: str
+
+
+class Extension(FHIRModel):
     url: str
-    valueString: str | None = None
-    valueDecimal: float | None = None
-    valueCoding: Coding | None = None
+    value_string: str | None = Field(default=None, alias="valueString")
+    value_decimal: float | None = Field(default=None, alias="valueDecimal")
+    value_coding: Coding | None = Field(default=None, alias="valueCoding")
     extension: list["Extension"] = Field(default_factory=list)
 
 
-class ResearchStudy(BaseModel):
+class ResearchStudy(FHIRModel):
     """FHIR R4 ResearchStudy resource (subset)."""
-    resourceType: str = "ResearchStudy"
+
+    resource_type: str = Field(default="ResearchStudy", alias="resourceType")
     identifier: list[Identifier] = Field(default_factory=list)
     title: str | None = None
     status: str = "active"
@@ -42,3 +56,14 @@ class ResearchStudy(BaseModel):
     condition: list[CodeableConcept] = Field(default_factory=list)
     extension: list[Extension] = Field(default_factory=list)
     enrollment: list[dict] | None = None
+
+
+class MedicationStatement(FHIRModel):
+    """FHIR R4 MedicationStatement resource (subset)."""
+
+    resource_type: str = Field(default="MedicationStatement", alias="resourceType")
+    status: str
+    medication_codeable_concept: CodeableConcept = Field(alias="medicationCodeableConcept")
+    subject: Reference
+    derived_from: list[Reference] = Field(default_factory=list, alias="derivedFrom")
+    note: list[Annotation] = Field(default_factory=list)

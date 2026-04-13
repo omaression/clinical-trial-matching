@@ -2,10 +2,13 @@ from collections import Counter
 
 from app.scripts.seed import (
     LOINC_LABS,
+    MEDRT_DRUG_CLASSES,
     MESH_DISEASES,
     NCI_BIOMARKERS,
     NCI_DRUGS,
     NCI_SCALES,
+    RXNORM_DRUGS,
+    SNOMED_MEDICATION_CLASSES,
     SNOMED_PROCEDURES,
     _merge_synonyms,
 )
@@ -19,7 +22,9 @@ def _catalog_rows():
     for system, rows in (
         ("mesh", MESH_DISEASES),
         ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
-        ("snomed_ct", SNOMED_PROCEDURES),
+        ("snomed_ct", SNOMED_PROCEDURES + SNOMED_MEDICATION_CLASSES),
+        ("medrt", MEDRT_DRUG_CLASSES),
+        ("rxnorm", RXNORM_DRUGS),
         ("loinc", LOINC_LABS),
     ):
         for code, display, _synonyms in rows:
@@ -92,6 +97,16 @@ def test_seed_catalog_keeps_expected_nci_drug_codes():
     assert codes["Carboplatin"] == "C1282"
     assert codes["Docetaxel"] == "C1526"
     assert codes["Capecitabine"] == "C1794"
+
+
+def test_seed_catalog_includes_rxnorm_named_drugs_for_projection():
+    codes = {display: code for code, display, _synonyms in RXNORM_DRUGS}
+
+    assert codes["Prednisone"] == "8640"
+    assert codes["Itraconazole"] == "28031"
+    assert codes["Ketoconazole"] == "6135"
+    assert codes["Posaconazole"] == "282446"
+    assert codes["Voriconazole"] == "121243"
 
 
 def test_merge_synonyms_is_case_insensitive_and_append_only():

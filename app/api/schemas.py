@@ -210,6 +210,30 @@ class ReviewQueueResponse(APIModel):
     breakdown_by_reason: dict[str, int]
 
 
+class CriterionFHIRProjectionResponse(APIModel):
+    criterion_id: UUID | None = None
+    trial_id: UUID | None = None
+    criterion_category: str
+    criterion_type: str
+    mention_text: str
+    normalized_term: str
+    resource_type: str | None = None
+    projection_status: str
+    terminology_status: str
+    review_required: bool
+    system: str | None = None
+    code: str | None = None
+    display: str | None = None
+    resource: dict[str, Any] | None = None
+
+
+class CriterionFHIRProjectionListResponse(APIModel):
+    items: list[CriterionFHIRProjectionResponse]
+    total: int
+    breakdown_by_status: dict[str, int]
+    breakdown_by_resource_type: dict[str, int]
+
+
 class PipelineStatusResponse(APIModel):
     version: str
     total_runs: int

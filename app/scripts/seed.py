@@ -268,6 +268,21 @@ SNOMED_PROCEDURES = [
     ("387713003", "Surgical procedure", ["major surgery", "surgical complications"]),
 ]
 
+# SNOMED CT medication class codes
+SNOMED_MEDICATION_CLASSES: list[tuple[str, str, list[str]]] = []
+
+# MED-RT medication class codes
+MEDRT_DRUG_CLASSES: list[tuple[str, str, list[str]]] = []
+
+# RxNorm named medication codes
+RXNORM_DRUGS = [
+    ("8640", "Prednisone", ["prednisone"]),
+    ("28031", "Itraconazole", ["itraconazole"]),
+    ("6135", "Ketoconazole", ["ketoconazole"]),
+    ("282446", "Posaconazole", ["posaconazole"]),
+    ("121243", "Voriconazole", ["voriconazole"]),
+]
+
 
 def seed():
     db = SessionLocal()
@@ -288,7 +303,9 @@ def sync_coding_lookups(db) -> tuple[int, int, int]:
     for system, rows in (
         ("mesh", MESH_DISEASES),
         ("nci_thesaurus", NCI_BIOMARKERS + NCI_DRUGS + NCI_SCALES),
-        ("snomed_ct", SNOMED_PROCEDURES),
+        ("snomed_ct", SNOMED_PROCEDURES + SNOMED_MEDICATION_CLASSES),
+        ("medrt", MEDRT_DRUG_CLASSES),
+        ("rxnorm", RXNORM_DRUGS),
         ("loinc", LOINC_LABS),
     ):
         for code, display, synonyms in rows:

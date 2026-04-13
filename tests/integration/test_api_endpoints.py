@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.ingestion.service import SearchIngestBatchResult, SearchIngestTrialResult
 from app.main import app
 from app.models.database import ExtractedCriterion, PipelineRun, Trial
+from app.scripts.seed import sync_coding_lookups
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
 
@@ -47,6 +48,8 @@ class TestRouteRegistration:
             assert "/api/v1/trials/{trial_id}/criteria" in paths
             assert "/api/v1/criteria/{criterion_id}" in paths
             assert "/api/v1/trials/{trial_id}/fhir" in paths
+            assert "/api/v1/trials/{trial_id}/fhir-projections" in paths
+            assert "/api/v1/criteria/{criterion_id}/fhir-projections" in paths
             assert "/api/v1/review" in paths
             assert "/api/v1/criteria/{criterion_id}/review" in paths
             assert "/api/v1/pipeline/status" in paths
@@ -637,6 +640,126 @@ class TestFHIRExport:
         rendered_text = json.dumps(response.json())
         assert "Failed at least 1 prior line of systemic therapy" in rendered_text
         assert "Age >= 18 years" not in rendered_text
+
+
+@pytestmark_docker
+class TestCriterionFHIRProjections:
+    def test_trial_fhir_projections_include_projected_and_blocked_medication_criteria(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        sync_coding_lookups(db_session)
+        _, created = _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": (
+                        "Systemic corticosteroids are excluded except for physiologic replacement doses "
+                        "of prednisone."
+                    ),
+                    "value_text": "systemic corticosteroids",
+                    "allowance_text": "physiologic replacement doses of prednisone",
+                },
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": (
+                        "CYP3A4 inhibitors such as itraconazole, ketoconazole, posaconazole, and "
+                        "voriconazole are excluded within 14 days."
+                    ),
+                    "value_text": "cyp3a4 inhibitors/inducers",
+                    "exception_entities": [
+                        "Itraconazole",
+                        "Ketoconazole",
+                        "Posaconazole",
+                        "Voriconazole",
+                    ],
+                    "timeframe_operator": "lte",
+                    "timeframe_value": 14,
+                    "timeframe_unit": "days",
+                },
+                {
+                    "type": "inclusion",
+                    "category": "prior_therapy",
+                    "original_text": "Prior PD-1 therapy for metastatic disease",
+                    "value_text": "pd-1 therapy",
+                },
+            ],
+        )
+
+        response = client.get(f"/api/v1/trials/{trial.id}/fhir-projections")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 8
+        assert data["breakdown_by_status"]["projected"] == 5
+        assert data["breakdown_by_status"]["blocked_missing_class_code"] == 3
+        assert data["breakdown_by_resource_type"]["MedicationStatement"] == 5
+        assert data["breakdown_by_resource_type"]["none"] == 3
+
+        projected = [item for item in data["items"] if item["projection_status"] == "projected"]
+        blocked = [item for item in data["items"] if item["projection_status"] == "blocked_missing_class_code"]
+        projected_codes = {item["code"] for item in projected}
+        blocked_terms = {item["normalized_term"] for item in blocked}
+
+        assert projected_codes == {"8640", "28031", "6135", "282446", "121243"}
+        assert blocked_terms == {"systemic corticosteroids", "cyp3a4 inhibitors inducers", "pd 1 therapy"}
+        assert all(item["resource_type"] == "MedicationStatement" for item in projected)
+        assert all(
+            item["resource"]["medicationCodeableConcept"]["coding"][0]["system"]
+            == "http://www.nlm.nih.gov/research/umls/rxnorm"
+            for item in projected
+        )
+        assert {item["criterion_id"] for item in data["items"]} == {str(criterion.id) for criterion in created}
+
+    def test_single_criterion_fhir_projections_return_persisted_canonical_mentions(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        sync_coding_lookups(db_session)
+        _, created = _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": (
+                        "Systemic corticosteroids are excluded except for physiologic replacement doses "
+                        "of prednisone."
+                    ),
+                    "value_text": "systemic corticosteroids",
+                    "allowance_text": "physiologic replacement doses of prednisone",
+                }
+            ],
+        )
+
+        response = client.get(f"/api/v1/criteria/{created[0].id}/fhir-projections")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert data["breakdown_by_status"] == {
+            "blocked_missing_class_code": 1,
+            "projected": 1,
+        }
+        assert data["breakdown_by_resource_type"] == {
+            "MedicationStatement": 1,
+            "none": 1,
+        }
+
+        prednisone_projection = next(item for item in data["items"] if item["normalized_term"] == "prednisone")
+        assert prednisone_projection["projection_status"] == "projected"
+        assert prednisone_projection["criterion_id"] == str(created[0].id)
+        assert prednisone_projection["trial_id"] == str(trial.id)
+        assert (
+            prednisone_projection["resource"]["medicationCodeableConcept"]["coding"][0]["system"]
+            == "http://www.nlm.nih.gov/research/umls/rxnorm"
+        )
+        assert prednisone_projection["resource"]["derivedFrom"][0]["reference"] == f"ResearchStudy/{trial.id}"
+
+    def test_criterion_fhir_projections_not_found(self, client):
+        response = client.get(f"/api/v1/criteria/{uuid.uuid4()}/fhir-projections")
+        assert response.status_code == 404
 
 
 @pytestmark_docker

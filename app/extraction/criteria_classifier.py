@@ -259,7 +259,7 @@ class RuleBasedClassifier:
             )
         ):
             logic = self._logic.detect(criterion_text)
-            value_text = self._semantic_value_text(category_hint, criterion_text)
+            value_text = self._semantic_value_text(category_hint, criterion_text, entities)
             confidence, confidence_factors = self._score_confidence(
                 category=category_hint,
                 parse_status="partial",
@@ -310,7 +310,7 @@ class RuleBasedClassifier:
                     neg_result=neg_result,
                     temporal=temporal,
                 )
-                value_text = self._semantic_value_text(text_category, criterion_text)
+                value_text = self._semantic_value_text(text_category, criterion_text, [])
                 confidence, confidence_factors = self._score_confidence(
                     category=text_category,
                     parse_status="partial",
@@ -369,7 +369,7 @@ class RuleBasedClassifier:
                 neg_result=neg_result,
                 temporal=temporal,
             )
-            value_text = self._semantic_value_text(category, criterion_text)
+            value_text = self._semantic_value_text(category, criterion_text, [])
             confidence, confidence_factors = self._score_confidence(
                 category=category,
                 parse_status=parse_status,
@@ -439,7 +439,7 @@ class RuleBasedClassifier:
             if qual_match:
                 value_text = qual_match.group(1).lower()
         if not value_text:
-            value_text = self._semantic_value_text(category, criterion_text)
+            value_text = self._semantic_value_text(category, criterion_text, entities)
 
         confidence, confidence_factors = self._score_confidence(
             category=category,
@@ -691,7 +691,7 @@ class RuleBasedClassifier:
             return "mr_device_present:true"
         return None
 
-    def _semantic_value_text(self, category: str, text: str) -> str | None:
+    def _semantic_value_text(self, category: str, text: str, entities: list[Entity] | None = None) -> str | None:
         if category == "administrative_requirement":
             return self._administrative_value(text)
         if category == "behavioral_constraint":
@@ -700,6 +700,8 @@ class RuleBasedClassifier:
             return self._reproductive_value(text)
         if category == "device_constraint":
             return self._device_value(text)
+        if category in {"prior_therapy", "line_of_therapy"}:
+            return self._infer_therapy_base_text(text, entities or [])
         if category == "concomitant_medication":
             return self._infer_medication_base_text(text)
         if category == "disease_status":
@@ -821,6 +823,23 @@ class RuleBasedClassifier:
         corticosteroid_match = _CORTICOSTEROID_PATTERN.search(text)
         if corticosteroid_match:
             return _clean_medication_phrase(corticosteroid_match.group(0))
+        return None
+
+    def _infer_therapy_base_text(self, text: str, entities: list[Entity]) -> str | None:
+        for entity in entities:
+            if entity.label == "DRUG":
+                normalized = _clean_medication_phrase(entity.expanded_text or entity.text)
+                if normalized:
+                    return normalized
+
+        therapy_match = re.search(
+            r"\b(?:pd-1(?:/pd-l1)?(?:\s+inhibitor)?\s+therapy|pd-l1\s+therapy|"
+            r"platinum-based chemotherapy|chemotherapy|kras-targeted therapy|agent targeting kras)\b",
+            text,
+            re.I,
+        )
+        if therapy_match:
+            return _clean_medication_phrase(therapy_match.group(0))
         return None
 
     def _medication_exception_entities(self, text: str, entities: list[Entity], neg_result) -> list[str]:
