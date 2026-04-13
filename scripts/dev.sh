@@ -86,6 +86,7 @@ trap 'cleanup $?' EXIT INT TERM
 require_command alembic
 require_command uvicorn
 require_command npm
+require_command python
 require_command curl
 require_command lsof
 require_path "${ROOT_DIR}/frontend/package.json"
@@ -118,6 +119,23 @@ if [[ "${REUSE_BACKEND}" == "0" && "${CTM_SKIP_MIGRATIONS:-0}" != "1" ]]; then
     exit 1
   fi
   rm -f "${ALEMBIC_LOG}"
+fi
+
+if [[ "${REUSE_BACKEND}" == "0" && "${CTM_SKIP_CODING_LOOKUP_SYNC:-0}" != "1" ]]; then
+  SEED_LOG="$(mktemp "${TMPDIR:-/tmp}/ctm-seed.XXXXXX")"
+  echo "Syncing coding lookups..."
+  if ! (
+    cd "${ROOT_DIR}"
+    python -m app.scripts.seed
+  ) >"${SEED_LOG}" 2>&1; then
+    echo "Coding lookup sync failed." >&2
+    echo "Set CTM_SKIP_CODING_LOOKUP_SYNC=1 to skip this step if needed." >&2
+    echo "Last seed output:" >&2
+    tail -n 12 "${SEED_LOG}" >&2 || true
+    echo "Full seed log: ${SEED_LOG}" >&2
+    exit 1
+  fi
+  rm -f "${SEED_LOG}"
 fi
 
 if [[ "${REUSE_BACKEND}" == "0" ]]; then

@@ -102,6 +102,16 @@ _ADMINISTRATIVE_PROTOCOL_NEGATIVE_PATTERN = re.compile(
     r"\b(?:protocol|study procedures?|scheduled visits?|treatment plan|laboratory tests?)\b",
     re.I,
 )
+_ADMINISTRATIVE_PARTICIPATION_POSITIVE_PATTERN = re.compile(
+    r"\b(?:willing and able|able|ability|willing(?:ness)?)\b.{0,80}\b(?:participate|complete|undergo|attend)\b.{0,80}"
+    r"\b(?:study evaluations?|evaluations?|study procedures?|procedures?|visits?)\b",
+    re.I,
+)
+_ADMINISTRATIVE_PARTICIPATION_NEGATIVE_PATTERN = re.compile(
+    r"\b(?:unable|cannot|can't|inability|unwilling(?:ness)?)\b.{0,80}\b(?:participate|complete|undergo|attend)\b.{0,80}"
+    r"\b(?:study evaluations?|evaluations?|study procedures?|procedures?|visits?)\b",
+    re.I,
+)
 _BEHAVIORAL_CLAUSTROPHOBIA_PATTERN = re.compile(r"\bclaustrophobi(?:a|c)\b", re.I)
 _BEHAVIORAL_MOTION_PATTERN = re.compile(
     r"\b(?:motion intolerance|unable to remain still|cannot remain still|unable to lie still|cannot lie still|"
@@ -129,7 +139,7 @@ _EXPLICIT_DIAGNOSIS_PATTERN = re.compile(
     re.I,
 )
 _CONFIRMED_DISEASE_PATTERN = re.compile(
-    r"\b(?:confirmed|histologically|cytologically|pathologically)\b",
+    r"\b(?:confirmed|histologically|cytologically|pathologically|biopsy[- ]confirmed|biopsy)\b",
     re.I,
 )
 _DISEASE_ENUMERATION_HINT_PATTERN = re.compile(
@@ -221,6 +231,7 @@ class RuleBasedClassifier:
             neg_result = self._negation.resolve(criterion_text, entities)
             temporal = self._temporal.parse(neg_result.exception_text or criterion_text)
             logic = self._logic.detect(criterion_text)
+            value_text = self._semantic_value_text(category_hint, criterion_text)
             confidence, confidence_factors = self._score_confidence(
                 category=category_hint,
                 parse_status="partial",
@@ -229,6 +240,7 @@ class RuleBasedClassifier:
                 quant=None,
                 temporal=temporal,
                 semantic_details=semantic_details,
+                value_text=value_text,
             )
             return ClassifiedCriterion(
                 original_text=criterion_text,
@@ -236,6 +248,7 @@ class RuleBasedClassifier:
                 category=category_hint,
                 primary_semantic_category=category_hint,
                 secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
+                value_text=value_text,
                 parse_status="partial",
                 entities=entities,
                 negated=neg_result.negated,
@@ -262,6 +275,7 @@ class RuleBasedClassifier:
                 exception_temporal = self._temporal.parse(neg_result.exception_text or "")
                 text_category = self._assign_category_from_text(criterion_text)
                 semantic_details = self._semantic_details(text_category, criterion_text, [])
+                value_text = self._semantic_value_text(text_category, criterion_text)
                 confidence, confidence_factors = self._score_confidence(
                     category=text_category,
                     parse_status="partial",
@@ -270,6 +284,7 @@ class RuleBasedClassifier:
                     quant=None,
                     temporal=exception_temporal,
                     semantic_details=semantic_details,
+                    value_text=value_text,
                 )
                 return ClassifiedCriterion(
                     original_text=criterion_text,
@@ -277,7 +292,7 @@ class RuleBasedClassifier:
                     category=text_category,
                     primary_semantic_category=text_category,
                     secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
-                    value_text=self._semantic_value_text(text_category, criterion_text),
+                    value_text=value_text,
                     parse_status="partial",
                     negated=neg_result.negated,
                     timeframe_operator=exception_temporal.operator if exception_temporal else None,
@@ -310,6 +325,7 @@ class RuleBasedClassifier:
                 criterion_text
             )
             semantic_details = self._semantic_details(category, criterion_text, [])
+            value_text = self._semantic_value_text(category, criterion_text)
             confidence, confidence_factors = self._score_confidence(
                 category=category,
                 parse_status=parse_status,
@@ -318,6 +334,7 @@ class RuleBasedClassifier:
                 quant=None,
                 temporal=None,
                 semantic_details=semantic_details,
+                value_text=value_text,
                 base_override=confidence,
             )
             return ClassifiedCriterion(
@@ -327,7 +344,7 @@ class RuleBasedClassifier:
                 primary_semantic_category=category,
                 secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
                 parse_status=parse_status,
-                value_text=self._semantic_value_text(category, criterion_text),
+                value_text=value_text,
                 specimen_type=semantic_details["specimen_type"],
                 testing_modality=semantic_details["testing_modality"],
                 disease_subtype=semantic_details["disease_subtype"],
@@ -384,6 +401,7 @@ class RuleBasedClassifier:
                 quant=quant,
                 temporal=temporal,
                 semantic_details=semantic_details,
+                value_text=value_text,
             )
             return ClassifiedCriterion(
                 original_text=criterion_text,
@@ -418,6 +436,7 @@ class RuleBasedClassifier:
             quant=quant,
             temporal=temporal,
             semantic_details=semantic_details,
+            value_text=value_text,
         )
 
         return ClassifiedCriterion(
@@ -601,7 +620,7 @@ class RuleBasedClassifier:
             return True
         if _EXPLICIT_DIAGNOSIS_PATTERN.search(text):
             return True
-        if _CONFIRMED_DISEASE_PATTERN.search(text) and self._has_specific_disease_phrase(entities):
+        if _CONFIRMED_DISEASE_PATTERN.search(text) and not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text):
             return True
         if len(disease_entities) >= 2 and not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text):
             return True
@@ -624,6 +643,10 @@ class RuleBasedClassifier:
         if _ADMINISTRATIVE_PROTOCOL_NEGATIVE_PATTERN.search(text):
             return "protocol_compliant:false"
         if _ADMINISTRATIVE_PROTOCOL_POSITIVE_PATTERN.search(text):
+            return "protocol_compliant:true"
+        if _ADMINISTRATIVE_PARTICIPATION_NEGATIVE_PATTERN.search(text):
+            return "protocol_compliant:false"
+        if _ADMINISTRATIVE_PARTICIPATION_POSITIVE_PATTERN.search(text):
             return "protocol_compliant:true"
         return None
 
@@ -742,6 +765,7 @@ class RuleBasedClassifier:
         quant: QuantitativeValue | None,
         temporal,
         semantic_details: dict[str, object],
+        value_text: str | None,
         base_override: float | None = None,
     ) -> tuple[float, dict[str, object]]:
         if parse_status == "unparsed":
@@ -780,6 +804,9 @@ class RuleBasedClassifier:
         if semantic_details.get("secondary_semantic_tags"):
             score += min(0.08, 0.02 * len(semantic_details["secondary_semantic_tags"]))
             structured_components.append("secondary_semantics")
+        if value_text:
+            score += 0.07
+            structured_components.append("semantic_value")
         if text and len(text) < 180:
             score += 0.03
         if _criterion_is_overloaded(text=text, category=category, entities=entities):

@@ -13,6 +13,8 @@ class CriterionText(BaseModel):
     review_reason: str | None = None
     source_sentence: str | None = None
     source_clause_text: str | None = None
+    logic_group_id: str | None = None
+    logic_operator: str | None = None
 
 
 class Entity(BaseModel):

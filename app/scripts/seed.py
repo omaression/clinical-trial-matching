@@ -5,7 +5,18 @@ from app.models.database import CodingLookup
 
 # MeSH disease codes
 MESH_DISEASES = [
-    ("D001943", "Breast Neoplasms", ["breast cancer", "breast carcinoma", "mammary cancer", "breast neoplasm"]),
+    (
+        "D001943",
+        "Breast Neoplasms",
+        [
+            "breast cancer",
+            "breast carcinoma",
+            "mammary cancer",
+            "breast neoplasm",
+            "invasive ductal breast carcinoma",
+            "lobular breast carcinoma",
+        ],
+    ),
     (
         "D000073182",
         "Triple Negative Breast Neoplasms",
@@ -37,6 +48,11 @@ MESH_DISEASES = [
         [
             "brain cancer",
             "brain tumor",
+            "brain tumors",
+            "primary brain tumor",
+            "primary brain tumors",
+            "primary cns tumor",
+            "primary cns tumors",
             "brain metastases",
             "brain metastasis",
             "cns metastases",
@@ -76,10 +92,16 @@ MESH_DISEASES = [
         ["pulmonary compromise", "severe pulmonary compromise", "clinically severe pulmonary compromise"],
     ),
     ("D007239", "Infections", ["infection", "active infection"]),
+    ("D003920", "Diabetes Mellitus", ["diabetes", "diabetes mellitus", "uncontrolled diabetes"]),
     (
         "D015212",
         "Inflammatory Bowel Diseases",
         ["inflammatory bowel disease", "active inflammatory bowel disease"],
+    ),
+    (
+        "D003240",
+        "Connective Tissue Diseases",
+        ["connective tissue disease", "connective tissue diseases"],
     ),
     (
         "D002318",
@@ -91,6 +113,7 @@ MESH_DISEASES = [
         "Cerebrovascular Disorders",
         ["cerebrovascular disease", "cerebrovascular disorder"],
     ),
+    ("D012509", "Sarcoma", ["sarcoma", "soft tissue sarcoma"]),
     ("D003316", "Corneal Diseases", ["corneal disease", "corneal diseases"]),
     ("D015352", "Dry Eye Syndromes", ["dry eye syndrome", "dry eye", "dry eyes"]),
     (

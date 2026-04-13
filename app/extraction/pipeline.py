@@ -21,6 +21,11 @@ _PROGRESSION_AFTER_RECEIVING_PATTERN = re.compile(
     r"^(?P<prefix>.*?\b(?:documented\s+disease\s+progression|disease\s+progression|progression)\b.*?\bafter\b\s+\b(?:receiving|receipt\s+of)\b)\s+(?P<tail>.+)$",
     re.I,
 )
+_FOLLOWING_TYPES_PATTERN = re.compile(
+    r"^(?P<prefix>.*?)(?P<intro>\b(?:of\s+the\s+following\s+types|following\s+types|following\s+histologies)\s*:)\s*"
+    r"(?P<items>.+?)(?P<tail>,?\s*(?:who|that)\b.+)$",
+    re.I | re.S,
+)
 _ENUMERATION_CONNECTOR_PATTERN = re.compile(r"\s*(?:,\s*|\bor\b\s*|\band/or\b\s*)", re.I)
 
 
@@ -81,6 +86,8 @@ class ExtractionPipeline:
             "type": ct.type,
             "review_required": classified.review_required or ct.review_required,
             "review_reason": classified.review_reason or ct.review_reason,
+            "logic_group_id": ct.logic_group_id or classified.logic_group_id,
+            "logic_operator": ct.logic_operator or classified.logic_operator,
         })
 
         if not allow_decompose:
@@ -116,6 +123,10 @@ class ExtractionPipeline:
         decomposed: list[CriterionText] = []
         for criterion in criterion_texts:
             split = self._split_progression_after_receiving(criterion)
+            if split:
+                decomposed.extend(split)
+                continue
+            split = self._split_following_types_enumeration(criterion)
             if split:
                 decomposed.extend(split)
                 continue
@@ -193,6 +204,7 @@ class ExtractionPipeline:
 
         prefix = match.group("prefix").strip()
         source_sentence = criterion.source_sentence or criterion.text
+        logic_group_id = str(uuid.uuid4())
         split_criteria: list[CriterionText] = []
         for part in tail_parts:
             clause_text = f"{prefix} {part.strip()}".strip()
@@ -204,9 +216,54 @@ class ExtractionPipeline:
                     review_reason=criterion.review_reason,
                     source_sentence=source_sentence,
                     source_clause_text=clause_text,
+                    logic_group_id=logic_group_id,
+                    logic_operator="AND",
                 )
             )
         return split_criteria
+
+    def _split_following_types_enumeration(self, criterion: CriterionText) -> list[CriterionText] | None:
+        match = _FOLLOWING_TYPES_PATTERN.match(criterion.text.strip())
+        if not match:
+            return None
+
+        raw_prefix = match.group("prefix").strip().rstrip(":,")
+        prefix = re.sub(
+            r"\bsolid\s+tumou?rs?\b\s*$",
+            "",
+            raw_prefix,
+            flags=re.I,
+        ).strip(" ,:")
+        items = _split_top_level_commas(match.group("items"))
+        tail = match.group("tail").strip()
+
+        if len(items) < 2:
+            return None
+
+        source_sentence = criterion.source_sentence or criterion.text
+        logic_group_id = str(uuid.uuid4())
+        split_criteria: list[CriterionText] = []
+        for item in items:
+            normalized_item = item.strip().lstrip("* ").strip()
+            normalized_item = re.sub(r"^(?:and|or)\s+", "", normalized_item, flags=re.I)
+            if not normalized_item:
+                continue
+            clause_parts = [prefix, normalized_item, tail]
+            clause_text = " ".join(part for part in clause_parts if part).strip()
+            split_criteria.append(
+                CriterionText(
+                    text=clause_text,
+                    type=criterion.type,
+                    review_required=criterion.review_required,
+                    review_reason=criterion.review_reason,
+                    source_sentence=source_sentence,
+                    source_clause_text=clause_text,
+                    logic_group_id=logic_group_id,
+                    logic_operator="OR",
+                )
+            )
+
+        return split_criteria if len(split_criteria) >= 2 else None
 
     def _split_previous_history_clause(self, text: str) -> list[str] | None:
         match = re.match(
@@ -307,6 +364,30 @@ def _split_top_level_conjunctions(text: str) -> list[str]:
             continue
         current.append(char)
         index += 1
+
+    final = "".join(current).strip(" ,;")
+    if final:
+        parts.append(final)
+    return [part for part in parts if part]
+
+
+def _split_top_level_commas(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+
+    for char in text:
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth > 0:
+            depth -= 1
+        if depth == 0 and char == ",":
+            part = "".join(current).strip(" ,;")
+            if part:
+                parts.append(part)
+            current = []
+            continue
+        current.append(char)
 
     final = "".join(current).strip(" ,;")
     if final:

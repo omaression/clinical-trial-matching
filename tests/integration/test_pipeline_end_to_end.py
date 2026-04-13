@@ -193,6 +193,15 @@ class TestNct07286149Signals:
             for criterion in result.criteria
         )
 
+    def test_participation_language_is_parsed_as_administrative_requirement(self, pipeline):
+        text = "Unwilling or unable to participate in all required study evaluations and procedures."
+        result = pipeline.extract(text)
+        assert result.criteria_count == 1
+        assert result.criteria[0].category == "administrative_requirement"
+        assert result.criteria[0].parse_status == "parsed"
+        assert result.criteria[0].value_text == "protocol_compliant:false"
+        assert result.criteria[0].review_required is False
+
     def test_primary_brain_tumor_is_retained_alongside_cns_disease_mentions(self, pipeline):
         text = "Patients with primary brain tumors or active CNS metastases are excluded."
         result = pipeline.extract(text)
@@ -218,6 +227,31 @@ class TestNct07286149Signals:
         assert len(logic_group_ids) == 1
         assert {criterion.logic_operator for criterion in result.criteria} == {"OR"}
 
+    def test_following_types_diagnosis_enumeration_splits_into_or_linked_diagnoses(self, pipeline):
+        text = (
+            "Patients with biopsy confirmed advanced/metastatic solid tumors of the following types: "
+            "invasive ductal or lobular breast carcinoma (all histological and intrinsic subtypes), "
+            "non-small cell lung cancer (NSCLC, all subtypes), gastrointestinal squamous cell or "
+            "adenocarcinomas (including pancreatic cancer), bladder cancer, renal cell carcinoma, "
+            "melanoma, and soft tissue sarcoma (all subtypes), who require and are being planned for "
+            "palliative radiation therapy are eligible."
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 7
+        assert all(criterion.category == "diagnosis" for criterion in result.criteria)
+        assert all(criterion.source_sentence == text for criterion in result.criteria)
+        assert all("therapy_context" in criterion.secondary_semantic_tags for criterion in result.criteria)
+        logic_group_ids = {criterion.logic_group_id for criterion in result.criteria}
+        assert len(logic_group_ids) == 1
+        assert {criterion.logic_operator for criterion in result.criteria} == {"OR"}
+        clause_texts = {criterion.source_clause_text for criterion in result.criteria}
+        assert any("breast carcinoma" in clause.casefold() for clause in clause_texts)
+        assert any("non-small cell lung cancer" in clause.casefold() for clause in clause_texts)
+        assert any("bladder cancer" in clause.casefold() for clause in clause_texts)
+        assert any("renal cell carcinoma" in clause.casefold() for clause in clause_texts)
+        assert any("melanoma" in clause.casefold() for clause in clause_texts)
+        assert any("soft tissue sarcoma" in clause.casefold() for clause in clause_texts)
+
     def test_pd_l1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior programmed death-ligand 1 (PD-L1) therapy"
         result = pipeline.extract(text)
@@ -235,6 +269,9 @@ class TestNct07286149Signals:
         assert all(criterion.category == "prior_therapy" for criterion in result.criteria)
         assert all("progression_requirement" in criterion.secondary_semantic_tags for criterion in result.criteria)
         assert all(criterion.source_sentence == text for criterion in result.criteria)
+        logic_group_ids = {criterion.logic_group_id for criterion in result.criteria}
+        assert len(logic_group_ids) == 1
+        assert {criterion.logic_operator for criterion in result.criteria} == {"AND"}
 
     def test_pd_1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior PD-1 therapy"

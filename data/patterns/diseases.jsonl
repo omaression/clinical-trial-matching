@@ -1,9 +1,18 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "breast"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "breast"}, {"LOWER": "carcinoma"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "invasive"}, {"LOWER": "ductal"}, {"LOWER": "breast"}, {"LOWER": "carcinoma"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "lobular"}, {"LOWER": "breast"}, {"LOWER": "carcinoma"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "lung"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "prostate"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "colorectal"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "pancreatic"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "gastrointestinal"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "gastrointestinal"}, {"LOWER": "adenocarcinoma"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "gastrointestinal"}, {"LOWER": "adenocarcinomas"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "gastrointestinal"}, {"LOWER": "squamous"}, {"LOWER": "cell"}, {"LOWER": "carcinoma"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "bladder"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "renal"}, {"LOWER": "cell"}, {"LOWER": "carcinoma"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "soft"}, {"LOWER": "tissue"}, {"LOWER": "sarcoma"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumor"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumour"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumors"}]}
@@ -52,12 +61,15 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "uncontrolled"}, {"LOWER": "infection"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "diabetes"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "connective"}, {"LOWER": "tissue"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "connective"}, {"LOWER": "tissue"}, {"LOWER": "diseases"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumor"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumour"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumors"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "brain"}, {"LOWER": "tumours"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "cns"}, {"LOWER": "tumor"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "cns"}, {"LOWER": "tumour"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "cns"}, {"LOWER": "tumors"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "primary"}, {"LOWER": "cns"}, {"LOWER": "tumours"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "second"}, {"LOWER": "malignancy"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "additional"}, {"LOWER": "malignancy"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "concurrent"}, {"LOWER": "malignancy"}]}

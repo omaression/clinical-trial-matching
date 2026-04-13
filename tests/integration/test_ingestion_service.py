@@ -353,6 +353,48 @@ class TestIngestSingleTrial:
         assert "* Pregnant women" not in exported_texts
         assert "* Stage IV disease" in exported_texts
 
+    def test_ingest_following_types_enumeration_persists_or_grouped_diagnoses(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        mock_resp = copy.deepcopy(mock_resp)
+        shared_sentence = (
+            "* Patients with biopsy confirmed advanced/metastatic solid tumors of the following types: "
+            "invasive ductal or lobular breast carcinoma (all histological and intrinsic subtypes), "
+            "non-small cell lung cancer (NSCLC, all subtypes), gastrointestinal squamous cell or "
+            "adenocarcinomas (including pancreatic cancer), bladder cancer, renal cell carcinoma, "
+            "melanoma, and soft tissue sarcoma (all subtypes), who require and are being planned for "
+            "palliative radiation therapy are eligible."
+        )
+        mock_resp["protocolSection"]["eligibilityModule"]["eligibilityCriteria"] = (
+            "Inclusion Criteria:\n"
+            f"{shared_sentence}\n"
+        )
+
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = (
+            db_session.query(ExtractedCriterion)
+            .filter_by(trial_id=trial.id)
+            .order_by(ExtractedCriterion.original_text.asc())
+            .all()
+        )
+
+        assert len(criteria) == 7
+        assert all(criterion.category == "diagnosis" for criterion in criteria)
+        assert all(criterion.source_sentence == shared_sentence for criterion in criteria)
+        assert all("therapy_context" in (criterion.secondary_semantic_tags or []) for criterion in criteria)
+        logic_group_ids = {str(criterion.logic_group_id) for criterion in criteria}
+        assert len(logic_group_ids) == 1
+        assert {criterion.logic_operator for criterion in criteria} == {"OR"}
+        clause_texts = {criterion.source_clause_text for criterion in criteria}
+        assert any("breast carcinoma" in (clause or "").casefold() for clause in clause_texts)
+        assert any("non-small cell lung cancer" in (clause or "").casefold() for clause in clause_texts)
+        assert any("bladder cancer" in (clause or "").casefold() for clause in clause_texts)
+        assert any("renal cell carcinoma" in (clause or "").casefold() for clause in clause_texts)
+        assert any("melanoma" in (clause or "").casefold() for clause in clause_texts)
+        assert any("soft tissue sarcoma" in (clause or "").casefold() for clause in clause_texts)
+
     def test_prior_therapy_coding_skips_biomarker_entities_even_when_catalog_matches(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
         pipeline_result = PipelineResult(

@@ -244,6 +244,26 @@ class TestCategoryAssignment:
         assert result.parse_status == "parsed"
         assert result.value_text == "protocol_compliant:true"
 
+    def test_required_study_participation_negative_becomes_administrative_constraint(self, classifier):
+        result = classifier.classify(
+            "Unwilling or unable to participate in all required study evaluations and procedures.",
+            [],
+        )
+        assert result.category == "administrative_requirement"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "protocol_compliant:false"
+        assert result.confidence >= 0.65
+
+    def test_required_study_participation_positive_becomes_administrative_constraint(self, classifier):
+        result = classifier.classify(
+            "Willing and able to participate in all required study evaluations and procedures.",
+            [],
+        )
+        assert result.category == "administrative_requirement"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "protocol_compliant:true"
+        assert result.confidence >= 0.65
+
     def test_claustrophobia_becomes_behavioral_constraint(self, classifier):
         result = classifier.classify(
             "Contraindication to MRI due to claustrophobia.",
