@@ -139,6 +139,7 @@ class FHIRMapper:
                 "behavioral_constraint",
                 "reproductive_status",
                 "device_constraint",
+                "disease_status",
             }:
                 continue
             if c.review_status == "rejected":
@@ -163,6 +164,12 @@ class FHIRMapper:
             or getattr(criterion, "timeframe_unit", None)
         ):
             return True
+        if getattr(criterion, "specimen_type", None) or getattr(criterion, "testing_modality", None):
+            return True
+        if getattr(criterion, "assay_context", None):
+            return True
+        if getattr(criterion, "disease_subtype", None) or getattr(criterion, "histology_text", None):
+            return True
         return False
 
     def _criterion_to_extension(self, criterion: ExtractedCriterion) -> dict:
@@ -170,9 +177,19 @@ class FHIRMapper:
             "url": "criterion",
             "extension": [
                 {"url": "category", "valueString": criterion.category},
+                {
+                    "url": "primarySemanticCategory",
+                    "valueString": getattr(criterion, "primary_semantic_category", None) or criterion.category,
+                },
                 {"url": "text", "valueString": criterion.original_text},
             ],
         }
+        source_sentence = getattr(criterion, "source_sentence", None)
+        if source_sentence:
+            ext["extension"].append({"url": "sourceSentence", "valueString": source_sentence})
+        source_clause_text = getattr(criterion, "source_clause_text", None)
+        if source_clause_text and source_clause_text != criterion.original_text:
+            ext["extension"].append({"url": "sourceClauseText", "valueString": source_clause_text})
         if criterion.operator:
             ext["extension"].append({"url": "operator", "valueString": criterion.operator})
         if criterion.value_low is not None:
@@ -191,6 +208,22 @@ class FHIRMapper:
             ext["extension"].append({"url": "timeframeValue", "valueDecimal": criterion.timeframe_value})
         if getattr(criterion, "timeframe_unit", None):
             ext["extension"].append({"url": "timeframeUnit", "valueString": criterion.timeframe_unit})
+        if getattr(criterion, "specimen_type", None):
+            ext["extension"].append({"url": "specimenType", "valueString": criterion.specimen_type})
+        if getattr(criterion, "testing_modality", None):
+            ext["extension"].append({"url": "testingModality", "valueString": criterion.testing_modality})
+        if getattr(criterion, "disease_subtype", None):
+            ext["extension"].append({"url": "diseaseSubtype", "valueString": criterion.disease_subtype})
+        if getattr(criterion, "histology_text", None):
+            ext["extension"].append({"url": "histologyText", "valueString": criterion.histology_text})
+        assay_context = getattr(criterion, "assay_context", None)
+        if isinstance(assay_context, dict):
+            for specimen_type in assay_context.get("specimen_types", []) or []:
+                ext["extension"].append({"url": "assaySpecimenType", "valueString": specimen_type})
+            for testing_modality in assay_context.get("testing_modalities", []) or []:
+                ext["extension"].append({"url": "assayTestingModality", "valueString": testing_modality})
+        for tag in getattr(criterion, "secondary_semantic_tags", []) or []:
+            ext["extension"].append({"url": "secondarySemanticTag", "valueString": tag})
         if criterion.coded_concepts:
             for concept in (criterion.coded_concepts if isinstance(criterion.coded_concepts, list) else []):
                 if isinstance(concept, dict):

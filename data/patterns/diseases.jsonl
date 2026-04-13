@@ -3,14 +3,31 @@
 {"label": "DISEASE", "pattern": [{"LOWER": "prostate"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "colorectal"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "pancreatic"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "gastrointestinal"}, {"LOWER": "cancer"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumor"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumour"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumors"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "solid"}, {"LOWER": "tumours"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumor"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumour"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumors"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumours"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "other"}, {"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumor"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "other"}, {"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumour"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "other"}, {"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumors"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "other"}, {"LOWER": "advanced"}, {"LOWER": "solid"}, {"LOWER": "tumours"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "ovarian"}, {"LOWER": "cancer"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "brain"}, {"LOWER": "metastases"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "brain"}, {"LOWER": "metastasis"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "disease"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "active"}, {"LOWER": "cns"}, {"LOWER": "metastases"}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "active"}, {"LOWER": "cns"}, {"LOWER": "metastasis"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "metastases"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "cns"}, {"LOWER": "metastasis"}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "central"}, {"LOWER": "nervous"}, {"LOWER": "system"}, {"LOWER": {"IN": ["metastases", "metastasis"]}}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "active"}, {"LOWER": "central"}, {"LOWER": "nervous"}, {"LOWER": "system"}, {"LOWER": {"IN": ["metastases", "metastasis"]}}]}
 {"label": "DISEASE", "pattern": [{"LOWER": "central"}, {"LOWER": "nervous"}, {"LOWER": "system"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "cns", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": {"IN": ["metastases", "metastasis"]}}]}
+{"label": "DISEASE", "pattern": [{"LOWER": "active"}, {"LOWER": "central"}, {"LOWER": "nervous"}, {"LOWER": "system"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": "cns", "OP": "?"}, {"IS_PUNCT": true, "OP": "*"}, {"LOWER": {"IN": ["metastases", "metastasis"]}}]}
 {"label": "DISEASE", "pattern": "melanoma"}
 {"label": "DISEASE", "pattern": "lymphoma"}
 {"label": "DISEASE", "pattern": "leukemia"}

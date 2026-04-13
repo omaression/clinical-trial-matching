@@ -31,6 +31,13 @@ PD1_THERAPY_TEXT = (
     "death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based "
     "chemotherapy"
 )
+PD1_THERAPY_ATOMIC_TEXT = (
+    "* Has documented disease progression after receiving 1-2 prior lines of programmed cell "
+    "death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy"
+)
+PLATINUM_CHEMOTHERAPY_ATOMIC_TEXT = (
+    "* Has documented disease progression after receiving platinum-based chemotherapy"
+)
 KRAS_TARGETING_THERAPY_TEXT = "* Has received previous treatment with an agent targeting KRAS"
 HIV_TEXT = (
     "* Participants with human immunodeficiency virus (HIV) infection must have well-controlled "
@@ -69,6 +76,10 @@ CNS_METASTASES_TEXT = "* Has known active central nervous system (CNS) metastase
 CARCINOMATOUS_MENINGITIS_TEXT = "* Has known carcinomatous meningitis"
 INCLUSION_INTRO_TEXT = "The main inclusion criteria include but are not limited to the following:"
 EXCLUSION_INTRO_TEXT = "The main exclusion criteria include but are not limited to the following:"
+ENUM_BREAST_TEXT = "* Histologically confirmed breast cancer requiring palliative radiation"
+ENUM_NSCLC_TEXT = "* Histologically confirmed non-small cell lung cancer requiring palliative radiation"
+ENUM_CRC_TEXT = "* Histologically confirmed colorectal cancer requiring palliative radiation"
+ENUM_PANCREATIC_TEXT = "* Histologically confirmed pancreatic cancer requiring palliative radiation"
 
 
 def _docker_available():
@@ -257,7 +268,7 @@ class TestIngestSingleTrial:
             }
 
         assert ("loinc", "718-7") not in coded_keys(KRAS_G12C_TEXT)
-        assert ("loinc", "718-7") not in coded_keys(PD1_THERAPY_TEXT)
+        assert ("loinc", "718-7") not in coded_keys(PD1_THERAPY_ATOMIC_TEXT)
         assert ("loinc", "1742-6") not in coded_keys(HIV_TEXT)
         assert ("loinc", "6301-6") not in coded_keys(OPHTHALMOLOGY_TEXT)
         assert ("mesh", "D015266") not in coded_keys(VACCINE_TEXT)
@@ -269,6 +280,7 @@ class TestIngestSingleTrial:
         assert criteria_by_text[ACTIVE_INFECTION_TEXT].review_required is False
         assert criteria_by_text[VACCINE_TEXT].category == "concomitant_medication"
         assert criteria_by_text[KRAS_TARGETING_THERAPY_TEXT].category == "prior_therapy"
+        assert criteria_by_text[PLATINUM_CHEMOTHERAPY_ATOMIC_TEXT].category == "prior_therapy"
         assert criteria_by_text[VACCINE_TEXT].review_required is True
         assert INCLUSION_INTRO_TEXT not in criteria_by_text
         assert EXCLUSION_INTRO_TEXT not in criteria_by_text
@@ -298,13 +310,18 @@ class TestIngestSingleTrial:
         trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
         criteria = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).all()
         criteria_by_text = {criterion.original_text: criterion for criterion in criteria}
-        diagnosis_line = (
-            "* Histologically confirmed breast cancer, non-small cell lung cancer, colorectal cancer, "
-            "or pancreatic cancer requiring palliative radiation"
-        )
         corticosteroid_line = "* Receiving systemic corticosteroids within 14 days before enrollment"
+        diagnosis_lines = {
+            ENUM_BREAST_TEXT,
+            ENUM_NSCLC_TEXT,
+            ENUM_CRC_TEXT,
+            ENUM_PANCREATIC_TEXT,
+        }
 
-        assert criteria_by_text[diagnosis_line].category == "diagnosis"
+        assert all(criteria_by_text[line].category == "diagnosis" for line in diagnosis_lines)
+        logic_group_ids = {criteria_by_text[line].logic_group_id for line in diagnosis_lines}
+        assert len(logic_group_ids) == 1
+        assert {criteria_by_text[line].logic_operator for line in diagnosis_lines} == {"OR"}
         assert (
             criteria_by_text["* Able to comprehend and provide informed consent in English"].category
             == "administrative_requirement"
@@ -657,7 +674,7 @@ class TestIngestSingleTrial:
         assert ("mesh", "D002289") in coded_keys(NSCLC_DIAGNOSIS_TEXT)
         assert ("mesh", "D001859") in coded_keys(CNS_METASTASES_TEXT)
         assert ("nci_thesaurus", "C126815") in coded_keys(KRAS_G12C_TEXT)
-        assert ("nci_thesaurus", "C128057") in coded_keys(PD1_THERAPY_TEXT)
+        assert ("nci_thesaurus", "C128057") in coded_keys(PD1_THERAPY_ATOMIC_TEXT)
         assert ("mesh", "D015658") in coded_keys(HIV_TEXT)
         assert ("mesh", "D007239") in coded_keys(ACTIVE_INFECTION_TEXT)
         assert ("mesh", "D015212") in coded_keys(IBD_ACTIVE_TEXT)
@@ -667,6 +684,7 @@ class TestIngestSingleTrial:
         assert ("mesh", "D007153") in coded_keys(IMMUNODEFICIENCY_TEXT)
         assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
         assert criteria_by_text[ILD_TEXT].review_required is False
+        assert coded_keys(PLATINUM_CHEMOTHERAPY_ATOMIC_TEXT) == set()
         assert coded_keys(KRAS_TARGETING_THERAPY_TEXT) == set()
         assert ("snomed_ct", "17636008") in coded_keys(ARCHIVAL_TISSUE_TEXT)
         assert ("snomed_ct", "86273004") in coded_keys(BIOPSY_TEXT)
@@ -681,24 +699,22 @@ class TestIngestSingleTrial:
         assert criteria_by_text[IBD_ACTIVE_TEXT].logic_operator == "OR"
         assert criteria_by_text[IBD_HISTORY_TEXT].logic_operator == "OR"
         assert criteria_by_text[IBD_ACTIVE_TEXT].logic_group_id == criteria_by_text[IBD_HISTORY_TEXT].logic_group_id
-        assert criteria_by_text[IBD_ACTIVE_TEXT].original_extracted == {
-            "source_sentence": (
-                "* Has active inflammatory bowel disease requiring immunosuppressive medication "
-                "or previous history of inflammatory bowel disease"
-            )
-        }
+        assert criteria_by_text[IBD_ACTIVE_TEXT].original_extracted["source_sentence"] == (
+            "* Has active inflammatory bowel disease requiring immunosuppressive medication "
+            "or previous history of inflammatory bowel disease"
+        )
+        assert criteria_by_text[IBD_ACTIVE_TEXT].original_extracted["source_clause_text"] == IBD_ACTIVE_TEXT
         assert criteria_by_text[CARDIOVASCULAR_TEXT].logic_operator == "OR"
         assert criteria_by_text[CEREBROVASCULAR_TEXT].logic_operator == "OR"
         assert (
             criteria_by_text[CARDIOVASCULAR_TEXT].logic_group_id
             == criteria_by_text[CEREBROVASCULAR_TEXT].logic_group_id
         )
-        assert criteria_by_text[CARDIOVASCULAR_TEXT].original_extracted == {
-            "source_sentence": (
-                "* Has uncontrolled or significant cardiovascular disorder or cerebrovascular disease "
-                "prior to allocation/randomization"
-            )
-        }
+        assert criteria_by_text[CARDIOVASCULAR_TEXT].original_extracted["source_sentence"] == (
+            "* Has uncontrolled or significant cardiovascular disorder or cerebrovascular disease "
+            "prior to allocation/randomization"
+        )
+        assert criteria_by_text[CARDIOVASCULAR_TEXT].original_extracted["source_clause_text"] == CARDIOVASCULAR_TEXT
         kaposi_castleman_codes = coded_keys(
             "* HIV-infected participants with a history of Kaposi's sarcoma and/or Multicentric Castleman's Disease"
         )
@@ -711,6 +727,96 @@ class TestIngestSingleTrial:
         assert len(criteria_by_text[NSCLC_DIAGNOSIS_TEXT].coded_concepts) == 1
         assert len(criteria_by_text[HIV_TEXT].coded_concepts) == 1
         assert len(criteria_by_text[OPHTHALMOLOGY_TEXT].coded_concepts) == 3
+        assert criteria_by_text[KRAS_G12C_TEXT].specimen_type == "ctDNA"
+        assert criteria_by_text[KRAS_G12C_TEXT].assay_context == {
+            "specimen_types": ["ctDNA", "tumor tissue"],
+            "testing_modalities": ["liquid_biopsy"],
+        }
+        assert criteria_by_text[PD1_THERAPY_ATOMIC_TEXT].secondary_semantic_tags == ["progression_requirement"]
+        assert criteria_by_text[PD1_THERAPY_ATOMIC_TEXT].source_sentence == PD1_THERAPY_TEXT
+        assert criteria_by_text[PD1_THERAPY_ATOMIC_TEXT].source_clause_text == PD1_THERAPY_ATOMIC_TEXT
+
+    def test_nct05837767_regression_handles_non_clinical_constraints_and_exports_only_structured_criteria(
+        self, service, db_session
+    ):
+        nct_id, mock_resp = _unique_mock_response_from_file("NCT05837767.json")
+        with patch.object(service._client, "fetch_study", return_value=mock_resp):
+            service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criteria = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).all()
+        criteria_by_text = {criterion.original_text: criterion for criterion in criteria}
+
+        assert all(
+            not (criterion.category == "other" and criterion.parse_status == "unparsed")
+            for criterion in criteria
+        )
+        diagnosis_lines = {
+            "* Histologically confirmed breast cancer requiring palliative radiation are eligible",
+            "* Histologically confirmed non-small cell lung cancer requiring palliative radiation are eligible",
+            "* Histologically confirmed gastrointestinal cancer requiring palliative radiation are eligible",
+            "* Histologically confirmed other advanced solid tumor requiring palliative radiation are eligible",
+        }
+        assert all(criteria_by_text[line].category == "diagnosis" for line in diagnosis_lines)
+        assert {criteria_by_text[line].logic_operator for line in diagnosis_lines} == {"OR"}
+        assert (
+            criteria_by_text[
+                "* Participants with primary brain tumors may enroll if clinically stable"
+            ].category
+            == "diagnosis"
+        )
+        assert (
+            criteria_by_text[
+                "* Participants with active CNS metastases may enroll if clinically stable"
+            ].category
+            == "cns_metastases"
+        )
+        assert (
+            criteria_by_text["* Adults unable to consent"].category
+            == "administrative_requirement"
+        )
+        assert (
+            criteria_by_text["* Unable to comply with protocol procedures"].category
+            == "administrative_requirement"
+        )
+        assert (
+            criteria_by_text["* Contraindication to MRI due to claustrophobia"].category
+            == "behavioral_constraint"
+        )
+        assert (
+            criteria_by_text["* Unable to remain still during MRI acquisition"].category
+            == "behavioral_constraint"
+        )
+        assert (
+            criteria_by_text["* Presence of an MR-incompatible pacemaker or other implanted device"].category
+            == "device_constraint"
+        )
+        assert criteria_by_text["* Pregnant women"].category == "reproductive_status"
+        assert (
+            criteria_by_text["* Receiving systemic corticosteroids within 14 days before enrollment"].category
+            == "concomitant_medication"
+        )
+        assert (
+            criteria_by_text["* Prior radiation therapy within 14 days before baseline imaging"].category
+            == "prior_therapy"
+        )
+        assert (
+            criteria_by_text["* Prior radiation therapy within 14 days before baseline imaging"].timeframe_value
+            == 14.0
+        )
+
+        fhir = db_session.query(FHIRResearchStudy).filter_by(trial_id=trial.id).one()
+        exported_texts = {
+            item["valueString"]
+            for group in fhir.resource.get("extension", [])
+            for extension in group["extension"]
+            for item in extension["extension"]
+            if item["url"] == "text"
+        }
+        assert "* Adults unable to consent" not in exported_texts
+        assert "* Contraindication to MRI due to claustrophobia" not in exported_texts
+        assert "* Presence of an MR-incompatible pacemaker or other implanted device" not in exported_texts
+        assert "* Pregnant women" not in exported_texts
 
 
 class TestIdempotency:

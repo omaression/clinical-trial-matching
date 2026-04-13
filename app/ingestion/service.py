@@ -391,6 +391,8 @@ class IngestionService:
             review_required = criterion.review_required
             review_reason = criterion.review_reason
             confidence = criterion.confidence
+            confidence_factors = dict(criterion.confidence_factors or {})
+            grounding_matches: list[str] = []
             coding_review_reasons = set()
 
             for entity in criterion.entities:
@@ -402,6 +404,11 @@ class IngestionService:
                     allow_fuzzy=self._should_allow_fuzzy_coding(criterion.category, entity),
                 )
                 coded_concepts.extend(coding_result.concepts)
+                if coding_result.concepts:
+                    grounding_matches.extend(
+                        concept.match_type for concept in coding_result.concepts if concept.match_type
+                    )
+                    confidence = self._merge_grounding_confidence(confidence, coding_result)
                 if self._should_ignore_coding_review(criterion.category, entity, coding_result):
                     continue
                 if coding_result.review_required:
@@ -410,6 +417,9 @@ class IngestionService:
                     confidence = min(confidence, coding_result.confidence)
 
             coded_concepts = self._deduplicate_coded_concepts(coded_concepts)
+            if grounding_matches:
+                confidence_factors["ontology_grounding"] = grounding_matches
+            confidence_factors["coded_concept_count"] = len(coded_concepts)
 
             if coding_review_reasons and not review_required:
                 review_required = True
@@ -419,8 +429,12 @@ class IngestionService:
                 trial_id=trial.id,
                 type=criterion.type,
                 category=criterion.category,
+                primary_semantic_category=criterion.primary_semantic_category or criterion.category,
+                secondary_semantic_tags=list(criterion.secondary_semantic_tags),
                 parse_status=criterion.parse_status,
                 original_text=criterion.original_text,
+                source_sentence=criterion.source_sentence,
+                source_clause_text=criterion.source_clause_text or criterion.original_text,
                 operator=criterion.operator,
                 value_low=criterion.value_low,
                 value_high=criterion.value_high,
@@ -431,10 +445,16 @@ class IngestionService:
                 timeframe_operator=criterion.timeframe_operator,
                 timeframe_value=criterion.timeframe_value,
                 timeframe_unit=criterion.timeframe_unit,
+                specimen_type=criterion.specimen_type,
+                testing_modality=criterion.testing_modality,
+                disease_subtype=criterion.disease_subtype,
+                histology_text=criterion.histology_text,
+                assay_context=criterion.assay_context,
                 logic_group_id=criterion.logic_group_id,
                 logic_operator=criterion.logic_operator,
                 coded_concepts=[c.model_dump() for c in coded_concepts],
                 confidence=confidence,
+                confidence_factors=confidence_factors,
                 review_required=review_required,
                 review_reason=review_reason,
                 review_status="pending" if review_required else None,
@@ -510,10 +530,30 @@ class IngestionService:
         return True
 
     def _criterion_provenance_snapshot(self, criterion) -> dict | None:
+        snapshot: dict[str, object] = {}
         source_sentence = getattr(criterion, "source_sentence", None)
-        if source_sentence and source_sentence != criterion.original_text:
-            return {"source_sentence": source_sentence}
-        return None
+        source_clause_text = getattr(criterion, "source_clause_text", None)
+        if source_sentence:
+            snapshot["source_sentence"] = source_sentence
+        if source_clause_text:
+            snapshot["source_clause_text"] = source_clause_text
+        if getattr(criterion, "specimen_type", None):
+            snapshot["specimen_type"] = criterion.specimen_type
+        if getattr(criterion, "testing_modality", None):
+            snapshot["testing_modality"] = criterion.testing_modality
+        if getattr(criterion, "assay_context", None):
+            snapshot["assay_context"] = criterion.assay_context
+        return snapshot or None
+
+    def _merge_grounding_confidence(self, confidence: float, coding_result) -> float:
+        match_types = {concept.match_type for concept in coding_result.concepts}
+        if "exact" in match_types:
+            return max(confidence, 0.90)
+        if "synonym" in match_types:
+            return max(confidence, 0.82)
+        if "fuzzy" in match_types:
+            return min(confidence, 0.60)
+        return confidence
 
     def _should_ignore_coding_review(self, category: str, entity: Entity, coding_result) -> bool:
         if (

@@ -457,6 +457,46 @@ class TestGetCriteria:
         assert "age" in categories
         assert "cns_metastases" in categories
 
+    def test_get_trial_criteria_includes_expanded_semantic_fields(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "inclusion",
+                    "category": "molecular_alteration",
+                    "primary_semantic_category": "molecular_alteration",
+                    "secondary_semantic_tags": ["specimen_context", "testing_modality"],
+                    "original_text": "KRAS G12C mutation in tumor tissue or ctDNA",
+                    "source_sentence": "KRAS G12C mutation in tumor tissue or ctDNA",
+                    "source_clause_text": "KRAS G12C mutation in tumor tissue or ctDNA",
+                    "specimen_type": "ctDNA",
+                    "testing_modality": "liquid_biopsy",
+                    "assay_context": {
+                        "specimen_types": ["ctDNA", "tumor tissue"],
+                        "testing_modalities": ["liquid_biopsy"],
+                    },
+                    "confidence_factors": {"structured_components": ["entities", "assay_context"]},
+                }
+            ],
+        )
+
+        response = client.get(f"/api/v1/trials/{trial.id}/criteria")
+        assert response.status_code == 200
+        payload = next(
+            criterion for criterion in response.json()["criteria"]
+            if criterion["category"] == "molecular_alteration"
+        )
+        assert payload["primary_semantic_category"] == "molecular_alteration"
+        assert payload["secondary_semantic_tags"] == ["specimen_context", "testing_modality"]
+        assert payload["source_sentence"] == "KRAS G12C mutation in tumor tissue or ctDNA"
+        assert payload["source_clause_text"] == "KRAS G12C mutation in tumor tissue or ctDNA"
+        assert payload["specimen_type"] == "ctDNA"
+        assert payload["testing_modality"] == "liquid_biopsy"
+        assert payload["assay_context"]["specimen_types"] == ["ctDNA", "tumor tissue"]
+        assert payload["confidence_factors"]["structured_components"] == ["entities", "assay_context"]
+
     def test_get_trial_criteria_paginates(self, client, db_session):
         trial, _, _, _ = _seed_trial(db_session)
         _add_completed_run(

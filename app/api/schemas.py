@@ -31,6 +31,8 @@ class CodedConceptUpdate(APIModel):
 class CriterionCorrectionData(APIModel):
     type: Literal["inclusion", "exclusion"] | None = None
     category: str | None = None
+    primary_semantic_category: str | None = None
+    secondary_semantic_tags: list[str] | None = None
     parse_status: Literal["parsed", "partial", "unparsed"] | None = None
     operator: str | None = None
     value_low: float | None = None
@@ -42,6 +44,11 @@ class CriterionCorrectionData(APIModel):
     timeframe_operator: str | None = None
     timeframe_value: float | None = None
     timeframe_unit: str | None = None
+    specimen_type: str | None = None
+    testing_modality: str | None = None
+    disease_subtype: str | None = None
+    histology_text: str | None = None
+    assay_context: dict[str, Any] | None = None
     logic_group_id: UUID | None = None
     logic_operator: Literal["AND", "OR"] | None = None
     coded_concepts: list[CodedConceptUpdate] | None = None
@@ -144,8 +151,12 @@ class CriterionResponse(APIModel):
     trial_id: UUID
     type: str
     category: str
+    primary_semantic_category: str | None = None
+    secondary_semantic_tags: list[str] = Field(default_factory=list)
     parse_status: str
     original_text: str
+    source_sentence: str | None = None
+    source_clause_text: str | None = None
     operator: str | None = None
     value_low: float | None = None
     value_high: float | None = None
@@ -156,10 +167,16 @@ class CriterionResponse(APIModel):
     timeframe_operator: str | None = None
     timeframe_value: float | None = None
     timeframe_unit: str | None = None
+    specimen_type: str | None = None
+    testing_modality: str | None = None
+    disease_subtype: str | None = None
+    histology_text: str | None = None
+    assay_context: dict[str, Any] | None = None
     logic_group_id: UUID | None = None
     logic_operator: str
     coded_concepts: list[CodedConceptResponse] = Field(default_factory=list)
     confidence: float
+    confidence_factors: dict[str, Any] | None = None
     review_required: bool
     review_reason: str | None = None
     review_status: str | None = None

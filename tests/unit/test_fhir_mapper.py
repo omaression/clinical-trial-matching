@@ -205,3 +205,32 @@ class TestCriteriaExclusion:
             }
             assert flattened["logicGroupId"] == "group-123"
             assert flattened["logicOperator"] == "OR"
+
+    def test_assay_context_is_exported_for_structured_molecular_criteria(self, mapper, sample_trial):
+        criteria = [
+            _make_criterion(
+                type="inclusion",
+                category="molecular_alteration",
+                primary_semantic_category="molecular_alteration",
+                original_text="KRAS G12C mutation in tumor tissue or ctDNA",
+                specimen_type="ctDNA",
+                testing_modality="liquid_biopsy",
+                assay_context={
+                    "specimen_types": ["ctDNA", "tumor tissue"],
+                    "testing_modalities": ["liquid_biopsy"],
+                },
+                coded_concepts=[{"system": "nci_thesaurus", "code": "C126815", "display": "KRAS Mutation Positive"}],
+            ),
+        ]
+        resource = mapper.to_research_study(sample_trial, criteria)
+        inclusion_group = next(
+            extension for extension in resource["extension"] if extension["url"].endswith("inclusion")
+        )
+        flattened = {
+            item["url"]: item.get("valueString")
+            for item in inclusion_group["extension"][0]["extension"]
+            if "valueString" in item
+        }
+        assert flattened["specimenType"] == "ctDNA"
+        assert flattened["testingModality"] == "liquid_biopsy"
+        assert flattened["primarySemanticCategory"] == "molecular_alteration"

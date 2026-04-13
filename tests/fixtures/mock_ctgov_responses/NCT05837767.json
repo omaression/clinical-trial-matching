@@ -1,0 +1,55 @@
+{
+  "protocolSection": {
+    "identificationModule": {
+      "nctId": "NCT05837767",
+      "briefTitle": "Imaging Eligibility Study in Advanced Solid Tumors",
+      "officialTitle": "A Phase 2 Study of Imaging Eligibility and Radiographic Response in Advanced Solid Tumors"
+    },
+    "statusModule": {
+      "overallStatus": "RECRUITING",
+      "startDateStruct": {"date": "2025-03-01"},
+      "primaryCompletionDateStruct": {"date": "2027-10-31"}
+    },
+    "sponsorCollaboratorsModule": {
+      "leadSponsor": {
+        "name": "Academic Cancer Center",
+        "class": "OTHER"
+      }
+    },
+    "designModule": {
+      "phases": ["PHASE2"],
+      "studyType": "INTERVENTIONAL"
+    },
+    "conditionsModule": {
+      "conditions": ["Advanced Solid Tumors", "Brain Metastases"]
+    },
+    "armsInterventionsModule": {
+      "interventions": [
+        {
+          "type": "PROCEDURE",
+          "name": "MRI Imaging",
+          "description": "Serial imaging assessments"
+        }
+      ]
+    },
+    "eligibilityModule": {
+      "eligibilityCriteria": "Inclusion Criteria:\n* Histologically confirmed breast cancer, non-small cell lung cancer, gastrointestinal cancer, or other advanced solid tumor requiring palliative radiation are eligible\n* Participants with primary brain tumors or active CNS metastases may enroll if clinically stable\n* Able to provide written informed consent and comply with protocol procedures\n\nExclusion Criteria:\n* Adults unable to consent\n* Unable to comply with protocol procedures\n* Contraindication to MRI due to claustrophobia\n* Unable to remain still during MRI acquisition\n* Presence of an MR-incompatible pacemaker or other implanted device\n* Pregnant women\n* Receiving systemic corticosteroids within 14 days before enrollment\n* Uncontrolled infection, uncontrolled diabetes, or connective tissue disease\n* Prior radiation therapy within 14 days before baseline imaging",
+      "healthyVolunteers": "No",
+      "sex": "ALL",
+      "minimumAge": "18 Years",
+      "maximumAge": "90 Years"
+    },
+    "contactsLocationsModule": {
+      "locations": [
+        {
+          "facility": "Regional Cancer Institute",
+          "city": "New York",
+          "state": "New York",
+          "country": "United States",
+          "zip": "10065",
+          "status": "RECRUITING"
+        }
+      ]
+    }
+  }
+}

@@ -17,6 +17,7 @@
 {"label": "DRUG", "pattern": "cyclophosphamide"}
 {"label": "DRUG", "pattern": "methotrexate"}
 {"label": "DRUG", "pattern": "chemotherapy"}
+{"label": "DRUG", "pattern": "platinum-based chemotherapy"}
 {"label": "DRUG", "pattern": "immunotherapy"}
 {"label": "DRUG", "pattern": "PD-1 therapy"}
 {"label": "DRUG", "pattern": "PD-L1 therapy"}

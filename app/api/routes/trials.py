@@ -535,6 +535,8 @@ def _correction_snapshot(criterion: ExtractedCriterion) -> dict[str, Any]:
     snapshot = {
         "type": criterion.type,
         "category": criterion.category,
+        "primary_semantic_category": criterion.primary_semantic_category,
+        "secondary_semantic_tags": criterion.secondary_semantic_tags or [],
         "parse_status": criterion.parse_status,
         "operator": criterion.operator,
         "value_low": criterion.value_low,
@@ -546,13 +548,26 @@ def _correction_snapshot(criterion: ExtractedCriterion) -> dict[str, Any]:
         "timeframe_operator": criterion.timeframe_operator,
         "timeframe_value": criterion.timeframe_value,
         "timeframe_unit": criterion.timeframe_unit,
+        "specimen_type": criterion.specimen_type,
+        "testing_modality": criterion.testing_modality,
+        "disease_subtype": criterion.disease_subtype,
+        "histology_text": criterion.histology_text,
+        "assay_context": criterion.assay_context,
         "logic_group_id": str(criterion.logic_group_id) if criterion.logic_group_id else None,
         "logic_operator": criterion.logic_operator,
         "coded_concepts": criterion.coded_concepts,
         "confidence": criterion.confidence,
     }
-    if isinstance(criterion.original_extracted, dict) and criterion.original_extracted.get("source_sentence"):
-        snapshot["source_sentence"] = criterion.original_extracted["source_sentence"]
+    source_sentence = criterion.source_sentence
+    if not source_sentence and isinstance(criterion.original_extracted, dict):
+        source_sentence = criterion.original_extracted.get("source_sentence")
+    if source_sentence:
+        snapshot["source_sentence"] = source_sentence
+    source_clause_text = criterion.source_clause_text
+    if not source_clause_text and isinstance(criterion.original_extracted, dict):
+        source_clause_text = criterion.original_extracted.get("source_clause_text")
+    if source_clause_text:
+        snapshot["source_clause_text"] = source_clause_text
     return snapshot
 
 
@@ -594,13 +609,24 @@ def _trial_detail(trial: Trial, db: Session) -> TrialDetail:
 
 
 def _criterion_detail(criterion: ExtractedCriterion) -> CriterionResponse:
+    source_sentence = criterion.source_sentence
+    source_clause_text = criterion.source_clause_text
+    if isinstance(criterion.original_extracted, dict):
+        if not source_sentence:
+            source_sentence = criterion.original_extracted.get("source_sentence")
+        if not source_clause_text:
+            source_clause_text = criterion.original_extracted.get("source_clause_text")
     return CriterionResponse(
         id=criterion.id,
         trial_id=criterion.trial_id,
         type=criterion.type,
         category=criterion.category,
+        primary_semantic_category=criterion.primary_semantic_category,
+        secondary_semantic_tags=criterion.secondary_semantic_tags or [],
         parse_status=criterion.parse_status,
         original_text=criterion.original_text,
+        source_sentence=source_sentence,
+        source_clause_text=source_clause_text,
         operator=criterion.operator,
         value_low=criterion.value_low,
         value_high=criterion.value_high,
@@ -611,10 +637,16 @@ def _criterion_detail(criterion: ExtractedCriterion) -> CriterionResponse:
         timeframe_operator=criterion.timeframe_operator,
         timeframe_value=criterion.timeframe_value,
         timeframe_unit=criterion.timeframe_unit,
+        specimen_type=criterion.specimen_type,
+        testing_modality=criterion.testing_modality,
+        disease_subtype=criterion.disease_subtype,
+        histology_text=criterion.histology_text,
+        assay_context=criterion.assay_context,
         logic_group_id=criterion.logic_group_id,
         logic_operator=criterion.logic_operator,
         coded_concepts=criterion.coded_concepts or [],
         confidence=criterion.confidence,
+        confidence_factors=criterion.confidence_factors,
         review_required=criterion.review_required,
         review_reason=criterion.review_reason,
         review_status=criterion.review_status,

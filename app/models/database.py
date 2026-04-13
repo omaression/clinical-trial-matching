@@ -126,6 +126,10 @@ class ExtractedCriterion(Base):
     parse_status = Column(String, nullable=False, default="parsed")  # parsed / partial / unparsed
     # Original text
     original_text = Column(Text, nullable=False)
+    source_sentence = Column(Text)
+    source_clause_text = Column(Text)
+    primary_semantic_category = Column(String)
+    secondary_semantic_tags = Column(JSONB, default=list)
     # Value extraction
     operator = Column(String)
     value_low = Column(Float)
@@ -138,6 +142,11 @@ class ExtractedCriterion(Base):
     timeframe_operator = Column(String)
     timeframe_value = Column(Float)
     timeframe_unit = Column(String)
+    specimen_type = Column(String)
+    testing_modality = Column(String)
+    disease_subtype = Column(String)
+    histology_text = Column(String)
+    assay_context = Column(JSONB)
     # Logic grouping
     logic_group_id = Column(UUID(as_uuid=True))
     logic_operator = Column(String, nullable=False, default="AND")
@@ -145,6 +154,7 @@ class ExtractedCriterion(Base):
     coded_concepts = Column(JSONB, default=list)
     # Confidence & provenance
     confidence = Column(Float, nullable=False, default=0.0)
+    confidence_factors = Column(JSONB)
     review_required = Column(Boolean, nullable=False, default=False)
     review_reason = Column(String)
     # Review outcomes

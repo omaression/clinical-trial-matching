@@ -253,7 +253,7 @@ class PatientMatchService:
                 continue
             if uses_structured_sex and criterion.category == "sex":
                 continue
-            if criterion.category == "procedural_requirement":
+            if criterion.category in {"procedural_requirement", "disease_status"}:
                 continue
             evaluations.append(self._evaluate_extracted_criterion(patient, criterion))
 
@@ -690,6 +690,12 @@ def _build_extracted_explanation(
         "criterion_value_high": criterion.value_high,
         "criterion_value_text": criterion.value_text,
         "criterion_coded_concepts": criterion.coded_concepts,
+        "specimen_type": getattr(criterion, "specimen_type", None),
+        "testing_modality": getattr(criterion, "testing_modality", None),
+        "assay_context": getattr(criterion, "assay_context", None),
+        "disease_subtype": getattr(criterion, "disease_subtype", None),
+        "histology_text": getattr(criterion, "histology_text", None),
+        "secondary_semantic_tags": getattr(criterion, "secondary_semantic_tags", None),
     }
 
     if criterion.category == "lab_value":

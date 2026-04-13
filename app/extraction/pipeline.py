@@ -17,6 +17,11 @@ _LONG_FORM_DRUG_PATTERNS = (
         re.I,
     ),
 )
+_PROGRESSION_AFTER_RECEIVING_PATTERN = re.compile(
+    r"^(?P<prefix>.*?\b(?:documented\s+disease\s+progression|disease\s+progression|progression)\b.*?\bafter\b\s+\b(?:receiving|receipt\s+of)\b)\s+(?P<tail>.+)$",
+    re.I,
+)
+_ENUMERATION_CONNECTOR_PATTERN = re.compile(r"\s*(?:,\s*|\bor\b\s*|\band/or\b\s*)", re.I)
 
 
 class ExtractionPipeline:
@@ -62,7 +67,7 @@ class ExtractionPipeline:
         criterion_texts = self._splitter.split(eligibility_text)
 
         criteria: list[ClassifiedCriterion] = []
-        for ct in criterion_texts:
+        for ct in self._decompose_atomic_criteria(criterion_texts):
             criteria.extend(self._extract_criterion(ct))
 
         return PipelineResult(criteria=criteria, pipeline_version=settings.pipeline_version)
@@ -72,6 +77,7 @@ class ExtractionPipeline:
         classified = self._classifier.classify(ct.text, entities)
         classified = classified.model_copy(update={
             "source_sentence": ct.source_sentence or ct.text,
+            "source_clause_text": ct.source_clause_text or ct.text,
             "type": ct.type,
             "review_required": classified.review_required or ct.review_required,
             "review_reason": classified.review_reason or ct.review_reason,
@@ -80,9 +86,10 @@ class ExtractionPipeline:
         if not allow_decompose:
             return [classified]
 
-        split_clauses = self._split_compound_criterion(classified)
-        if not split_clauses:
+        split_result = self._split_compound_criterion(classified)
+        if not split_result:
             return [classified]
+        split_clauses, logic_operator = split_result
 
         shared_group_id = classified.logic_group_id or str(uuid.uuid4())
         split_criteria: list[ClassifiedCriterion] = []
@@ -94,15 +101,30 @@ class ExtractionPipeline:
                     review_required=ct.review_required,
                     review_reason=ct.review_reason,
                     source_sentence=ct.source_sentence or ct.text,
+                    source_clause_text=clause,
                 ),
                 allow_decompose=False,
             )[0]
             derived = derived.model_copy(update={
                 "logic_group_id": shared_group_id,
-                "logic_operator": classified.logic_operator,
+                "logic_operator": logic_operator,
             })
             split_criteria.append(derived)
         return split_criteria
+
+    def _decompose_atomic_criteria(self, criterion_texts: list[CriterionText]) -> list[CriterionText]:
+        decomposed: list[CriterionText] = []
+        for criterion in criterion_texts:
+            split = self._split_progression_after_receiving(criterion)
+            if split:
+                decomposed.extend(split)
+                continue
+            decomposed.append(
+                criterion.model_copy(
+                    update={"source_clause_text": criterion.source_clause_text or criterion.text}
+                )
+            )
+        return decomposed
 
     def _extract_entities(self, criterion_text: str) -> list[Entity]:
         doc = self._nlp(criterion_text)
@@ -151,15 +173,40 @@ class ExtractionPipeline:
                 return True
         return False
 
-    def _split_compound_criterion(self, criterion: ClassifiedCriterion) -> list[str] | None:
+    def _split_compound_criterion(self, criterion: ClassifiedCriterion) -> tuple[list[str], str] | None:
         if criterion.category not in {"diagnosis", "cns_metastases"}:
             return None
 
         previous_history_split = self._split_previous_history_clause(criterion.original_text)
         if previous_history_split:
-            return previous_history_split
+            return previous_history_split, "OR"
 
         return self._split_entity_coordinated_clause(criterion.original_text, criterion.entities)
+
+    def _split_progression_after_receiving(self, criterion: CriterionText) -> list[CriterionText] | None:
+        match = _PROGRESSION_AFTER_RECEIVING_PATTERN.match(criterion.text.strip())
+        if not match:
+            return None
+        tail_parts = _split_top_level_conjunctions(match.group("tail"))
+        if len(tail_parts) < 2:
+            return None
+
+        prefix = match.group("prefix").strip()
+        source_sentence = criterion.source_sentence or criterion.text
+        split_criteria: list[CriterionText] = []
+        for part in tail_parts:
+            clause_text = f"{prefix} {part.strip()}".strip()
+            split_criteria.append(
+                CriterionText(
+                    text=clause_text,
+                    type=criterion.type,
+                    review_required=criterion.review_required,
+                    review_reason=criterion.review_reason,
+                    source_sentence=source_sentence,
+                    source_clause_text=clause_text,
+                )
+            )
+        return split_criteria
 
     def _split_previous_history_clause(self, text: str) -> list[str] | None:
         match = re.match(
@@ -174,23 +221,39 @@ class ExtractionPipeline:
             f"{match.group('lemma')} {match.group('right').strip()}",
         ]
 
-    def _split_entity_coordinated_clause(self, text: str, entities: list[Entity]) -> list[str] | None:
+    def _split_entity_coordinated_clause(self, text: str, entities: list[Entity]) -> tuple[list[str], str] | None:
         disease_entities = [entity for entity in entities if entity.label == "DISEASE"]
-        if len(disease_entities) != 2:
+        if len(disease_entities) < 2:
+            return None
+        if len(disease_entities) == 2:
+            for left, right in zip(disease_entities, disease_entities[1:]):
+                connector = text[left.end:right.start]
+                if not re.fullmatch(r"\s*(?:and/or|or)\s*", connector, re.I):
+                    continue
+                prefix = text[:left.start]
+                suffix = text[right.end:]
+                left_clause = f"{prefix}{left.text}{suffix}".strip()
+                right_clause = f"{prefix}{right.text}{suffix}".strip()
+                if left_clause == text or right_clause == text:
+                    continue
+                return [left_clause, right_clause], "OR"
+
+        first = disease_entities[0]
+        last = disease_entities[-1]
+        connector_span = text[first.end:last.start]
+        stripped = connector_span
+        for entity in disease_entities[1:-1]:
+            stripped = stripped.replace(entity.text, " ")
+        if not _is_safe_enumeration_connector_span(connector_span, disease_entities[1:-1]):
             return None
 
-        for left, right in zip(disease_entities, disease_entities[1:]):
-            connector = text[left.end:right.start]
-            if not re.fullmatch(r"\s*(?:and/or|or)\s*", connector, re.I):
-                continue
-            prefix = text[:left.start]
-            suffix = text[right.end:]
-            left_clause = f"{prefix}{left.text}{suffix}".strip()
-            right_clause = f"{prefix}{right.text}{suffix}".strip()
-            if left_clause == text or right_clause == text:
-                continue
-            return [left_clause, right_clause]
-        return None
+        prefix = text[:first.start]
+        suffix = text[last.end:]
+        clauses = [f"{prefix}{entity.text}{suffix}".strip() for entity in disease_entities]
+        unique_clauses = [clause for index, clause in enumerate(clauses) if clause and clause not in clauses[:index]]
+        if len(unique_clauses) < 2:
+            return None
+        return unique_clauses, "OR"
 
     def _suppress_redundant_entities(self, entities: list[Entity]) -> list[Entity]:
         filtered: list[Entity] = []
@@ -224,3 +287,39 @@ def _entity_tokens(entity: Entity) -> set[str]:
     source = entity.expanded_text or entity.text
     normalized = "".join(char.lower() if char.isalnum() else " " for char in source)
     return {token for token in normalized.split() if token}
+
+
+def _split_top_level_conjunctions(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth > 0:
+            depth -= 1
+        if depth == 0 and text[index:index + 5].casefold() == " and ":
+            parts.append("".join(current).strip(" ,;"))
+            current = []
+            index += 5
+            continue
+        current.append(char)
+        index += 1
+
+    final = "".join(current).strip(" ,;")
+    if final:
+        parts.append(final)
+    return [part for part in parts if part]
+
+
+def _is_safe_enumeration_connector_span(text: str, interior_entities: list[Entity]) -> bool:
+    reduced = text
+    for entity in interior_entities:
+        reduced = reduced.replace(entity.text, " ")
+    normalized = re.sub(r"\s+", " ", reduced).strip(" ,")
+    if not normalized:
+        return True
+    fragments = [fragment for fragment in _ENUMERATION_CONNECTOR_PATTERN.split(normalized) if fragment]
+    return not fragments

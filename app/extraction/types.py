@@ -12,6 +12,7 @@ class CriterionText(BaseModel):
     review_required: bool = False
     review_reason: str | None = None
     source_sentence: str | None = None
+    source_clause_text: str | None = None
 
 
 class Entity(BaseModel):
@@ -61,8 +62,11 @@ class ClassifiedCriterion(BaseModel):
     """Fully classified criterion — output of Stage 3, enriched by Stage 4."""
     original_text: str
     source_sentence: str | None = None
+    source_clause_text: str | None = None
     type: str  # inclusion / exclusion
     category: str
+    primary_semantic_category: str | None = None
+    secondary_semantic_tags: list[str] = Field(default_factory=list)
     parse_status: str = "parsed"  # parsed / partial / unparsed
     # Value extraction
     operator: str | None = None
@@ -76,6 +80,11 @@ class ClassifiedCriterion(BaseModel):
     timeframe_operator: str | None = None
     timeframe_value: float | None = None
     timeframe_unit: str | None = None
+    specimen_type: str | None = None
+    testing_modality: str | None = None
+    disease_subtype: str | None = None
+    histology_text: str | None = None
+    assay_context: dict[str, object] | None = None
     # Logic grouping
     logic_group_id: str | None = None  # UUID as string
     logic_operator: str = "AND"
@@ -84,6 +93,7 @@ class ClassifiedCriterion(BaseModel):
     entities: list[Entity] = Field(default_factory=list)
     # Confidence
     confidence: float = 0.0
+    confidence_factors: dict[str, object] | None = None
     review_required: bool = False
     review_reason: str | None = None
 
@@ -93,8 +103,10 @@ class ClassifiedCriterion(BaseModel):
             original_text=original_text,
             type=type,
             category="other",
+            primary_semantic_category="other",
             parse_status="unparsed",
             confidence=0.0,
+            confidence_factors={"parse_status": "unparsed"},
             review_required=True,
             review_reason="complex_criteria",
         )

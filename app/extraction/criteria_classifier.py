@@ -70,6 +70,11 @@ _CURRENT_CONDITION_PATTERN = re.compile(
     r"concurrent malignan(?:cy|cies))\b",
     re.I,
 )
+_DISEASE_STATUS_PATTERN = re.compile(
+    r"\b(?:documented\s+disease\s+progression|disease\s+progression|progression|progressed|refractory|"
+    r"relapsed|recurrent|recurrence)\b",
+    re.I,
+)
 _PROCEDURAL_PATTERN = re.compile(
     r"\b(?:archival\s+tumou?r\s+tissue|newly\s+obtained\s+biopsy|provided\s+tissue\s+prior\s+to|"
     r"recovered\s+from\s+major\s+surgery|major\s+surgery|surgical\s+complications?)\b",
@@ -139,6 +144,25 @@ _TEXT_STAGE_VALUE_PATTERN = re.compile(
     r"\b(stage\s+[0-9ivx]+[a-c]?(?:\s+or\s+[0-9ivx]+[a-c]?)?|unresectable|metastatic|locally advanced)\b",
     re.I,
 )
+_NSCLC_SUBTYPE_PATTERN = re.compile(r"\bnon[- ]small cell\b", re.I)
+_SCLC_SUBTYPE_PATTERN = re.compile(r"\bsmall cell\b", re.I)
+_HISTOLOGY_VALUE_PATTERN = re.compile(
+    r"\b(?:non[- ]squamous|squamous|adenocarcinoma|histologically confirmed|cytologically confirmed)\b",
+    re.I,
+)
+_SPECIMEN_PATTERNS = (
+    (re.compile(r"\b(?:circulating\s+tumou?r\s+deoxyribonucleic\s+acid|ctdna)\b", re.I), "ctDNA"),
+    (re.compile(r"\btumou?r\s+tissue\b", re.I), "tumor tissue"),
+    (re.compile(r"\bplasma\b", re.I), "plasma"),
+    (re.compile(r"\bblood\b", re.I), "blood"),
+)
+_TESTING_MODALITY_PATTERNS = (
+    (re.compile(r"\bnext[- ]generation sequencing\b|\bngs\b", re.I), "next_generation_sequencing"),
+    (re.compile(r"\bimmunohistochemistry\b|\bihc\b", re.I), "immunohistochemistry"),
+    (re.compile(r"\bpcr\b|\brt-pcr\b", re.I), "polymerase_chain_reaction"),
+    (re.compile(r"\bfish\b", re.I), "fluorescence_in_situ_hybridization"),
+    (re.compile(r"\bctdna\b", re.I), "liquid_biopsy"),
+)
 _COMPLEXITY_SIGNALS = re.compile(
     r"\b(?:unless|except|provided that|other than|whichever\s+is\s+(?:longer|shorter)|"
     r"including\s+but\s+not\s+limited\s+to)\b",
@@ -166,6 +190,7 @@ class RuleBasedClassifier:
             if entities
             else self._assign_category_from_text(criterion_text)
         )
+        semantic_details = self._semantic_details(category_hint, criterion_text, entities)
         has_mixed_stage_biomarker = self._has_mixed_stage_biomarker_signals(
             criterion_text,
             labels,
@@ -196,19 +221,36 @@ class RuleBasedClassifier:
             neg_result = self._negation.resolve(criterion_text, entities)
             temporal = self._temporal.parse(neg_result.exception_text or criterion_text)
             logic = self._logic.detect(criterion_text)
+            confidence, confidence_factors = self._score_confidence(
+                category=category_hint,
+                parse_status="partial",
+                text=criterion_text,
+                entities=entities,
+                quant=None,
+                temporal=temporal,
+                semantic_details=semantic_details,
+            )
             return ClassifiedCriterion(
                 original_text=criterion_text,
                 type="inclusion",
                 category=category_hint,
+                primary_semantic_category=category_hint,
+                secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
                 parse_status="partial",
                 entities=entities,
                 negated=neg_result.negated,
                 timeframe_operator=temporal.operator if temporal else None,
                 timeframe_value=temporal.value if temporal else None,
                 timeframe_unit=temporal.unit if temporal else None,
+                specimen_type=semantic_details["specimen_type"],
+                testing_modality=semantic_details["testing_modality"],
+                disease_subtype=semantic_details["disease_subtype"],
+                histology_text=semantic_details["histology_text"],
+                assay_context=semantic_details["assay_context"],
                 logic_group_id=logic.group_id,
                 logic_operator=logic.operator,
-                confidence=0.3,
+                confidence=confidence,
+                confidence_factors=confidence_factors,
                 review_required=True,
                 review_reason="complex_criteria",
             )
@@ -219,17 +261,35 @@ class RuleBasedClassifier:
             if neg_result.has_exception:
                 exception_temporal = self._temporal.parse(neg_result.exception_text or "")
                 text_category = self._assign_category_from_text(criterion_text)
+                semantic_details = self._semantic_details(text_category, criterion_text, [])
+                confidence, confidence_factors = self._score_confidence(
+                    category=text_category,
+                    parse_status="partial",
+                    text=criterion_text,
+                    entities=[],
+                    quant=None,
+                    temporal=exception_temporal,
+                    semantic_details=semantic_details,
+                )
                 return ClassifiedCriterion(
                     original_text=criterion_text,
                     type="inclusion",
                     category=text_category,
+                    primary_semantic_category=text_category,
+                    secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
                     value_text=self._semantic_value_text(text_category, criterion_text),
                     parse_status="partial",
                     negated=neg_result.negated,
                     timeframe_operator=exception_temporal.operator if exception_temporal else None,
                     timeframe_value=exception_temporal.value if exception_temporal else None,
                     timeframe_unit=exception_temporal.unit if exception_temporal else None,
-                    confidence=0.3,
+                    specimen_type=semantic_details["specimen_type"],
+                    testing_modality=semantic_details["testing_modality"],
+                    disease_subtype=semantic_details["disease_subtype"],
+                    histology_text=semantic_details["histology_text"],
+                    assay_context=semantic_details["assay_context"],
+                    confidence=confidence,
+                    confidence_factors=confidence_factors,
                     review_required=True,
                     review_reason="complex_criteria",
                 )
@@ -243,18 +303,38 @@ class RuleBasedClassifier:
                     value_text=sex_match.group(1).lower(),
                     raw_expression=criterion_text,
                     confidence=0.6,
+                    confidence_factors={"base": 0.6, "structured_components": ["sex_only_text"]},
                     review_required=False,
                 )
             category, parse_status, confidence, review_required, review_reason = self._classify_text_only(
                 criterion_text
             )
+            semantic_details = self._semantic_details(category, criterion_text, [])
+            confidence, confidence_factors = self._score_confidence(
+                category=category,
+                parse_status=parse_status,
+                text=criterion_text,
+                entities=[],
+                quant=None,
+                temporal=None,
+                semantic_details=semantic_details,
+                base_override=confidence,
+            )
             return ClassifiedCriterion(
                 original_text=criterion_text,
                 type="inclusion",
                 category=category,
+                primary_semantic_category=category,
+                secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
                 parse_status=parse_status,
                 value_text=self._semantic_value_text(category, criterion_text),
+                specimen_type=semantic_details["specimen_type"],
+                testing_modality=semantic_details["testing_modality"],
+                disease_subtype=semantic_details["disease_subtype"],
+                histology_text=semantic_details["histology_text"],
+                assay_context=semantic_details["assay_context"],
                 confidence=confidence,
+                confidence_factors=confidence_factors,
                 review_required=review_required,
                 review_reason=review_reason,
             )
@@ -296,27 +376,56 @@ class RuleBasedClassifier:
             value_text = self._semantic_value_text(category, criterion_text)
 
         if category == "concomitant_medication" and _VACCINE_PATTERN.search(criterion_text):
+            confidence, confidence_factors = self._score_confidence(
+                category=category,
+                parse_status="partial",
+                text=criterion_text,
+                entities=entities,
+                quant=quant,
+                temporal=temporal,
+                semantic_details=semantic_details,
+            )
             return ClassifiedCriterion(
                 original_text=criterion_text,
                 type="inclusion",
                 category=category,
+                primary_semantic_category=category,
+                secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
                 parse_status="partial",
                 entities=entities,
                 negated=neg_result.negated,
                 timeframe_operator=temporal.operator if temporal else None,
                 timeframe_value=temporal.value if temporal else None,
                 timeframe_unit=temporal.unit if temporal else None,
+                specimen_type=semantic_details["specimen_type"],
+                testing_modality=semantic_details["testing_modality"],
+                disease_subtype=semantic_details["disease_subtype"],
+                histology_text=semantic_details["histology_text"],
+                assay_context=semantic_details["assay_context"],
                 logic_group_id=logic.group_id,
                 logic_operator=logic.operator,
-                confidence=0.3,
+                confidence=confidence,
+                confidence_factors=confidence_factors,
                 review_required=True,
                 review_reason="complex_criteria",
             )
+
+        confidence, confidence_factors = self._score_confidence(
+            category=category,
+            parse_status="parsed",
+            text=criterion_text,
+            entities=entities,
+            quant=quant,
+            temporal=temporal,
+            semantic_details=semantic_details,
+        )
 
         return ClassifiedCriterion(
             original_text=criterion_text,
             type="inclusion",
             category=category,
+            primary_semantic_category=category,
+            secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
             parse_status="parsed",
             entities=entities,
             operator=quant.operator if quant else None,
@@ -329,9 +438,15 @@ class RuleBasedClassifier:
             timeframe_operator=temporal.operator if temporal else None,
             timeframe_value=temporal.value if temporal else None,
             timeframe_unit=temporal.unit if temporal else None,
+            specimen_type=semantic_details["specimen_type"],
+            testing_modality=semantic_details["testing_modality"],
+            disease_subtype=semantic_details["disease_subtype"],
+            histology_text=semantic_details["histology_text"],
+            assay_context=semantic_details["assay_context"],
             logic_group_id=logic.group_id,
             logic_operator=logic.operator,
-            confidence=0.85,
+            confidence=confidence,
+            confidence_factors=confidence_factors,
         )
 
     def _assign_category(self, text: str, entities: list[Entity]) -> str:
@@ -355,6 +470,8 @@ class RuleBasedClassifier:
             return "line_of_therapy"
         if _PROCEDURAL_PATTERN.search(text):
             return "procedural_requirement"
+        if _DISEASE_STATUS_PATTERN.search(text) and not ("DRUG" in labels or _PRIOR_THERAPY_TEXT_PATTERN.search(text)):
+            return "disease_status"
         if "BIOMARKER" in labels and _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
         if _CURRENT_CONDITION_PATTERN.search(text):
@@ -415,6 +532,8 @@ class RuleBasedClassifier:
             return "cns_metastases"
         if _PROCEDURAL_PATTERN.search(text):
             return "procedural_requirement"
+        if _DISEASE_STATUS_PATTERN.search(text) and not _PRIOR_THERAPY_TEXT_PATTERN.search(text):
+            return "disease_status"
         if _CURRENT_CONDITION_PATTERN.search(text):
             return "diagnosis"
         if _STAGE_PATTERN.search(text):
@@ -445,6 +564,7 @@ class RuleBasedClassifier:
             "diagnosis",
             "cns_metastases",
             "disease_stage",
+            "disease_status",
             "procedural_requirement",
             "administrative_requirement",
             "behavioral_constraint",
@@ -481,12 +601,17 @@ class RuleBasedClassifier:
             return True
         if _EXPLICIT_DIAGNOSIS_PATTERN.search(text):
             return True
+        if _CONFIRMED_DISEASE_PATTERN.search(text) and self._has_specific_disease_phrase(entities):
+            return True
         if len(disease_entities) >= 2 and not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text):
             return True
         if (
             len(disease_entities) >= 1
             and _DISEASE_ENUMERATION_HINT_PATTERN.search(text)
-            and not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text)
+            and (
+                not _STRONG_PRIOR_THERAPY_ANCHOR_PATTERN.search(text)
+                or _CONFIRMED_DISEASE_PATTERN.search(text)
+            )
         ):
             return True
         return False
@@ -532,6 +657,10 @@ class RuleBasedClassifier:
             return self._reproductive_value(text)
         if category == "device_constraint":
             return self._device_value(text)
+        if category == "disease_status":
+            match = _DISEASE_STATUS_PATTERN.search(text)
+            if match:
+                return match.group(0).lower()
         if category == "disease_stage":
             match = _TEXT_STAGE_VALUE_PATTERN.search(text)
             if match:
@@ -565,3 +694,152 @@ class RuleBasedClassifier:
             unit=temporal.unit,
             raw_expression=criterion_text,
         )
+
+    def _semantic_details(self, category: str, text: str, entities: list[Entity]) -> dict[str, object]:
+        secondary_tags: list[str] = []
+        specimen_types = _extract_specimen_types(text)
+        testing_modalities = _extract_testing_modalities(text)
+        assay_context: dict[str, object] | None = None
+
+        if specimen_types:
+            secondary_tags.append("specimen_context")
+        if testing_modalities:
+            secondary_tags.append("testing_modality")
+        if (
+            category in {"prior_therapy", "line_of_therapy", "concomitant_medication"}
+            and _DISEASE_STATUS_PATTERN.search(text)
+        ):
+            secondary_tags.append("progression_requirement")
+        if category in {"diagnosis", "cns_metastases"} and _STAGE_PATTERN.search(text):
+            secondary_tags.append("stage_context")
+        if category == "diagnosis" and _PRIOR_THERAPY_TEXT_PATTERN.search(text):
+            secondary_tags.append("therapy_context")
+        if category in {"diagnosis", "histology"} and _HISTOLOGY_PATTERN.search(text):
+            secondary_tags.append("histology_context")
+
+        if specimen_types or testing_modalities:
+            assay_context = {
+                "specimen_types": specimen_types,
+                "testing_modalities": testing_modalities,
+            }
+
+        return {
+            "secondary_semantic_tags": secondary_tags,
+            "specimen_type": specimen_types[0] if specimen_types else None,
+            "testing_modality": testing_modalities[0] if testing_modalities else None,
+            "disease_subtype": _extract_disease_subtype(text),
+            "histology_text": _extract_histology_text(text),
+            "assay_context": assay_context,
+        }
+
+    def _score_confidence(
+        self,
+        *,
+        category: str,
+        parse_status: str,
+        text: str,
+        entities: list[Entity],
+        quant: QuantitativeValue | None,
+        temporal,
+        semantic_details: dict[str, object],
+        base_override: float | None = None,
+    ) -> tuple[float, dict[str, object]]:
+        if parse_status == "unparsed":
+            return 0.0, {"parse_status": "unparsed"}
+
+        if base_override is None:
+            score = 0.42 if parse_status == "partial" else 0.52
+        else:
+            score = base_override
+
+        structured_components: list[str] = []
+        if entities:
+            score += 0.12
+            structured_components.append("entities")
+        if quant:
+            score += 0.08
+            structured_components.append("quantitative")
+        if temporal:
+            score += 0.08
+            structured_components.append("temporal")
+        if semantic_details.get("specimen_type"):
+            score += 0.05
+            structured_components.append("specimen_type")
+        if semantic_details.get("testing_modality"):
+            score += 0.05
+            structured_components.append("testing_modality")
+        if semantic_details.get("assay_context"):
+            score += 0.06
+            structured_components.append("assay_context")
+        if semantic_details.get("disease_subtype"):
+            score += 0.05
+            structured_components.append("disease_subtype")
+        if semantic_details.get("histology_text"):
+            score += 0.05
+            structured_components.append("histology_text")
+        if semantic_details.get("secondary_semantic_tags"):
+            score += min(0.08, 0.02 * len(semantic_details["secondary_semantic_tags"]))
+            structured_components.append("secondary_semantics")
+        if text and len(text) < 180:
+            score += 0.03
+        if _criterion_is_overloaded(text=text, category=category, entities=entities):
+            overload_penalty = 0.18
+            if category == "molecular_alteration" and semantic_details.get("assay_context"):
+                overload_penalty = 0.06
+            score -= overload_penalty
+            structured_components.append("overloaded_penalty")
+
+        if parse_status == "partial":
+            score = min(score, 0.58)
+        score = max(0.0, min(score, 0.92))
+        return score, {
+            "parse_status": parse_status,
+            "structured_components": structured_components,
+            "entity_count": len(entities),
+            "secondary_semantic_tags": semantic_details.get("secondary_semantic_tags", []),
+        }
+
+
+def _extract_specimen_types(text: str) -> list[str]:
+    values: list[str] = []
+    for pattern, label in _SPECIMEN_PATTERNS:
+        if pattern.search(text) and label not in values:
+            values.append(label)
+    return values
+
+
+def _extract_testing_modalities(text: str) -> list[str]:
+    values: list[str] = []
+    for pattern, label in _TESTING_MODALITY_PATTERNS:
+        if pattern.search(text) and label not in values:
+            values.append(label)
+    return values
+
+
+def _extract_disease_subtype(text: str) -> str | None:
+    if _NSCLC_SUBTYPE_PATTERN.search(text):
+        return "non-small cell"
+    if _SCLC_SUBTYPE_PATTERN.search(text):
+        return "small cell"
+    return None
+
+
+def _extract_histology_text(text: str) -> str | None:
+    matches = [match.group(0).lower() for match in _HISTOLOGY_VALUE_PATTERN.finditer(text)]
+    if not matches:
+        return None
+    unique: list[str] = []
+    for match in matches:
+        if match not in unique:
+            unique.append(match)
+    return ", ".join(unique)
+
+
+def _criterion_is_overloaded(*, text: str, category: str, entities: list[Entity]) -> bool:
+    if category in {"diagnosis", "molecular_alteration"} and len(entities) >= 3:
+        return True
+    if category == "diagnosis" and _MOLECULAR_PATTERN.search(text):
+        return True
+    if category == "molecular_alteration" and _STAGE_PATTERN.search(text):
+        return True
+    return False

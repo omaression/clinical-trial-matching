@@ -74,6 +74,12 @@ class TestNct07286149Signals:
         result = pipeline.extract(text)
         assert result.criteria_count == 1
         assert result.criteria[0].category == "molecular_alteration"
+        assert result.criteria[0].specimen_type == "ctDNA"
+        assert result.criteria[0].assay_context == {
+            "specimen_types": ["ctDNA", "tumor tissue"],
+            "testing_modalities": ["liquid_biopsy"],
+        }
+        assert result.criteria[0].confidence >= 0.75
 
     def test_nsclc_line_stays_diagnosis_primary(self, pipeline):
         text = "Has histologically confirmed diagnosis of advanced or metastatic non-small cell lung cancer (NSCLC)"
@@ -101,6 +107,7 @@ class TestNct07286149Signals:
         assert result.criteria[0].category == "concomitant_medication"
         assert result.criteria[0].parse_status == "partial"
         assert result.criteria[0].review_required is True
+        assert result.criteria[0].confidence > 0.3
 
     def test_non_small_cell_line_keeps_specific_disease_entity(self, pipeline):
         text = "Has histologically confirmed metastatic non-small cell lung cancer"
@@ -189,18 +196,27 @@ class TestNct07286149Signals:
     def test_primary_brain_tumor_is_retained_alongside_cns_disease_mentions(self, pipeline):
         text = "Patients with primary brain tumors or active CNS metastases are excluded."
         result = pipeline.extract(text)
-        disease_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DISEASE"]
+        disease_entities = [
+            entity.text.lower()
+            for criterion in result.criteria
+            for entity in criterion.entities
+            if entity.label == "DISEASE"
+        ]
         assert any("primary brain tumor" in entity for entity in disease_entities)
         assert any("cns metastases" in entity or "central nervous system" in entity for entity in disease_entities)
 
-    def test_diagnosis_enumeration_with_palliative_radiation_stays_diagnosis(self, pipeline):
+    def test_diagnosis_enumeration_with_palliative_radiation_splits_into_or_linked_diagnoses(self, pipeline):
         text = (
             "Histologically confirmed breast cancer, non-small cell lung cancer, colorectal cancer, "
             "or pancreatic cancer requiring palliative radiation are eligible."
         )
         result = pipeline.extract(text)
-        assert result.criteria_count == 1
-        assert result.criteria[0].category == "diagnosis"
+        assert result.criteria_count == 4
+        assert all(criterion.category == "diagnosis" for criterion in result.criteria)
+        assert all("therapy_context" in criterion.secondary_semantic_tags for criterion in result.criteria)
+        logic_group_ids = {criterion.logic_group_id for criterion in result.criteria}
+        assert len(logic_group_ids) == 1
+        assert {criterion.logic_operator for criterion in result.criteria} == {"OR"}
 
     def test_pd_l1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior programmed death-ligand 1 (PD-L1) therapy"
@@ -208,6 +224,17 @@ class TestNct07286149Signals:
         assert result.criteria_count == 1
         drug_entities = [entity.text.lower() for entity in result.criteria[0].entities if entity.label == "DRUG"]
         assert any("therapy" in entity for entity in drug_entities)
+
+    def test_progression_after_receiving_splits_into_atomic_prior_therapy_clauses(self, pipeline):
+        text = (
+            "Has documented disease progression after receiving 1-2 prior lines of programmed cell "
+            "death protein 1 (PD-1)/programmed death-ligand 1 (PD-L1) therapy and platinum-based chemotherapy"
+        )
+        result = pipeline.extract(text)
+        assert result.criteria_count == 2
+        assert all(criterion.category == "prior_therapy" for criterion in result.criteria)
+        assert all("progression_requirement" in criterion.secondary_semantic_tags for criterion in result.criteria)
+        assert all(criterion.source_sentence == text for criterion in result.criteria)
 
     def test_pd_1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior PD-1 therapy"
