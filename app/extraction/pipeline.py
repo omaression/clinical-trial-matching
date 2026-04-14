@@ -21,10 +21,32 @@ _PROGRESSION_AFTER_RECEIVING_PATTERN = re.compile(
     r"^(?P<prefix>.*?\b(?:documented\s+disease\s+progression|disease\s+progression|progression)\b.*?\bafter\b\s+\b(?:receiving|receipt\s+of)\b)\s+(?P<tail>.+)$",
     re.I,
 )
+_INCLUDING_PROGRESSION_PATTERN = re.compile(
+    r"^(?P<lemma>\*?\s*(?:has|have))\s+(?P<head>.+?),\s+including\s+(?P<tail>disease\s+progression\s+after\s+receiving.+)$",
+    re.I | re.S,
+)
 _FOLLOWING_TYPES_PATTERN = re.compile(
     r"^(?P<prefix>.*?)(?P<intro>\b(?:of\s+the\s+following\s+types|following\s+types|following\s+histologies)\s*:)\s*"
     r"(?P<items>.+?)(?P<tail>,?\s*(?:who|that)\b.+)$",
     re.I | re.S,
+)
+_DIAGNOSIS_MEDICATION_SPLIT_PATTERN = re.compile(
+    r"^(?P<bullet>\*?\s*)(?P<lemma>has|have)\s+(?:a\s+diagnosis\s+of|diagnosis\s+of)\s+"
+    r"(?P<diagnosis>.+?)\s+or\s+(?P<medication>(?:is\s+receiving|receiving|using|use\s+of).+)$",
+    re.I,
+)
+_MEDICATION_LEMMA_PATTERN = re.compile(
+    r"^(?P<verb>is\s+receiving|receiving|using|use\s+of)\s+(?P<body>.+)$",
+    re.I,
+)
+_TEMPORAL_TAIL_PATTERN = re.compile(
+    r"\b(?:within|at\s+least|no\s+more\s+than|prior\s+to|since|more\s+than|>)\b.+$",
+    re.I,
+)
+_MEDICATION_SIGNAL_PATTERN = re.compile(
+    r"\b(?:vaccine|corticosteroid|steroid\s+therapy|immunosuppressive\s+therapy|"
+    r"immunosuppressive\s+medications?|immunosuppressants?|cyp[0-9a-z-]+)\b",
+    re.I,
 )
 _ENUMERATION_CONNECTOR_PATTERN = re.compile(r"\s*(?:,\s*|\bor\b\s*|\band/or\b\s*)", re.I)
 
@@ -122,6 +144,14 @@ class ExtractionPipeline:
     def _decompose_atomic_criteria(self, criterion_texts: list[CriterionText]) -> list[CriterionText]:
         decomposed: list[CriterionText] = []
         for criterion in criterion_texts:
+            split = self._split_diagnosis_medication_clause(criterion)
+            if split:
+                decomposed.extend(split)
+                continue
+            split = self._split_including_progression_clause(criterion)
+            if split:
+                decomposed.extend(split)
+                continue
             split = self._split_progression_after_receiving(criterion)
             if split:
                 decomposed.extend(split)
@@ -222,6 +252,44 @@ class ExtractionPipeline:
             )
         return split_criteria
 
+    def _split_including_progression_clause(self, criterion: CriterionText) -> list[CriterionText] | None:
+        match = _INCLUDING_PROGRESSION_PATTERN.match(criterion.text.strip())
+        if not match:
+            return None
+
+        lemma = match.group("lemma").strip()
+        head_text = f"{lemma} {match.group('head').strip()}".strip().rstrip(";,")
+        tail_body = match.group("tail").strip().rstrip(" .;")
+        if tail_body.casefold().startswith("disease progression"):
+            tail_text = f"{lemma} documented {tail_body}".strip()
+        else:
+            tail_text = f"{lemma} {tail_body}".strip()
+
+        source_sentence = criterion.source_sentence or criterion.text
+        logic_group_id = str(uuid.uuid4())
+        return [
+            CriterionText(
+                text=head_text,
+                type=criterion.type,
+                review_required=criterion.review_required,
+                review_reason=criterion.review_reason,
+                source_sentence=source_sentence,
+                source_clause_text=head_text,
+                logic_group_id=logic_group_id,
+                logic_operator="AND",
+            ),
+            CriterionText(
+                text=tail_text,
+                type=criterion.type,
+                review_required=criterion.review_required,
+                review_reason=criterion.review_reason,
+                source_sentence=source_sentence,
+                source_clause_text=tail_text,
+                logic_group_id=logic_group_id,
+                logic_operator="AND",
+            ),
+        ]
+
     def _split_following_types_enumeration(self, criterion: CriterionText) -> list[CriterionText] | None:
         match = _FOLLOWING_TYPES_PATTERN.match(criterion.text.strip())
         if not match:
@@ -250,6 +318,74 @@ class ExtractionPipeline:
                 continue
             clause_parts = [prefix, normalized_item, tail]
             clause_text = " ".join(part for part in clause_parts if part).strip()
+            split_criteria.append(
+                CriterionText(
+                    text=clause_text,
+                    type=criterion.type,
+                    review_required=criterion.review_required,
+                    review_reason=criterion.review_reason,
+                    source_sentence=source_sentence,
+                    source_clause_text=clause_text,
+                    logic_group_id=logic_group_id,
+                    logic_operator="OR",
+                )
+            )
+
+        return split_criteria if len(split_criteria) >= 2 else None
+
+    def _split_diagnosis_medication_clause(self, criterion: CriterionText) -> list[CriterionText] | None:
+        match = _DIAGNOSIS_MEDICATION_SPLIT_PATTERN.match(criterion.text.strip())
+        if not match:
+            return None
+
+        medication_text = match.group("medication").strip()
+        if not _MEDICATION_SIGNAL_PATTERN.search(medication_text):
+            return None
+
+        medication_match = _MEDICATION_LEMMA_PATTERN.match(medication_text)
+        if not medication_match:
+            return None
+
+        diagnosis_clause = (
+            f"{match.group('bullet')}{match.group('lemma')} a diagnosis of {match.group('diagnosis').strip()}"
+        ).strip()
+        medication_verb = medication_match.group("verb").strip()
+        medication_body = medication_match.group("body").strip()
+
+        temporal_tail_match = _TEMPORAL_TAIL_PATTERN.search(medication_body)
+        medication_tail = ""
+        if temporal_tail_match:
+            medication_tail = medication_body[temporal_tail_match.start():].strip()
+            medication_body = medication_body[:temporal_tail_match.start()].strip(" ,;")
+
+        medication_parts = _split_top_level_disjunctions(medication_body)
+        if not medication_parts:
+            medication_parts = [medication_body]
+
+        source_sentence = criterion.source_sentence or criterion.text
+        logic_group_id = str(uuid.uuid4())
+        split_criteria = [
+            CriterionText(
+                text=diagnosis_clause,
+                type=criterion.type,
+                review_required=criterion.review_required,
+                review_reason=criterion.review_reason,
+                source_sentence=source_sentence,
+                source_clause_text=diagnosis_clause,
+                logic_group_id=logic_group_id,
+                logic_operator="OR",
+            )
+        ]
+
+        for part in medication_parts:
+            normalized_part = part.strip().lstrip("* ").strip()
+            normalized_part = re.sub(r"^(?:and|or)\s+", "", normalized_part, flags=re.I)
+            if not normalized_part:
+                continue
+            clause_text = f"{match.group('bullet')}{medication_verb} {normalized_part}"
+            if medication_tail:
+                clause_text = f"{clause_text} {medication_tail}"
+            clause_text = clause_text.strip()
             split_criteria.append(
                 CriterionText(
                     text=clause_text,
@@ -361,6 +497,36 @@ def _split_top_level_conjunctions(text: str) -> list[str]:
             parts.append("".join(current).strip(" ,;"))
             current = []
             index += 5
+            continue
+        current.append(char)
+        index += 1
+
+    final = "".join(current).strip(" ,;")
+    if final:
+        parts.append(final)
+    return [part for part in parts if part]
+
+
+def _split_top_level_disjunctions(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    depth = 0
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "(":
+            depth += 1
+        elif char == ")" and depth > 0:
+            depth -= 1
+        if depth == 0 and text[index:index + 8].casefold() == " and/or ":
+            parts.append("".join(current).strip(" ,;"))
+            current = []
+            index += 8
+            continue
+        if depth == 0 and text[index:index + 4].casefold() == " or ":
+            parts.append("".join(current).strip(" ,;"))
+            current = []
+            index += 4
             continue
         current.append(char)
         index += 1

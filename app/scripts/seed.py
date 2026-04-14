@@ -208,6 +208,36 @@ NCI_DRUGS = [
     ("C62563", "Trametinib", ["mekinist"]),
     ("C62564", "Vemurafenib", ["zelboraf"]),
     ("C62565", "Encorafenib", ["braftovi"]),
+    ("C15632", "Chemotherapy", ["chemotherapy", "systemic chemotherapy"]),
+    (
+        "C1450",
+        "Platinum Compound",
+        ["platinum-based chemotherapy", "platinum based chemotherapy", "platinum chemotherapy"],
+    ),
+    ("C93352", "Targeted Therapy", ["targeted therapy", "targeted therapies"]),
+    (
+        "C202579",
+        "Investigational Medicinal Product",
+        [
+            "investigational agent",
+            "investigational agents",
+            "prior investigational agent",
+            "investigational medicinal product",
+            "investigational product",
+        ],
+    ),
+    (
+        "C178320",
+        "anti-PD-1 monoclonal antibody",
+        [
+            "pd-1 therapy",
+            "pd 1 therapy",
+            "pd-1 inhibitor therapy",
+            "pd 1 inhibitor therapy",
+            "programmed cell death protein 1 therapy",
+            "programmed cell death protein 1 (pd-1) therapy",
+        ],
+    ),
     (
         "C128057",
         "anti-PD-L1 monoclonal antibody",
@@ -281,6 +311,7 @@ RXNORM_DRUGS = [
     ("6135", "Ketoconazole", ["ketoconazole"]),
     ("282446", "Posaconazole", ["posaconazole"]),
     ("121243", "Voriconazole", ["voriconazole"]),
+    ("224905", "Trastuzumab", ["trastuzumab"]),
 ]
 
 

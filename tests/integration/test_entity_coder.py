@@ -62,6 +62,8 @@ def seed_lookups(db_session):
                       synonyms=["blepharitis", "meibomian gland disease"]),
         CodingLookup(system="nci_thesaurus", code="C1647", display="Trastuzumab",
                       synonyms=["herceptin"]),
+        CodingLookup(system="nci_thesaurus", code="C178320", display="anti-PD-1 monoclonal antibody",
+                      synonyms=["pd-1 therapy", "programmed cell death protein 1 therapy"]),
         CodingLookup(system="nci_thesaurus", code="C128057", display="anti-PD-L1 monoclonal antibody",
                       synonyms=["pd-l1 therapy", "programmed death-ligand 1 therapy"]),
         CodingLookup(system="snomed_ct", code="17636008", display="Specimen collection",
@@ -262,6 +264,12 @@ class TestDeterministicResolution:
         result = coder.code_entity(entity)
         assert result.concepts[0].system == "nci_thesaurus"
         assert result.concepts[0].code == "C128057"
+
+    def test_codes_pd_1_therapy_class_to_nci_when_phrase_is_specific(self, coder):
+        entity = Entity(text="PD-1 therapy", label="DRUG", start=0, end=12)
+        result = coder.code_entity(entity)
+        assert result.concepts[0].system == "nci_thesaurus"
+        assert result.concepts[0].code == "C178320"
 
     def test_codes_long_form_pd_l1_therapy_class_to_nci_when_phrase_is_specific(self, coder):
         entity = Entity(

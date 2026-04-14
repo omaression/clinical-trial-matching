@@ -317,6 +317,18 @@ class TestCategoryAssignment:
         assert result.category == "concomitant_medication"
         assert result.parse_status == "parsed"
 
+    def test_immunosuppressive_therapy_exclusion_becomes_concomitant_medication(self, classifier):
+        result = classifier.classify(
+            "Receiving immunosuppressive therapy within 7 days before enrollment.",
+            [],
+        )
+        assert result.category == "concomitant_medication"
+        assert result.parse_status == "parsed"
+        assert result.value_text == "immunosuppressive therapy"
+        assert result.timeframe_operator == "within"
+        assert result.timeframe_value == 7
+        assert result.timeframe_unit == "days"
+
     def test_diagnosis_list_with_palliative_radiation_stays_diagnosis(self, classifier):
         result = classifier.classify(
             (

@@ -117,6 +117,37 @@ class TestNct07286149Signals:
         assert result.criteria[0].review_required is False
         assert result.criteria[0].confidence >= 0.65
 
+    def test_mixed_diagnosis_and_medication_line_splits_and_preserves_timeframe_on_medication(self, pipeline):
+        text = (
+            "Has a diagnosis of immunodeficiency or is receiving chronic systemic steroid therapy "
+            "or any other form of immunosuppressive therapy within 7 days prior to the first dose "
+            "of study intervention"
+        )
+        result = pipeline.extract(text)
+
+        assert result.criteria_count == 3
+        categories = [criterion.category for criterion in result.criteria]
+        assert categories.count("diagnosis") == 1
+        assert categories.count("concomitant_medication") == 2
+
+        diagnosis_criterion = next(criterion for criterion in result.criteria if criterion.category == "diagnosis")
+        medication_criteria = [
+            criterion for criterion in result.criteria if criterion.category == "concomitant_medication"
+        ]
+
+        assert diagnosis_criterion.original_text == "Has a diagnosis of immunodeficiency"
+        assert diagnosis_criterion.timeframe_operator is None
+        assert diagnosis_criterion.timeframe_value is None
+
+        assert {criterion.value_text for criterion in medication_criteria} == {
+            "systemic steroid",
+            "immunosuppressive therapy",
+        }
+        assert {criterion.timeframe_operator for criterion in medication_criteria} == {"within"}
+        assert {criterion.timeframe_value for criterion in medication_criteria} == {7}
+        assert {criterion.timeframe_unit for criterion in medication_criteria} == {"days"}
+        assert {criterion.logic_operator for criterion in result.criteria} == {"OR"}
+
     def test_non_small_cell_line_keeps_specific_disease_entity(self, pipeline):
         text = "Has histologically confirmed metastatic non-small cell lung cancer"
         result = pipeline.extract(text)
@@ -299,6 +330,40 @@ class TestNct07286149Signals:
         logic_group_ids = {criterion.logic_group_id for criterion in result.criteria}
         assert len(logic_group_ids) == 1
         assert {criterion.logic_operator for criterion in result.criteria} == {"AND"}
+
+    def test_including_progression_requirement_splits_into_and_linked_prior_therapy_clauses(self, pipeline):
+        text = (
+            "Have received at least 3 targeted therapies for locally advanced or metastatic disease, "
+            "including disease progression after receiving at least 1 trastuzumab-containing treatment."
+        )
+        result = pipeline.extract(text)
+
+        assert result.criteria_count == 2
+        assert all(criterion.category == "prior_therapy" for criterion in result.criteria)
+        assert {criterion.logic_operator for criterion in result.criteria} == {"AND"}
+        assert len({criterion.logic_group_id for criterion in result.criteria}) == 1
+
+        criteria_by_text = {criterion.original_text: criterion for criterion in result.criteria}
+        head = criteria_by_text[
+            "Have received at least 3 targeted therapies for locally advanced or metastatic disease"
+        ]
+        assert head.operator == "gte"
+        assert head.value_low == 3
+        assert head.value_text == "targeted therapies"
+        assert head.source_sentence == text
+        assert head.source_clause_text == head.original_text
+        assert head.review_required is False
+
+        tail = criteria_by_text[
+            "Have documented disease progression after receiving at least 1 trastuzumab-containing treatment"
+        ]
+        assert tail.operator == "gte"
+        assert tail.value_low == 1
+        assert tail.value_text == "trastuzumab-containing treatment"
+        assert tail.secondary_semantic_tags == ["progression_requirement"]
+        assert tail.source_sentence == text
+        assert tail.source_clause_text == tail.original_text
+        assert tail.review_required is False
 
     def test_pd_1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior PD-1 therapy"

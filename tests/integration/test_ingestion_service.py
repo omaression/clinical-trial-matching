@@ -267,12 +267,24 @@ class TestIngestSingleTrial:
                 if isinstance(concept, dict)
             }
 
+        def criteria_for_source_sentence(text: str) -> list[ExtractedCriterion]:
+            return [
+                criterion for criterion in criteria
+                if criterion.original_text == text or criterion.source_sentence == text
+            ]
+
         assert ("loinc", "718-7") not in coded_keys(KRAS_G12C_TEXT)
         assert ("loinc", "718-7") not in coded_keys(PD1_THERAPY_ATOMIC_TEXT)
         assert ("loinc", "1742-6") not in coded_keys(HIV_TEXT)
         assert ("loinc", "6301-6") not in coded_keys(OPHTHALMOLOGY_TEXT)
         assert ("mesh", "D015266") not in coded_keys(VACCINE_TEXT)
-        assert ("mesh", "D015266") not in coded_keys(IMMUNODEFICIENCY_TEXT)
+        immunodeficiency_criteria = criteria_for_source_sentence(IMMUNODEFICIENCY_TEXT)
+        assert len(immunodeficiency_criteria) == 3
+        assert all(("mesh", "D015266") not in {
+            (concept["system"], concept["code"])
+            for concept in (criterion.coded_concepts or [])
+            if isinstance(concept, dict)
+        } for criterion in immunodeficiency_criteria)
         assert ("mesh", "D015451") not in coded_keys(ILD_TEXT)
         assert criteria_by_text[NSCLC_DIAGNOSIS_TEXT].category == "diagnosis"
         assert criteria_by_text[KRAS_G12C_TEXT].category == "molecular_alteration"
@@ -485,7 +497,7 @@ class TestIngestSingleTrial:
         assert criterion.review_required is False
         assert criterion.coded_concepts == []
 
-    def test_unresolved_pd1_and_kras_therapy_classes_do_not_force_review(self, service, db_session):
+    def test_pd1_and_kras_therapy_classes_follow_safe_grounding_policy(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
         pipeline_result = PipelineResult(
             criteria=[
@@ -526,13 +538,69 @@ class TestIngestSingleTrial:
         assert result.review_count == 0
         assert len(criteria) == 2
         assert all(criterion.review_required is False for criterion in criteria)
-        assert all(criterion.coded_concepts == [] for criterion in criteria)
+        coded_by_text = {
+            criterion.original_text: criterion.coded_concepts
+            for criterion in criteria
+        }
         statuses = {
             criterion.original_text: criterion.confidence_factors["therapy_class_grounding"][0]["status"]
             for criterion in criteria
         }
         assert statuses["Has received previous treatment with an agent targeting KRAS"] == "blocked_missing_safe_source"
-        assert statuses["Prior PD-1 therapy for metastatic disease"] == "blocked_missing_safe_source"
+        assert statuses["Prior PD-1 therapy for metastatic disease"] == "grounded"
+        assert coded_by_text["Has received previous treatment with an agent targeting KRAS"] == []
+        assert coded_by_text["Prior PD-1 therapy for metastatic disease"] == [
+            {
+                "system": "nci_thesaurus",
+                "code": "C178320",
+                "display": "anti-PD-1 monoclonal antibody",
+                "match_type": "synonym",
+            }
+        ]
+
+    def test_pd_1_therapy_class_is_grounded_exactly_without_review(self, service, db_session):
+        nct_id, mock_resp = _unique_mock_response()
+        pipeline_result = PipelineResult(
+            criteria=[
+                ClassifiedCriterion(
+                    original_text="Prior PD-1 therapy for metastatic disease",
+                    type="inclusion",
+                    category="prior_therapy",
+                    parse_status="parsed",
+                    confidence=0.72,
+                    entities=[Entity(text="PD-1 therapy", label="DRUG", start=6, end=18)],
+                )
+            ],
+            pipeline_version="0.1.0",
+        )
+
+        with (
+            patch.object(service._client, "fetch_study", return_value=mock_resp),
+            patch.object(service._pipeline, "extract", return_value=pipeline_result),
+        ):
+            result = service.ingest(nct_id)
+
+        trial = db_session.query(Trial).filter_by(nct_id=nct_id).one()
+        criterion = db_session.query(ExtractedCriterion).filter_by(trial_id=trial.id).one()
+
+        assert result.review_count == 0
+        assert criterion.review_required is False
+        assert criterion.coded_concepts == [
+            {
+                "system": "nci_thesaurus",
+                "code": "C178320",
+                "display": "anti-PD-1 monoclonal antibody",
+                "match_type": "synonym",
+            }
+        ]
+        assert criterion.confidence >= 0.82
+        assert criterion.confidence_factors["therapy_class_grounding"] == [
+            {
+                "term": "pd-1 therapy",
+                "status": "grounded",
+                "match_types": ["synonym"],
+            }
+        ]
 
     def test_combined_pd1_pdl1_inhibitor_therapy_is_flagged_as_missing_safe_source(self, service, db_session):
         nct_id, mock_resp = _unique_mock_response()
@@ -899,6 +967,12 @@ class TestIngestSingleTrial:
                 if isinstance(concept, dict)
             }
 
+        def criteria_for_source_sentence(text: str) -> list[ExtractedCriterion]:
+            return [
+                criterion for criterion in criteria
+                if criterion.original_text == text or criterion.source_sentence == text
+            ]
+
         assert ("mesh", "D002289") in coded_keys(NSCLC_DIAGNOSIS_TEXT)
         assert ("mesh", "D001859") in coded_keys(CNS_METASTASES_TEXT)
         assert ("nci_thesaurus", "C126815") in coded_keys(KRAS_G12C_TEXT)
@@ -909,10 +983,31 @@ class TestIngestSingleTrial:
         assert ("mesh", "D015212") in coded_keys(IBD_HISTORY_TEXT)
         assert ("mesh", "D002318") in coded_keys(CARDIOVASCULAR_TEXT)
         assert ("mesh", "D002561") in coded_keys(CEREBROVASCULAR_TEXT)
-        assert ("mesh", "D007153") in coded_keys(IMMUNODEFICIENCY_TEXT)
+        immunodeficiency_criteria = criteria_for_source_sentence(IMMUNODEFICIENCY_TEXT)
+        diagnosis_criterion = next(
+            criterion for criterion in immunodeficiency_criteria if criterion.category == "diagnosis"
+        )
+        medication_criteria = [
+            criterion for criterion in immunodeficiency_criteria
+            if criterion.category == "concomitant_medication"
+        ]
+        assert ("mesh", "D007153") in {
+            (concept["system"], concept["code"])
+            for concept in (diagnosis_criterion.coded_concepts or [])
+            if isinstance(concept, dict)
+        }
+        assert diagnosis_criterion.timeframe_operator is None
+        assert len(medication_criteria) == 2
+        assert {criterion.value_text for criterion in medication_criteria} == {
+            "systemic steroid",
+            "immunosuppressive therapy",
+        }
+        assert {criterion.timeframe_operator for criterion in medication_criteria} == {"within"}
+        assert {criterion.timeframe_value for criterion in medication_criteria} == {7.0}
+        assert {criterion.timeframe_unit for criterion in medication_criteria} == {"days"}
         assert ("mesh", "D017563") in coded_keys(ILD_TEXT)
         assert criteria_by_text[ILD_TEXT].review_required is False
-        assert coded_keys(PLATINUM_CHEMOTHERAPY_ATOMIC_TEXT) == set()
+        assert ("nci_thesaurus", "C1450") in coded_keys(PLATINUM_CHEMOTHERAPY_ATOMIC_TEXT)
         assert coded_keys(KRAS_TARGETING_THERAPY_TEXT) == set()
         assert ("snomed_ct", "17636008") in coded_keys(ARCHIVAL_TISSUE_TEXT)
         assert ("snomed_ct", "86273004") in coded_keys(BIOPSY_TEXT)

@@ -17,7 +17,7 @@ _MOLECULAR_PATTERN = re.compile(
 )
 _PRIOR_THERAPY_TEXT_PATTERN = re.compile(
     r"\b(?:prior\s+treatment|prior\s+therapy|chemotherap(?:y|ies)|radiation(?:\s+therapy)?|immunotherap(?:y|ies)|"
-    r"endocrine\s+therapy|hormonal\s+therapy|targeted\s+therapy|systemic\s+therapy|"
+    r"endocrine\s+therapy|hormonal\s+therapy|targeted\s+therap(?:y|ies)|systemic\s+therapy|"
     r"biologic(?:al)?\s+therapy)\b",
     re.I,
 )
@@ -136,6 +136,11 @@ _DEVICE_PATTERN = re.compile(
 _CORTICOSTEROID_PATTERN = re.compile(
     r"\b(?:systemic\s+corticosteroids?|corticosteroids?|systemic\s+steroids?|glucocorticoids?|"
     r"prednisone|dexamethasone|methylprednisolone|prednisolone)\b",
+    re.I,
+)
+_IMMUNOSUPPRESSIVE_THERAPY_PATTERN = re.compile(
+    r"\b(?:immunosuppressive\s+therapy|immunosuppressive\s+medications?|"
+    r"immunosuppressants?|systemic\s+steroid\s+therapy|chronic\s+systemic\s+steroid\s+therapy)\b",
     re.I,
 )
 _EXPLICIT_DIAGNOSIS_PATTERN = re.compile(
@@ -389,6 +394,10 @@ class RuleBasedClassifier:
                 secondary_semantic_tags=semantic_details["secondary_semantic_tags"],
                 parse_status=parse_status,
                 value_text=value_text,
+                negated=neg_result.negated,
+                timeframe_operator=temporal.operator if temporal else None,
+                timeframe_value=temporal.value if temporal else None,
+                timeframe_unit=temporal.unit if temporal else None,
                 specimen_type=semantic_details["specimen_type"],
                 testing_modality=semantic_details["testing_modality"],
                 disease_subtype=semantic_details["disease_subtype"],
@@ -509,7 +518,7 @@ class RuleBasedClassifier:
             return "concomitant_medication"
         if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
             return "concomitant_medication"
-        if _CORTICOSTEROID_PATTERN.search(text):
+        if _CORTICOSTEROID_PATTERN.search(text) or _IMMUNOSUPPRESSIVE_THERAPY_PATTERN.search(text):
             return "concomitant_medication"
         if _DISEASE_STATUS_PATTERN.search(text) and not ("DRUG" in labels or _PRIOR_THERAPY_TEXT_PATTERN.search(text)):
             return "disease_status"
@@ -577,7 +586,7 @@ class RuleBasedClassifier:
             return "histology"
         if _VACCINE_PATTERN.search(text):
             return "concomitant_medication"
-        if _CORTICOSTEROID_PATTERN.search(text):
+        if _CORTICOSTEROID_PATTERN.search(text) or _IMMUNOSUPPRESSIVE_THERAPY_PATTERN.search(text):
             return "concomitant_medication"
         if _MOLECULAR_PATTERN.search(text):
             return "molecular_alteration"
@@ -823,9 +832,20 @@ class RuleBasedClassifier:
         corticosteroid_match = _CORTICOSTEROID_PATTERN.search(text)
         if corticosteroid_match:
             return _clean_medication_phrase(corticosteroid_match.group(0))
+        immunosuppressive_match = _IMMUNOSUPPRESSIVE_THERAPY_PATTERN.search(text)
+        if immunosuppressive_match:
+            return _clean_medication_phrase(immunosuppressive_match.group(0))
         return None
 
     def _infer_therapy_base_text(self, text: str, entities: list[Entity]) -> str | None:
+        therapy_match = re.search(
+            r"\b(?:targeted\s+therap(?:y|ies)|trastuzumab-containing\s+treatments?)\b",
+            text,
+            re.I,
+        )
+        if therapy_match:
+            return _clean_medication_phrase(therapy_match.group(0))
+
         for entity in entities:
             if entity.label == "DRUG":
                 normalized = _clean_medication_phrase(entity.expanded_text or entity.text)

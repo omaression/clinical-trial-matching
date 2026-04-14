@@ -20,7 +20,7 @@
     "type": "exclusion",
     "category": "concomitant_medication",
     "parse_status": "parsed",
-    "negated": false,
+    "negated": true,
     "review_required": false
   }
 ]

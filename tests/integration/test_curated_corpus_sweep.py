@@ -27,7 +27,7 @@ def pipeline():
         ("nct07084584_cyp3a4_exception", 1, 0, {"concomitant_medication"}),
         ("nct03872596_cyp3a4_washout", 1, 1, {"concomitant_medication"}),
         ("nct05346328_stage_biomarker", 1, 1, {"disease_stage"}),
-        ("nct05346328_line_of_therapy", 1, 1, {"prior_therapy"}),
+        ("nct05346328_line_of_therapy", 2, 0, {"prior_therapy"}),
     ],
 )
 def test_curated_corpus_sweep_metrics(
@@ -59,10 +59,10 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
     assert report["summary"]["criteria_count"] == 12
     assert report["summary"]["review_required_count"] == 0
     assert report["summary"]["structurally_exportable_fhir_count"] == 2
-    assert report["summary"]["medication_statement_projected_count"] == 5
+    assert report["summary"]["medication_statement_projected_count"] == 6
     assert report["summary"]["blocked_missing_class_code_count"] == 4
     assert report["summary"]["blocked_missing_rxnorm_count"] == 0
-    assert report["summary"]["review_required_ambiguous_class_count"] == 1
+    assert report["summary"]["review_required_ambiguous_class_count"] == 0
     fixture_names = [fixture["fixture"] for fixture in report["fixtures"]]
     assert fixture_names == ["therapy_class_and_procedures", "medication_exception_logic"]
 
@@ -70,9 +70,9 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
         fixture for fixture in report["fixtures"] if fixture["fixture"] == "therapy_class_and_procedures"
     )
     assert therapy_fixture["structurally_exportable_fhir_count"] == 2
-    assert therapy_fixture["medication_statement_projected_count"] == 0
+    assert therapy_fixture["medication_statement_projected_count"] == 1
     assert therapy_fixture["blocked_missing_class_code_count"] == 1
-    assert therapy_fixture["review_required_ambiguous_class_count"] == 1
+    assert therapy_fixture["review_required_ambiguous_class_count"] == 0
 
     medication_fixture = next(
         fixture for fixture in report["fixtures"] if fixture["fixture"] == "medication_exception_logic"
@@ -80,3 +80,23 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
     assert medication_fixture["structurally_exportable_fhir_count"] == 0
     assert medication_fixture["medication_statement_projected_count"] == 5
     assert medication_fixture["blocked_missing_class_code_count"] == 3
+
+
+def test_curated_corpus_report_tracks_projected_and_blocked_line_of_therapy_clauses():
+    report = build_curated_corpus_report(["nct05346328_line_of_therapy"])
+
+    assert report["summary"]["fixture_count"] == 1
+    assert report["summary"]["criteria_count"] == 2
+    assert report["summary"]["review_required_count"] == 0
+    assert report["summary"]["medication_statement_projected_count"] == 2
+    assert report["summary"]["blocked_missing_class_code_count"] == 0
+    assert report["summary"]["blocked_missing_rxnorm_count"] == 0
+    assert report["summary"]["review_required_ambiguous_class_count"] == 0
+
+    fixture = report["fixtures"][0]
+    assert fixture["fixture"] == "nct05346328_line_of_therapy"
+    assert fixture["criteria_count"] == 2
+    assert fixture["review_required_count"] == 0
+    assert fixture["medication_statement_projected_count"] == 2
+    assert fixture["blocked_missing_class_code_count"] == 0
+    assert fixture["review_required_ambiguous_class_count"] == 0

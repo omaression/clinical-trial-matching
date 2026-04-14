@@ -693,24 +693,27 @@ class TestCriterionFHIRProjections:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 8
-        assert data["breakdown_by_status"]["projected"] == 5
-        assert data["breakdown_by_status"]["blocked_missing_class_code"] == 3
-        assert data["breakdown_by_resource_type"]["MedicationStatement"] == 5
-        assert data["breakdown_by_resource_type"]["none"] == 3
+        assert data["breakdown_by_status"]["projected"] == 6
+        assert data["breakdown_by_status"]["blocked_missing_class_code"] == 2
+        assert data["breakdown_by_resource_type"]["MedicationStatement"] == 6
+        assert data["breakdown_by_resource_type"]["none"] == 2
 
         projected = [item for item in data["items"] if item["projection_status"] == "projected"]
         blocked = [item for item in data["items"] if item["projection_status"] == "blocked_missing_class_code"]
         projected_codes = {item["code"] for item in projected}
         blocked_terms = {item["normalized_term"] for item in blocked}
 
-        assert projected_codes == {"8640", "28031", "6135", "282446", "121243"}
-        assert blocked_terms == {"systemic corticosteroids", "cyp3a4 inhibitors inducers", "pd 1 therapy"}
+        assert projected_codes == {"8640", "28031", "6135", "282446", "121243", "C178320"}
+        assert blocked_terms == {"systemic corticosteroids", "cyp3a4 inhibitors inducers"}
         assert all(item["resource_type"] == "MedicationStatement" for item in projected)
-        assert all(
+        systems = {
             item["resource"]["medicationCodeableConcept"]["coding"][0]["system"]
-            == "http://www.nlm.nih.gov/research/umls/rxnorm"
             for item in projected
-        )
+        }
+        assert systems == {
+            "http://www.nlm.nih.gov/research/umls/rxnorm",
+            "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl",
+        }
         assert {item["criterion_id"] for item in data["items"]} == {str(criterion.id) for criterion in created}
 
     def test_single_criterion_fhir_projections_return_persisted_canonical_mentions(self, client, db_session):

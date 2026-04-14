@@ -9,16 +9,18 @@ from sqlalchemy.orm import Session
 
 from app.fhir.models import Annotation, CodeableConcept, Coding, MedicationStatement, Reference
 from app.models.database import CodingLookup
-from app.scripts.seed import MEDRT_DRUG_CLASSES, RXNORM_DRUGS, SNOMED_MEDICATION_CLASSES
+from app.scripts.seed import MEDRT_DRUG_CLASSES, NCI_DRUGS, RXNORM_DRUGS, SNOMED_MEDICATION_CLASSES
 
 RXNORM_SYSTEM_URI = "http://www.nlm.nih.gov/research/umls/rxnorm"
 SNOMED_SYSTEM_URI = "http://snomed.info/sct"
 MEDRT_SYSTEM_URI = "http://va.gov/terminology/medrt"
+NCIT_SYSTEM_URI = "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl"
 
 _SYSTEM_URIS = {
     "rxnorm": RXNORM_SYSTEM_URI,
     "snomed_ct": SNOMED_SYSTEM_URI,
     "medrt": MEDRT_SYSTEM_URI,
+    "nci_thesaurus": NCIT_SYSTEM_URI,
 }
 _MEDICATION_PROJECTION_CATEGORIES = {"prior_therapy", "concomitant_medication"}
 _RAW_RECOGNIZED_CLASS_TERMS = {
@@ -27,6 +29,7 @@ _RAW_RECOGNIZED_CLASS_TERMS = {
     "pd-1/pd-l1 inhibitor therapy",
     "pd-l1 therapy",
     "kras-targeted therapy",
+    "agent targeting kras",
     "systemic corticosteroids",
     "live-attenuated vaccine",
     "live vaccine",
@@ -48,6 +51,11 @@ _AMBIGUOUS_CLASS_HINTS = (
     "antibody",
     "agent",
 )
+_NAMED_DRUG_WRAPPER_PATTERN = re.compile(
+    r"\bcontaining\s+(?:treatments?|therap(?:y|ies)|regimens?)\b",
+    re.I,
+)
+_EXPLICIT_COMBINATION_SPLIT_PATTERN = re.compile(r"\s*(?:\+|\bplus\b)\s*", re.I)
 
 
 @dataclass(frozen=True)
@@ -87,6 +95,7 @@ class CriterionProjectionMapper:
             return []
 
         results: list[ProjectionResult] = []
+        seen_keys: set[tuple[object, ...]] = set()
         for mention_text in self._medication_mentions(criterion):
             normalized_term = _normalize_term(mention_text)
             projection = self._project_medication_mention(
@@ -94,8 +103,13 @@ class CriterionProjectionMapper:
                 mention_text=mention_text,
                 normalized_term=normalized_term,
             )
-            if projection is not None:
-                results.append(projection)
+            if projection is None:
+                continue
+            key = self._dedupe_key(projection)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            results.append(projection)
         return results
 
     def _project_medication_mention(
@@ -132,7 +146,34 @@ class CriterionProjectionMapper:
                 resource=resource,
             )
 
-        class_lookup = self._exact_or_synonym_lookup(normalized_term, systems=("medrt", "snomed_ct"))
+        embedded_lookup = self._embedded_named_drug_lookup(normalized_term)
+        if embedded_lookup:
+            resource = self._medication_statement_resource(
+                criterion=criterion,
+                mention_text=mention_text,
+                lookup=embedded_lookup,
+            )
+            return ProjectionResult(
+                mention_text=mention_text,
+                normalized_term=normalized_term,
+                criterion_id=getattr(criterion, "id", None),
+                trial_id=getattr(criterion, "trial_id", None),
+                criterion_category=getattr(criterion, "category", ""),
+                criterion_type=getattr(criterion, "type", ""),
+                resource_type="MedicationStatement",
+                projection_status="projected",
+                terminology_status="rxnorm_grounded",
+                review_required=False,
+                system=embedded_lookup.system,
+                code=embedded_lookup.code,
+                display=embedded_lookup.display,
+                resource=resource,
+            )
+
+        class_lookup = self._exact_or_synonym_lookup(
+            normalized_term,
+            systems=("nci_thesaurus", "medrt", "snomed_ct"),
+        )
         if class_lookup:
             resource = self._medication_statement_resource(
                 criterion=criterion,
@@ -198,24 +239,32 @@ class CriterionProjectionMapper:
         )
 
     def _medication_mentions(self, criterion) -> list[str]:
-        mentions: list[str] = []
+        raw_mentions: list[str] = []
         entities = getattr(criterion, "entities", None) or []
         for entity in entities:
             if getattr(entity, "label", None) != "DRUG":
                 continue
-            self._append_unique(mentions, getattr(entity, "expanded_text", None) or getattr(entity, "text", None))
+            self._append_unique(raw_mentions, getattr(entity, "expanded_text", None) or getattr(entity, "text", None))
 
-        self._append_unique(mentions, getattr(criterion, "value_text", None))
+        self._append_unique(raw_mentions, getattr(criterion, "value_text", None))
 
         for exception_entity in getattr(criterion, "exception_entities", None) or []:
-            self._append_unique(mentions, exception_entity)
+            self._append_unique(raw_mentions, exception_entity)
 
         allowance_text = getattr(criterion, "allowance_text", None)
         if allowance_text:
             embedded_named_drug = self._named_drugs_in_text(allowance_text)
             for mention in embedded_named_drug:
-                self._append_unique(mentions, mention)
+                self._append_unique(raw_mentions, mention)
 
+        mentions: list[str] = []
+        for mention in raw_mentions:
+            split_mentions = self._split_combination_mention(mention)
+            if split_mentions:
+                for split_mention in split_mentions:
+                    self._append_unique(mentions, split_mention)
+                continue
+            self._append_unique(mentions, mention)
         return mentions
 
     def _medication_statement_resource(
@@ -284,6 +333,45 @@ class CriterionProjectionMapper:
             self._append_unique(unique, display)
         return unique
 
+    def _embedded_named_drug_lookup(self, normalized_term: str) -> ProjectionLookup | None:
+        if not _NAMED_DRUG_WRAPPER_PATTERN.search(normalized_term):
+            return None
+        named_drugs = self._named_drugs_in_text(normalized_term)
+        if len(named_drugs) != 1:
+            return None
+        return self._exact_or_synonym_lookup(_normalize_term(named_drugs[0]), systems=("rxnorm",))
+
+    def _split_combination_mention(self, mention_text: str) -> list[str] | None:
+        if not _EXPLICIT_COMBINATION_SPLIT_PATTERN.search(mention_text):
+            return None
+        parts = [
+            part.strip(" ,;.")
+            for part in _EXPLICIT_COMBINATION_SPLIT_PATTERN.split(mention_text)
+            if part.strip(" ,;.")
+        ]
+        if len(parts) < 2:
+            return None
+        if not all(self._looks_like_medication_fragment(part) for part in parts):
+            return None
+        return parts
+
+    def _looks_like_medication_fragment(self, fragment: str) -> bool:
+        normalized = _normalize_term(fragment)
+        if not normalized:
+            return False
+        if self._exact_or_synonym_lookup(
+            normalized,
+            systems=("rxnorm", "nci_thesaurus", "medrt", "snomed_ct"),
+        ):
+            return True
+        if self._embedded_named_drug_lookup(normalized):
+            return True
+        if self._is_recognized_class_term(normalized):
+            return True
+        if self._named_drugs_in_text(fragment):
+            return True
+        return self._looks_like_ambiguous_class(normalized)
+
     def _lookup_index(self) -> dict[str, list[ProjectionLookup]]:
         if self._cached_lookup_index is not None:
             return self._cached_lookup_index
@@ -292,7 +380,7 @@ class CriterionProjectionMapper:
         if self._db is not None:
             lookups = (
                 self._db.query(CodingLookup)
-                .filter(CodingLookup.system.in_(("rxnorm", "medrt", "snomed_ct")))
+                .filter(CodingLookup.system.in_(("rxnorm", "nci_thesaurus", "medrt", "snomed_ct")))
                 .all()
             )
             for lookup in lookups:
@@ -307,6 +395,7 @@ class CriterionProjectionMapper:
         else:
             for system, catalog in (
                 ("rxnorm", RXNORM_DRUGS),
+                ("nci_thesaurus", NCI_DRUGS),
                 ("medrt", MEDRT_DRUG_CLASSES),
                 ("snomed_ct", SNOMED_MEDICATION_CLASSES),
             ):
@@ -346,6 +435,12 @@ class CriterionProjectionMapper:
         key = _normalize_term(normalized)
         if key and all(_normalize_term(existing) != key for existing in target):
             target.append(normalized)
+
+    @staticmethod
+    def _dedupe_key(projection: ProjectionResult) -> tuple[object, ...]:
+        if projection.resource_type and projection.system and projection.code:
+            return ("projected", projection.resource_type, projection.system, projection.code)
+        return ("blocked", projection.projection_status, projection.normalized_term)
 
 
 def _normalize_term(value: str | None) -> str:

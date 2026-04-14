@@ -1,12 +1,35 @@
 [
   {
-    "original_text": "Have received at least 3 targeted therapies for locally advanced or metastatic disease, including disease progression after receiving at least 1 trastuzumab-containing treatment.",
+    "original_text": "Have received at least 3 targeted therapies for locally advanced or metastatic disease",
+    "source_sentence": "Have received at least 3 targeted therapies for locally advanced or metastatic disease, including disease progression after receiving at least 1 trastuzumab-containing treatment.",
+    "source_clause_text": "Have received at least 3 targeted therapies for locally advanced or metastatic disease",
     "type": "inclusion",
     "category": "prior_therapy",
-    "parse_status": "partial",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 3.0,
+    "value_text": "targeted therapies",
+    "raw_expression": "at least 3",
     "negated": false,
-    "logic_operator": "OR",
-    "review_required": true,
-    "review_reason": "complex_criteria"
+    "logic_operator": "AND",
+    "review_required": false
+  },
+  {
+    "original_text": "Have documented disease progression after receiving at least 1 trastuzumab-containing treatment",
+    "source_sentence": "Have received at least 3 targeted therapies for locally advanced or metastatic disease, including disease progression after receiving at least 1 trastuzumab-containing treatment.",
+    "source_clause_text": "Have documented disease progression after receiving at least 1 trastuzumab-containing treatment",
+    "type": "inclusion",
+    "category": "prior_therapy",
+    "parse_status": "parsed",
+    "operator": "gte",
+    "value_low": 1.0,
+    "value_text": "trastuzumab-containing treatment",
+    "raw_expression": "at least 1",
+    "negated": false,
+    "logic_operator": "AND",
+    "secondary_semantic_tags": [
+      "progression_requirement"
+    ],
+    "review_required": false
   }
 ]

@@ -94,6 +94,12 @@ def test_seed_catalog_uses_unique_codes_within_each_system():
 def test_seed_catalog_keeps_expected_nci_drug_codes():
     codes = {display: code for code, display, _synonyms in NCI_DRUGS}
 
+    assert codes["Chemotherapy"] == "C15632"
+    assert codes["Platinum Compound"] == "C1450"
+    assert codes["Targeted Therapy"] == "C93352"
+    assert codes["Investigational Medicinal Product"] == "C202579"
+    assert codes["anti-PD-1 monoclonal antibody"] == "C178320"
+    assert codes["anti-PD-L1 monoclonal antibody"] == "C128057"
     assert codes["Carboplatin"] == "C1282"
     assert codes["Docetaxel"] == "C1526"
     assert codes["Capecitabine"] == "C1794"
@@ -107,6 +113,7 @@ def test_seed_catalog_includes_rxnorm_named_drugs_for_projection():
     assert codes["Ketoconazole"] == "6135"
     assert codes["Posaconazole"] == "282446"
     assert codes["Voriconazole"] == "121243"
+    assert codes["Trastuzumab"] == "224905"
 
 
 def test_merge_synonyms_is_case_insensitive_and_append_only():
