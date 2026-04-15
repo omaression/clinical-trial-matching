@@ -16,3 +16,8 @@ frontend/.next/
 frontend/*.tsbuildinfo
 docs/
 .DS_Store
+.gitnexus
+.claude/
+.claude/*
+AGENTS.md
+CLAUDE.md
