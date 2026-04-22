@@ -37,6 +37,7 @@ def build_curated_corpus_report(fixture_names: list[str] | None = None) -> dict[
     total_medication_statement_projected = 0
     total_blocked_missing_rxnorm = 0
     total_blocked_missing_class_code = 0
+    summary_blocked_missing_class_code_terms: Counter[str] = Counter()
     total_review_required_ambiguous_class = 0
     total_review_required = 0
     total_uncoded_accepted = 0
@@ -62,6 +63,11 @@ def build_curated_corpus_report(fixture_names: list[str] | None = None) -> dict[
         projection_resource_counts = Counter(
             projection.resource_type or "none" for projection in projections
         )
+        blocked_missing_class_code_terms = Counter(
+            projection.normalized_term
+            for projection in projections
+            if projection.projection_status == "blocked_missing_class_code" and projection.normalized_term
+        )
         uncoded_accepted = sum(
             1
             for criterion in result.criteria
@@ -78,6 +84,7 @@ def build_curated_corpus_report(fixture_names: list[str] | None = None) -> dict[
             "medication_statement_projected_count": projection_resource_counts["MedicationStatement"],
             "blocked_missing_rxnorm_count": projection_status_counts["blocked_missing_rxnorm"],
             "blocked_missing_class_code_count": projection_status_counts["blocked_missing_class_code"],
+            "blocked_missing_class_code_terms": dict(sorted(blocked_missing_class_code_terms.items())),
             "review_required_ambiguous_class_count": projection_status_counts["review_required_ambiguous_class"],
             "category_distribution": dict(sorted(category_counts.items())),
             "projection_status_distribution": dict(sorted(projection_status_counts.items())),
@@ -90,6 +97,7 @@ def build_curated_corpus_report(fixture_names: list[str] | None = None) -> dict[
         total_medication_statement_projected += projection_resource_counts["MedicationStatement"]
         total_blocked_missing_rxnorm += projection_status_counts["blocked_missing_rxnorm"]
         total_blocked_missing_class_code += projection_status_counts["blocked_missing_class_code"]
+        summary_blocked_missing_class_code_terms.update(blocked_missing_class_code_terms)
         total_review_required_ambiguous_class += projection_status_counts["review_required_ambiguous_class"]
         total_review_required += result.review_required_count
         total_uncoded_accepted += uncoded_accepted
@@ -105,6 +113,7 @@ def build_curated_corpus_report(fixture_names: list[str] | None = None) -> dict[
             "medication_statement_projected_count": total_medication_statement_projected,
             "blocked_missing_rxnorm_count": total_blocked_missing_rxnorm,
             "blocked_missing_class_code_count": total_blocked_missing_class_code,
+            "blocked_missing_class_code_terms": dict(sorted(summary_blocked_missing_class_code_terms.items())),
             "review_required_ambiguous_class_count": total_review_required_ambiguous_class,
             "uncoded_but_accepted_count": total_uncoded_accepted,
             "category_distribution": dict(sorted(summary_categories.items())),
@@ -125,6 +134,10 @@ def render_markdown_report(report: dict[str, Any]) -> str:
             f"- MedicationStatement projections: {summary['medication_statement_projected_count']}",
             f"- Blocked missing RxNorm: {summary['blocked_missing_rxnorm_count']}",
             f"- Blocked missing class code: {summary['blocked_missing_class_code_count']}",
+            (
+                "- Blocked missing class code terms: "
+                f"{json.dumps(summary['blocked_missing_class_code_terms'], sort_keys=True)}"
+            ),
             f"- Review-required ambiguous classes: {summary['review_required_ambiguous_class_count']}",
             f"- Uncoded but accepted: {summary['uncoded_but_accepted_count']}",
             "",
@@ -143,6 +156,10 @@ def render_markdown_report(report: dict[str, Any]) -> str:
                 f"- MedicationStatement projections: {fixture['medication_statement_projected_count']}",
                 f"- Blocked missing RxNorm: {fixture['blocked_missing_rxnorm_count']}",
                 f"- Blocked missing class code: {fixture['blocked_missing_class_code_count']}",
+                (
+                    "- Blocked missing class code terms: "
+                    f"{json.dumps(fixture['blocked_missing_class_code_terms'], sort_keys=True)}"
+                ),
                 f"- Review-required ambiguous classes: {fixture['review_required_ambiguous_class_count']}",
                 f"- Uncoded but accepted: {fixture['uncoded_but_accepted_count']}",
                 f"- Categories: {json.dumps(fixture['category_distribution'], sort_keys=True)}",
