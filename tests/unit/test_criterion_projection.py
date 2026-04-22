@@ -1,5 +1,7 @@
 import uuid
 
+import pytest
+
 from app.extraction.types import Entity
 from app.fhir.criterion_projection import CriterionProjectionMapper
 
@@ -33,15 +35,25 @@ def _make_criterion(**kwargs):
     return criterion
 
 
-def test_named_drug_allowance_projects_to_medication_statement():
+def test_systemic_corticosteroid_class_and_named_allowance_project_to_medication_statements():
     mapper = CriterionProjectionMapper()
     criterion = _make_criterion()
 
     projections = mapper.project_criterion(criterion)
 
     statuses = {projection.normalized_term: projection.projection_status for projection in projections}
-    assert statuses["systemic corticosteroids"] == "blocked_missing_class_code"
+    assert statuses["systemic corticosteroids"] == "projected"
     assert statuses["prednisone"] == "projected"
+
+    systemic_projection = next(
+        projection for projection in projections if projection.normalized_term == "systemic corticosteroids"
+    )
+    assert systemic_projection.resource_type == "MedicationStatement"
+    assert systemic_projection.terminology_status == "nci_thesaurus_grounded"
+    assert systemic_projection.code == "C122080"
+    assert systemic_projection.resource["medicationCodeableConcept"]["coding"][0]["system"] == (
+        "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl"
+    )
 
     prednisone_projection = next(
         projection for projection in projections if projection.normalized_term == "prednisone"
@@ -52,6 +64,62 @@ def test_named_drug_allowance_projects_to_medication_statement():
     assert prednisone_projection.resource["medicationCodeableConcept"]["coding"][0]["system"] == (
         "http://www.nlm.nih.gov/research/umls/rxnorm"
     )
+
+
+@pytest.mark.parametrize(
+    "mention_text",
+    [
+        "live vaccine",
+        "live-attenuated vaccine",
+        "live or live-attenuated vaccine",
+    ],
+)
+def test_live_vaccine_variants_project_to_safe_parent_class(mention_text: str):
+    mapper = CriterionProjectionMapper()
+    criterion = _make_criterion(
+        original_text=f"No {mention_text} within 30 days before enrollment",
+        value_text=mention_text,
+        entities=[Entity(text=mention_text, label="DRUG", start=3, end=3 + len(mention_text))],
+        allowance_text=None,
+        timeframe_operator="within",
+        timeframe_value=30.0,
+        timeframe_unit="days",
+    )
+
+    projections = mapper.project_criterion(criterion)
+
+    assert len(projections) == 1
+    assert projections[0].mention_text == mention_text
+    assert projections[0].projection_status == "projected"
+    assert projections[0].terminology_status == "nci_thesaurus_grounded"
+    assert projections[0].review_required is False
+    assert projections[0].code == "C97116"
+    assert projections[0].resource_type == "MedicationStatement"
+    assert projections[0].resource["medicationCodeableConcept"]["coding"][0]["system"] == (
+        "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl"
+    )
+
+
+def test_generic_vaccine_term_remains_review_required_for_safety():
+    mapper = CriterionProjectionMapper()
+    criterion = _make_criterion(
+        original_text="No vaccine within 30 days before enrollment",
+        value_text="vaccine",
+        entities=[Entity(text="vaccine", label="DRUG", start=3, end=10)],
+        allowance_text=None,
+        timeframe_operator="within",
+        timeframe_value=30.0,
+        timeframe_unit="days",
+    )
+
+    projections = mapper.project_criterion(criterion)
+
+    assert len(projections) == 1
+    assert projections[0].normalized_term == "vaccine"
+    assert projections[0].projection_status == "review_required_ambiguous_class"
+    assert projections[0].terminology_status == "ambiguous_class_no_safe_code"
+    assert projections[0].review_required is True
+    assert projections[0].resource is None
 
 
 def test_safe_pd_1_therapy_class_projects_to_medication_statement():
@@ -144,3 +212,26 @@ def test_investigational_agent_projects_to_safe_parent_class_with_verbatim_text(
     assert projections[0].terminology_status == "nci_thesaurus_grounded"
     assert projections[0].code == "C202579"
     assert projections[0].resource["medicationCodeableConcept"]["text"] == "investigational agent"
+
+
+def test_cyp3a4_inducer_inhibitor_class_remains_blocked_pending_safe_source():
+    mapper = CriterionProjectionMapper()
+    criterion = _make_criterion(
+        original_text="No concurrent CYP3A4 inhibitors/inducers within 7 days",
+        value_text="cyp3a4 inhibitors/inducers",
+        entities=[Entity(text="CYP3A4 inhibitors/inducers", label="DRUG", start=14, end=40)],
+        allowance_text=None,
+        exception_entities=[],
+        timeframe_operator="within",
+        timeframe_value=7.0,
+        timeframe_unit="days",
+    )
+
+    projections = mapper.project_criterion(criterion)
+
+    assert len(projections) == 1
+    assert projections[0].normalized_term == "cyp3a4 inhibitors inducers"
+    assert projections[0].projection_status == "blocked_missing_class_code"
+    assert projections[0].terminology_status == "recognized_class_missing_safe_code"
+    assert projections[0].review_required is True
+    assert projections[0].resource is None

@@ -59,8 +59,8 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
     assert report["summary"]["criteria_count"] == 12
     assert report["summary"]["review_required_count"] == 0
     assert report["summary"]["structurally_exportable_fhir_count"] == 2
-    assert report["summary"]["medication_statement_projected_count"] == 6
-    assert report["summary"]["blocked_missing_class_code_count"] == 4
+    assert report["summary"]["medication_statement_projected_count"] == 8
+    assert report["summary"]["blocked_missing_class_code_count"] == 2
     assert report["summary"]["blocked_missing_rxnorm_count"] == 0
     assert report["summary"]["review_required_ambiguous_class_count"] == 0
     fixture_names = [fixture["fixture"] for fixture in report["fixtures"]]
@@ -78,8 +78,26 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
         fixture for fixture in report["fixtures"] if fixture["fixture"] == "medication_exception_logic"
     )
     assert medication_fixture["structurally_exportable_fhir_count"] == 0
-    assert medication_fixture["medication_statement_projected_count"] == 5
-    assert medication_fixture["blocked_missing_class_code_count"] == 3
+    assert medication_fixture["medication_statement_projected_count"] == 7
+    assert medication_fixture["blocked_missing_class_code_count"] == 1
+    assert medication_fixture["projection_status_distribution"] == {
+        "blocked_missing_class_code": 1,
+        "projected": 7,
+    }
+
+
+def test_curated_corpus_report_keeps_cyp3a4_class_blocked_while_projecting_safe_classes():
+    report = build_curated_corpus_report(["medication_exception_logic"])
+
+    assert report["summary"]["medication_statement_projected_count"] == 7
+    assert report["summary"]["blocked_missing_class_code_count"] == 1
+
+    fixture = report["fixtures"][0]
+    assert fixture["fixture"] == "medication_exception_logic"
+    assert fixture["projection_status_distribution"] == {
+        "blocked_missing_class_code": 1,
+        "projected": 7,
+    }
 
 
 def test_curated_corpus_report_tracks_projected_and_blocked_line_of_therapy_clauses():
