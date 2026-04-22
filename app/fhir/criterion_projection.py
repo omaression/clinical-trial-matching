@@ -7,6 +7,10 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.extraction.constants import (
+    AMBIGUOUS_MEDICATION_CLASS_HINTS,
+    RECOGNIZED_MEDICATION_CLASS_TERMS,
+)
 from app.fhir.models import Annotation, CodeableConcept, Coding, MedicationStatement, Reference
 from app.models.database import CodingLookup
 from app.scripts.seed import MEDRT_DRUG_CLASSES, NCI_DRUGS, RXNORM_DRUGS, SNOMED_MEDICATION_CLASSES
@@ -23,34 +27,6 @@ _SYSTEM_URIS = {
     "nci_thesaurus": NCIT_SYSTEM_URI,
 }
 _MEDICATION_PROJECTION_CATEGORIES = {"prior_therapy", "concomitant_medication"}
-_RAW_RECOGNIZED_CLASS_TERMS = {
-    "pd-1 therapy",
-    "pd-1/pd-l1 therapy",
-    "pd-1/pd-l1 inhibitor therapy",
-    "pd-l1 therapy",
-    "kras-targeted therapy",
-    "agent targeting kras",
-    "systemic corticosteroids",
-    "live-attenuated vaccine",
-    "live vaccine",
-    "live or live-attenuated vaccine",
-    "cyp3a4 inhibitors/inducers",
-    "platinum-based chemotherapy",
-}
-_AMBIGUOUS_CLASS_HINTS = (
-    "therapy",
-    "vaccine",
-    "corticosteroid",
-    "steroid",
-    "chemotherapy",
-    "inhibitor",
-    "inducer",
-    "immunosuppressive",
-    "targeted",
-    "targeting",
-    "antibody",
-    "agent",
-)
 _NAMED_DRUG_WRAPPER_PATTERN = re.compile(
     r"\bcontaining\s+(?:treatments?|therap(?:y|ies)|regimens?)\b",
     re.I,
@@ -456,4 +432,5 @@ def _contains_normalized_phrase(text: str, phrase: str) -> bool:
     return f" {phrase} " in f" {text} "
 
 
-_RECOGNIZED_CLASS_TERMS = {_normalize_term(term) for term in _RAW_RECOGNIZED_CLASS_TERMS}
+_RECOGNIZED_CLASS_TERMS = {_normalize_term(term) for term in RECOGNIZED_MEDICATION_CLASS_TERMS}
+_AMBIGUOUS_CLASS_HINTS = tuple(AMBIGUOUS_MEDICATION_CLASS_HINTS)

@@ -1,6 +1,7 @@
 """Seed the database with coding lookups for entity resolution."""
 
 from app.db.session import SessionLocal
+from app.extraction.constants import PD_1_THERAPY_SYNONYMS, PD_L1_THERAPY_SYNONYMS
 from app.models.database import CodingLookup
 
 # MeSH disease codes
@@ -227,31 +228,24 @@ NCI_DRUGS = [
         ],
     ),
     (
-        "C178320",
-        "anti-PD-1 monoclonal antibody",
+        "C122080",
+        "Systemic Corticosteroid Therapy",
         [
-            "pd-1 therapy",
-            "pd 1 therapy",
-            "pd-1 inhibitor therapy",
-            "pd 1 inhibitor therapy",
-            "programmed cell death protein 1 therapy",
-            "programmed cell death protein 1 (pd-1) therapy",
+            "systemic corticosteroid",
+            "systemic corticosteroids",
         ],
     ),
     (
-        "C128057",
-        "anti-PD-L1 monoclonal antibody",
+        "C97116",
+        "Attenuated Live Vaccine",
         [
-            "pd-l1 therapy",
-            "pd l1 therapy",
-            "pd-l1 inhibitor therapy",
-            "pd l1 inhibitor therapy",
-            "programmed death-ligand 1 therapy",
-            "programmed death ligand 1 therapy",
-            "programmed death-ligand 1 (pd-l1) therapy",
-            "programmed death ligand 1 (pd l1) therapy",
+            "live vaccine",
+            "live-attenuated vaccine",
+            "live or live-attenuated vaccine",
         ],
     ),
+    ("C178320", "anti-PD-1 monoclonal antibody", list(PD_1_THERAPY_SYNONYMS)),
+    ("C128057", "anti-PD-L1 monoclonal antibody", list(PD_L1_THERAPY_SYNONYMS)),
     ("C1794", "Capecitabine", ["xeloda"]),
     ("C1900", "Irinotecan", ["camptosar"]),
     ("C510", "Fluorouracil", ["5-fu", "5fu", "5 fluorouracil"]),
