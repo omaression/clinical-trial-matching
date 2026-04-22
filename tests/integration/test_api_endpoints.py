@@ -693,18 +693,18 @@ class TestCriterionFHIRProjections:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 8
-        assert data["breakdown_by_status"]["projected"] == 6
-        assert data["breakdown_by_status"]["blocked_missing_class_code"] == 2
-        assert data["breakdown_by_resource_type"]["MedicationStatement"] == 6
-        assert data["breakdown_by_resource_type"]["none"] == 2
+        assert data["breakdown_by_status"]["projected"] == 7
+        assert data["breakdown_by_status"]["blocked_missing_class_code"] == 1
+        assert data["breakdown_by_resource_type"]["MedicationStatement"] == 7
+        assert data["breakdown_by_resource_type"]["none"] == 1
 
         projected = [item for item in data["items"] if item["projection_status"] == "projected"]
         blocked = [item for item in data["items"] if item["projection_status"] == "blocked_missing_class_code"]
         projected_codes = {item["code"] for item in projected}
         blocked_terms = {item["normalized_term"] for item in blocked}
 
-        assert projected_codes == {"8640", "28031", "6135", "282446", "121243", "C178320"}
-        assert blocked_terms == {"systemic corticosteroids", "cyp3a4 inhibitors inducers"}
+        assert projected_codes == {"8640", "28031", "6135", "282446", "121243", "C122080", "C178320"}
+        assert blocked_terms == {"cyp3a4 inhibitors inducers"}
         assert all(item["resource_type"] == "MedicationStatement" for item in projected)
         systems = {
             item["resource"]["medicationCodeableConcept"]["coding"][0]["system"]
@@ -742,13 +742,21 @@ class TestCriterionFHIRProjections:
         data = response.json()
         assert data["total"] == 2
         assert data["breakdown_by_status"] == {
-            "blocked_missing_class_code": 1,
-            "projected": 1,
+            "projected": 2,
         }
         assert data["breakdown_by_resource_type"] == {
-            "MedicationStatement": 1,
-            "none": 1,
+            "MedicationStatement": 2,
         }
+
+        systemic_projection = next(
+            item for item in data["items"] if item["normalized_term"] == "systemic corticosteroids"
+        )
+        assert systemic_projection["projection_status"] == "projected"
+        assert systemic_projection["code"] == "C122080"
+        assert (
+            systemic_projection["resource"]["medicationCodeableConcept"]["coding"][0]["system"]
+            == "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl"
+        )
 
         prednisone_projection = next(item for item in data["items"] if item["normalized_term"] == "prednisone")
         assert prednisone_projection["projection_status"] == "projected"
@@ -759,6 +767,42 @@ class TestCriterionFHIRProjections:
             == "http://www.nlm.nih.gov/research/umls/rxnorm"
         )
         assert prednisone_projection["resource"]["derivedFrom"][0]["reference"] == f"ResearchStudy/{trial.id}"
+
+    def test_single_criterion_fhir_projections_include_live_vaccine_safe_parent_class(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        sync_coding_lookups(db_session)
+        _, created = _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": "No live or live-attenuated vaccine within 30 days before enrollment",
+                    "value_text": "live or live-attenuated vaccine",
+                    "timeframe_operator": "within",
+                    "timeframe_value": 30,
+                    "timeframe_unit": "days",
+                }
+            ],
+        )
+
+        response = client.get(f"/api/v1/criteria/{created[0].id}/fhir-projections")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        vaccine_projection = data["items"][0]
+        assert vaccine_projection["normalized_term"] == "live or live attenuated vaccine"
+        assert vaccine_projection["projection_status"] == "projected"
+        assert vaccine_projection["terminology_status"] == "nci_thesaurus_grounded"
+        assert vaccine_projection["code"] == "C97116"
+        assert vaccine_projection["display"] == "Attenuated Live Vaccine"
+        assert vaccine_projection["resource_type"] == "MedicationStatement"
+        assert (
+            vaccine_projection["resource"]["medicationCodeableConcept"]["coding"][0]["system"]
+            == "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl"
+        )
 
     def test_criterion_fhir_projections_not_found(self, client):
         response = client.get(f"/api/v1/criteria/{uuid.uuid4()}/fhir-projections")

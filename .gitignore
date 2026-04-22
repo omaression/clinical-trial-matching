@@ -1,23 +1,28 @@
 __pycache__/
 *.pyc
 .env
+.env.local
 *.egg-info/
 dist/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
-.superpowers/
-.worktrees/
-.ctm-dev/
 .conda-pkgs/
 .conda-env/
+.ctm-dev/
+.venv/
+.direnv/
 frontend/node_modules/
 frontend/.next/
 frontend/*.tsbuildinfo
-docs/
+frontend/.env.local
 .DS_Store
-.gitnexus
-.claude/
-.claude/*
-AGENTS.md
-CLAUDE.md
+# Local editor / workspace state
+.idea/
+.vscode/
+*.code-workspace
+# Local-only dev compose overrides and lockfiles not adopted by the repo
+docker-compose.override.yml
+uv.lock
+# Internal/Hermes Workspace — never commit plans, notes, or chat history
+.hermes/
