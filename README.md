@@ -60,101 +60,110 @@ The frontend is intended to make that path demoable end to end from one console.
 
 ### Prerequisites
 
-- Python 3.12
+- Python 3.12+
 - Node.js 20+
 - Docker Desktop or a local PostgreSQL instance
-- `npm` available in `PATH`
+- `uv`, `npm`, `curl`, and `lsof` available in `PATH`
 
-### Option A: One-command local startup
+### Quick Start (Recommended)
 
-This is the cleanest local path once dependencies are installed.
+This path matches the setup verified in this repo: install CPython 3.12 with `uv`, create a repo-local virtualenv, install the backend in editable mode, install frontend dependencies, then run the launcher.
 
-1. Start Postgres:
+1. Copy environment templates:
 
-```bash
-docker compose up -d db
-```
+   ```bash
+   cp .env.example .env
+   cp frontend/.env.example frontend/.env.local
+   ```
 
-2. Create or activate a Python environment and install backend dependencies:
+2. Start Postgres:
 
-```bash
-conda create -p ./.ctm-dev python=3.12 -y
-conda activate ./.ctm-dev
-pip install -e ".[dev]"
-```
+   ```bash
+   docker compose up -d db
+   ```
 
-3. Install frontend dependencies:
+3. Install backend dependencies:
 
-```bash
-cd frontend && npm install && cd ..
-```
+   ```bash
+   uv python install 3.12
+   uv venv --python 3.12 .ctm-dev
+   uv pip install --python .ctm-dev/bin/python -e ".[dev]"
+   export PATH="$PWD/.ctm-dev/bin:$PATH"
+   ```
 
-4. Start the stack:
+4. Install frontend dependencies:
 
-```bash
-./scripts/dev.sh
-```
+   ```bash
+   cd frontend && npm install && cd ..
+   ```
 
-The startup path now syncs the coding lookup catalog automatically, so local runs use the current terminology seed without requiring a separate manual seed step for lookups.
+5. Start the dev server:
 
-Default local URLs:
+   ```bash
+   ./scripts/dev.sh
+   ```
 
+   The startup path syncs the coding lookup catalog automatically, so local runs use the current terminology seed.
+
+**Default local URLs:**
 - Frontend: `http://127.0.0.1:3000`
 - Backend: `http://127.0.0.1:8000`
 - Health: `http://127.0.0.1:8000/api/v1/health`
 
-Optional demo data:
-
-```bash
-python -m app.scripts.seed_demo
-```
-
-### Option B: Manual local startup
+### Manual Local Startup
 
 Use this when you want explicit control over each process.
 
-1. Start Postgres:
+1. Copy environment templates:
 
-```bash
-docker compose up -d db
-```
+   ```bash
+   cp .env.example .env
+   cp frontend/.env.example frontend/.env.local
+   ```
 
-2. Create or activate a Python environment and install dependencies:
+2. Start Postgres:
 
-```bash
-conda create -p ./.ctm-dev python=3.12 -y
-conda activate ./.ctm-dev
-pip install -e ".[dev]"
-```
+   ```bash
+   docker compose up -d db
+   ```
 
-3. Run migrations:
+3. Create a Python environment and install dependencies:
 
-```bash
-alembic upgrade head
-```
+   ```bash
+   uv python install 3.12
+   uv venv --python 3.12 .ctm-dev
+   uv pip install --python .ctm-dev/bin/python -e ".[dev]"
+   export PATH="$PWD/.ctm-dev/bin:$PATH"
+   ```
 
-4. Start the backend:
+4. Run migrations:
 
-```bash
-export CTM_API_KEY=local-dev-api-key
-uvicorn app.main:app --reload
-```
+   ```bash
+   alembic upgrade head
+   ```
 
-5. In a second terminal, start the frontend:
+5. Start the backend (in one terminal):
 
-```bash
-cd frontend
-npm install
-export CTM_FRONTEND_API_BASE_URL=http://127.0.0.1:8000/api/v1
-export CTM_FRONTEND_API_KEY=local-dev-api-key
-npm run dev
-```
+   ```bash
+   export CTM_API_KEY=***  # from your .env
+   uvicorn app.main:app --reload
+   ```
 
-6. Optional demo seed:
+6. Start the frontend (in another terminal):
 
-```bash
-python -m app.scripts.seed_demo
-```
+   ```bash
+   cd frontend
+   npm install
+   export CTM_FRONTEND_API_BASE_URL=http://127.0.0.1:8000/api/v1
+   export CTM_FRONTEND_API_KEY=***  # from frontend/.env.local
+   npm run dev
+   ```
+
+7. Optional demo seed:
+
+   ```bash
+   python -m app.scripts.seed_demo
+   ```
 
 ## Full-Stack Containers
 
@@ -165,12 +174,17 @@ docker compose up --build
 ```
 
 This starts:
+- `db` on port `5432`
+- `app` on port `8000`
+- `frontend` on port `3000`
 
-- `db` on `5432`
-- `app` on `8000`
-- `frontend` on `3000`
+Verify the backend is healthy after startup:
 
-Container runtime has been verified locally.
+```bash
+curl -fsS http://localhost:8000/api/v1/health
+```
+
+> **Note:** Personal `docker-compose.override.yml` files are ignored by `.gitignore`. Keep custom overrides local only.
 
 ## Demo Flow
 
@@ -187,8 +201,7 @@ The clean MVP walkthrough is:
 5. Open `Patients`, create or inspect a patient
 6. Run matching and open the persisted match result page
 
-Key frontend routes:
-
+**Key frontend routes:**
 - `/`
 - `/pipeline`
 - `/trials`
@@ -197,56 +210,47 @@ Key frontend routes:
 
 ## Deployment
 
-The intended deployment split is:
+One supported deployment pattern is:
+- frontend on Vercel from `frontend/`
+- backend on Render from the repo root Dockerfile
+- managed Postgres for the application database
 
-- `ctm.omaression.com` -> Vercel frontend from `frontend/`
-- `api.ctm.omaression.com` -> Render backend from the repo root Dockerfile
-- Render Postgres -> `clinical_trials`
+**Example frontend env vars:**
+- `CTM_FRONTEND_API_BASE_URL=https://api.example.com/api/v1`
+- `CTM_FRONTEND_API_KEY=***`
 
-Required Vercel env vars:
-
-- `CTM_FRONTEND_API_BASE_URL=https://api.ctm.omaression.com/api/v1`
-- `CTM_FRONTEND_API_KEY=<same value as Render CTM_API_KEY>`
-
-Required Render env vars:
-
+**Example backend env vars:**
 - `CTM_DATABASE_URL`
 - `CTM_API_KEY`
 - `CTM_RUN_MIGRATIONS=1`
 
-There is also a `render.yaml` blueprint in the repo for the backend/database side.
+There is also a `render.yaml` blueprint in the repo for the backend/database side if you want to use Render.
 
-## Next Steps
+## Roadmap
 
-The remaining roadmap is now narrower and more concrete:
+The following items represent the prioritized next phase of development. These are tracked as issues in the repository and refined as requirements before implementation.
 
-- Terminology and projection gaps:
-  - source safe parent or class concepts for the remaining blocked therapy classes where authoritative concepts exist
-  - improve the remaining genuinely complex medication-exception and washout logic that still deserves review
-  - continue increasing standard FHIR projection coverage without relaxing the current precision policy
-- Corpus-scale validation:
-  - broaden real ClinicalTrials.gov study coverage beyond the current sentinel trials and curated fixture sweep
-  - keep tracking review-required residue, blocked terminology cases, and projection counts as the corpus expands
-  - verify that extraction gains generalize across more oncology and medication-heavy studies
-- Product and deployment polish:
-  - add async/batch ingestion and operational job status handling
-  - add geographic/site-aware matching
-  - harden the public deployment and demo presentation for `ctm.omaression.com`
-  - decide whether any internal-only eligibility categories should ever receive a formal interoperability design
+| Priority | Item | Description |
+|----------|------|-------------|
+| 1 | Terminology gaps | Source safe parent/class concepts for remaining blocked therapy classes |
+| 2 | Corpus validation | Expand beyond sentinel trials; track review residue, blocked terminology, and projection counts |
+| 3 | Product polish | Async/batch ingestion, geographic/site-aware matching, public deployment hardening |
+| 4 | Interoperability | Decide if internal-only eligibility categories need formal FHIR design |
+
+> **Note:** The MVP is complete and functional. The roadmap focuses on production-readiness and coverage expansion.
 
 ## Verification
 
-Recent verification performed in this repository includes:
+Use the following commands to verify a local setup:
 
-- full backend test suite via `pytest`
-- frontend `npm run typecheck`
-- frontend `npm run build`
-- backend Docker build
-- frontend Docker build
-- `docker compose up --build -d` runtime verification
-- curated corpus verification via:
+- **backend tests:** `pytest -q`
+- **frontend typecheck:** `cd frontend && npm run typecheck`
+- **frontend build:** `cd frontend && npm run build`
+- **full stack runtime:** `docker compose up --build -d`
+- **backend health:** `curl -fsS http://127.0.0.1:8000/api/v1/health`
+- **curated corpus report:**
 
-```bash
-./.ctm-dev/bin/python -m app.scripts.curated_corpus_report
-./.ctm-dev/bin/python -m app.scripts.curated_corpus_report --format json
-```
+  ```bash
+  ./.ctm-dev/bin/python -m app.scripts.curated_corpus_report
+  ./.ctm-dev/bin/python -m app.scripts.curated_corpus_report --format json
+  ```
