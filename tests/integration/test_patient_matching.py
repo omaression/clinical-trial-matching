@@ -218,6 +218,27 @@ class TestPatientMatching:
                 },
             ],
         )
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000009",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                },
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": "Concurrent CYP3A4 inhibitor use",
+                    "review_required": True,
+                },
+            ],
+        )
 
         patient = client.post(
             "/api/v1/patients",
@@ -267,10 +288,22 @@ class TestPatientMatching:
         ranked = {item["trial_nct_id"]: item for item in data["results"]}
         assert ranked["NCT10000001"]["overall_status"] == "eligible"
         assert ranked["NCT10000001"]["score"] == 1.0
+        assert ranked["NCT10000001"]["determinate_score"] == 1.0
+        assert ranked["NCT10000001"]["coverage_ratio"] == 1.0
+        assert ranked["NCT10000001"]["deterministic_count"] == (
+            ranked["NCT10000001"]["favorable_count"] + ranked["NCT10000001"]["unfavorable_count"]
+        )
+        assert ranked["NCT10000001"]["unresolved_count"] == 0
         assert "eligible" in ranked["NCT10000001"]["summary_explanation"].casefold()
         assert ranked["NCT10000002"]["overall_status"] == "ineligible"
         assert ranked["NCT10000003"]["overall_status"] == "possible"
         assert ranked["NCT10000003"]["requires_review_count"] == 1
+        assert ranked["NCT10000003"]["determinate_score"] == 1.0
+        assert ranked["NCT10000003"]["coverage_ratio"] < 1.0
+        assert ranked["NCT10000003"]["unresolved_count"] == 1
+
+        possible_order = [item["trial_nct_id"] for item in data["results"] if item["overall_status"] == "possible"]
+        assert possible_order.index("NCT10000009") < possible_order.index("NCT10000003")
 
         stored = db_session.query(MatchResult).filter(MatchResult.trial_id == eligible_trial.id).first()
         assert stored is not None

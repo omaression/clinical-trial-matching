@@ -26,6 +26,14 @@ _STATUS_ORDER = {
     "possible": 1,
     "ineligible": 2,
 }
+
+
+def _ranking_metrics(result: MatchResult) -> tuple[float, float]:
+    deterministic_count = result.favorable_count + result.unfavorable_count
+    unresolved_count = result.unknown_count + result.requires_review_count
+    evaluated_count = deterministic_count + unresolved_count
+    coverage_ratio = deterministic_count / evaluated_count if evaluated_count else 0.0
+    return coverage_ratio, result.score
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 
 
@@ -141,7 +149,14 @@ class PatientMatchService:
 
             summaries.append(result)
 
-        summaries.sort(key=lambda result: (_STATUS_ORDER[result.overall_status], -result.score, str(result.trial_id)))
+        summaries.sort(
+            key=lambda result: (
+                _STATUS_ORDER[result.overall_status],
+                -_ranking_metrics(result)[0],
+                -_ranking_metrics(result)[1],
+                str(result.trial_id),
+            )
+        )
         match_run.total_trials_evaluated = len(summaries)
         match_run.eligible_trials = sum(1 for result in summaries if result.overall_status == "eligible")
         match_run.possible_trials = sum(1 for result in summaries if result.overall_status == "possible")

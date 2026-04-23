@@ -37,8 +37,12 @@ export default async function MatchDetailPage({
             <div className="mt-2"><StatusPill value={match.overall_status} /></div>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Score</p>
-            <p className="mt-2 text-2xl font-semibold text-ink">{formatPercent(match.score)}</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Determinate fit</p>
+            <p className="mt-2 text-2xl font-semibold text-ink">{formatPercent(match.determinate_score)}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Coverage</p>
+            <p className="mt-2 text-2xl font-semibold text-ink">{formatPercent(match.coverage_ratio)}</p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Blockers</p>
@@ -46,7 +50,7 @@ export default async function MatchDetailPage({
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Unknown or review</p>
-            <p className="mt-2 text-2xl font-semibold text-ink">{match.unknown_count + match.requires_review_count}</p>
+            <p className="mt-2 text-2xl font-semibold text-ink">{match.unresolved_count}</p>
           </div>
         </div>
       </Panel>
