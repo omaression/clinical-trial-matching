@@ -6,25 +6,35 @@ import { z } from "zod";
 
 import { ctmApi } from "@/lib/api/client";
 
+const booleanStringSchema = z.enum(["true", "false"]);
+const numericStringSchema = z.string().trim().refine(
+  (value) => Number.isFinite(Number(value)),
+  "Use a valid number."
+);
+const ecogStringSchema = z.string().trim().refine(
+  (value) => /^\d+$/.test(value) && Number(value) >= 0 && Number(value) <= 5,
+  "Use an ECOG status from 0 to 5."
+);
+
 const createPatientSchema = z.object({
   external_id: z.string().trim().optional(),
   sex: z.enum(["male", "female", "other", "unknown"]).optional(),
   birth_date: z.string().trim().optional(),
-  ecog_status: z.string().trim().optional(),
-  is_healthy_volunteer: z.string().trim().optional(),
-  can_consent: z.string().trim().optional(),
-  protocol_compliant: z.string().trim().optional(),
-  claustrophobic: z.string().trim().optional(),
-  motion_intolerant: z.string().trim().optional(),
-  pregnant: z.string().trim().optional(),
-  mr_device_present: z.string().trim().optional(),
+  ecog_status: ecogStringSchema.optional(),
+  is_healthy_volunteer: booleanStringSchema.optional(),
+  can_consent: booleanStringSchema.optional(),
+  protocol_compliant: booleanStringSchema.optional(),
+  claustrophobic: booleanStringSchema.optional(),
+  motion_intolerant: booleanStringSchema.optional(),
+  pregnant: booleanStringSchema.optional(),
+  mr_device_present: booleanStringSchema.optional(),
   conditions: z.string().trim().optional(),
   biomarkers: z.string().trim().optional(),
   medications: z.string().trim().optional(),
   lab_name: z.string().trim().optional(),
   lab_code: z.string().trim().optional(),
   lab_display: z.string().trim().optional(),
-  lab_value: z.string().trim().optional(),
+  lab_value: numericStringSchema.optional(),
   lab_unit: z.string().trim().optional()
 });
 
@@ -70,9 +80,27 @@ function safeBoolean(value?: string): boolean | undefined {
   return undefined;
 }
 
+function normalizeFormValue(value: FormDataEntryValue | null): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized === "" ? undefined : normalized;
+}
+
+function normalizedFormEntries(formData: FormData): Record<string, string | undefined> {
+  const normalized: Record<string, string | undefined> = {};
+
+  formData.forEach((value, key) => {
+    normalized[key] = normalizeFormValue(value);
+  });
+
+  return normalized;
+}
+
 function optionalFormString(formData: FormData, key: string): string | undefined {
-  const value = formData.get(key);
-  return typeof value === "string" ? value : undefined;
+  return normalizeFormValue(formData.get(key));
 }
 
 function actionErrorMessage(error: unknown, fallback: string): string {
@@ -95,43 +123,63 @@ function redirectToPipelineWithError(error: string, values?: Record<string, stri
   redirect(`/pipeline?${query.toString()}`);
 }
 
-export async function createPatientAction(formData: FormData) {
-  const parsed = createPatientSchema.parse(Object.fromEntries(formData.entries()));
+function redirectToPatientsWithError(error: string, values?: Record<string, string | undefined>): never {
+  const query = new URLSearchParams({ error });
+  for (const [key, value] of Object.entries(values ?? {})) {
+    if (value) {
+      query.set(key, value);
+    }
+  }
+  redirect(`/patients?${query.toString()}`);
+}
 
-  const patient = await ctmApi.createPatient({
-    external_id: parsed.external_id || undefined,
-    sex: parsed.sex,
-    birth_date: parsed.birth_date || undefined,
-    ecog_status: safeNumber(parsed.ecog_status),
-    is_healthy_volunteer: safeBoolean(parsed.is_healthy_volunteer),
-    can_consent: safeBoolean(parsed.can_consent),
-    protocol_compliant: safeBoolean(parsed.protocol_compliant),
-    claustrophobic: safeBoolean(parsed.claustrophobic),
-    motion_intolerant: safeBoolean(parsed.motion_intolerant),
-    pregnant: safeBoolean(parsed.pregnant),
-    mr_device_present: safeBoolean(parsed.mr_device_present),
-    conditions: splitLines(parsed.conditions).map((description) => ({ description })),
-    biomarkers: splitLines(parsed.biomarkers).map((description) => ({ description })),
-    medications: splitLines(parsed.medications).map((description) => ({ description, active: true })),
-    labs: parsed.lab_name
-      ? [
-          {
-            description: parsed.lab_name,
-            value_numeric: safeNumber(parsed.lab_value),
-            unit: parsed.lab_unit || undefined,
-            coded_concepts: parsed.lab_code
-              ? [
-                  {
-                    system: "loinc",
-                    code: parsed.lab_code,
-                    display: parsed.lab_display || parsed.lab_name
-                  }
-                ]
-              : []
-          }
-        ]
-      : []
-  });
+export async function createPatientAction(formData: FormData) {
+  const submitted = normalizedFormEntries(formData);
+  const parsed = createPatientSchema.safeParse(submitted);
+  if (!parsed.success) {
+    redirectToPatientsWithError(actionErrorMessage(parsed.error, "Patient creation failed validation."), submitted);
+  }
+  const data = parsed.data;
+
+  let patient;
+  try {
+    patient = await ctmApi.createPatient({
+      external_id: data.external_id || undefined,
+      sex: data.sex,
+      birth_date: data.birth_date || undefined,
+      ecog_status: safeNumber(data.ecog_status),
+      is_healthy_volunteer: safeBoolean(data.is_healthy_volunteer),
+      can_consent: safeBoolean(data.can_consent),
+      protocol_compliant: safeBoolean(data.protocol_compliant),
+      claustrophobic: safeBoolean(data.claustrophobic),
+      motion_intolerant: safeBoolean(data.motion_intolerant),
+      pregnant: safeBoolean(data.pregnant),
+      mr_device_present: safeBoolean(data.mr_device_present),
+      conditions: splitLines(data.conditions).map((description) => ({ description })),
+      biomarkers: splitLines(data.biomarkers).map((description) => ({ description })),
+      medications: splitLines(data.medications).map((description) => ({ description, active: true })),
+      labs: data.lab_name
+        ? [
+            {
+              description: data.lab_name,
+              value_numeric: safeNumber(data.lab_value),
+              unit: data.lab_unit || undefined,
+              coded_concepts: data.lab_code
+                ? [
+                    {
+                      system: "loinc",
+                      code: data.lab_code,
+                      display: data.lab_display || data.lab_name
+                    }
+                  ]
+                : []
+            }
+          ]
+        : []
+    });
+  } catch (error) {
+    redirectToPatientsWithError(actionErrorMessage(error, "Patient creation failed."), submitted);
+  }
 
   revalidatePath("/patients");
   redirect(`/patients/${patient.id}`);
