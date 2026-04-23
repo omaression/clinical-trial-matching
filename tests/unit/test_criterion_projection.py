@@ -235,3 +235,29 @@ def test_cyp3a4_inducer_inhibitor_class_remains_blocked_pending_safe_source():
     assert projections[0].terminology_status == "recognized_class_missing_safe_code"
     assert projections[0].review_required is True
     assert projections[0].resource is None
+
+
+@pytest.mark.parametrize(
+    ("mention_text", "normalized_term"),
+    [
+        ("agent targeting kras", "agent targeting kras"),
+        ("kras-targeted therapy", "kras targeted therapy"),
+    ],
+)
+def test_kras_targeted_class_terms_remain_blocked_pending_safe_source(mention_text: str, normalized_term: str):
+    mapper = CriterionProjectionMapper()
+    criterion = _make_criterion(
+        original_text=f"Has received previous treatment with {mention_text}",
+        value_text=mention_text,
+        entities=[Entity(text=mention_text, label="DRUG", start=36, end=36 + len(mention_text))],
+        allowance_text=None,
+    )
+
+    projections = mapper.project_criterion(criterion)
+
+    assert len(projections) == 1
+    assert projections[0].normalized_term == normalized_term
+    assert projections[0].projection_status == "blocked_missing_class_code"
+    assert projections[0].terminology_status == "recognized_class_missing_safe_code"
+    assert projections[0].review_required is True
+    assert projections[0].resource is None
