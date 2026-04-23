@@ -139,6 +139,29 @@
       "CriterionCorrectionData": {
         "additionalProperties": false,
         "properties": {
+          "allowance_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance Text"
+          },
+          "assay_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assay Context"
+          },
           "category": {
             "anyOf": [
               {
@@ -176,6 +199,54 @@
               }
             ],
             "title": "Confidence"
+          },
+          "disease_subtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Subtype"
+          },
+          "exception_entities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Entities"
+          },
+          "exception_logic": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Logic"
+          },
+          "histology_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Histology Text"
           },
           "logic_group_id": {
             "anyOf": [
@@ -242,6 +313,17 @@
             ],
             "title": "Parse Status"
           },
+          "primary_semantic_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Semantic Category"
+          },
           "raw_expression": {
             "anyOf": [
               {
@@ -252,6 +334,42 @@
               }
             ],
             "title": "Raw Expression"
+          },
+          "secondary_semantic_tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secondary Semantic Tags"
+          },
+          "specimen_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specimen Type"
+          },
+          "testing_modality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Testing Modality"
           },
           "timeframe_operator": {
             "anyOf": [
@@ -349,9 +467,194 @@
         "title": "CriterionCorrectionData",
         "type": "object"
       },
+      "CriterionFHIRProjectionListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdown_by_resource_type": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Breakdown By Resource Type",
+            "type": "object"
+          },
+          "breakdown_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Breakdown By Status",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionFHIRProjectionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "breakdown_by_status",
+          "breakdown_by_resource_type"
+        ],
+        "title": "CriterionFHIRProjectionListResponse",
+        "type": "object"
+      },
+      "CriterionFHIRProjectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "criterion_category": {
+            "title": "Criterion Category",
+            "type": "string"
+          },
+          "criterion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criterion Id"
+          },
+          "criterion_type": {
+            "title": "Criterion Type",
+            "type": "string"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display"
+          },
+          "mention_text": {
+            "title": "Mention Text",
+            "type": "string"
+          },
+          "normalized_term": {
+            "title": "Normalized Term",
+            "type": "string"
+          },
+          "projection_status": {
+            "title": "Projection Status",
+            "type": "string"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          },
+          "resource_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type"
+          },
+          "review_required": {
+            "title": "Review Required",
+            "type": "boolean"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System"
+          },
+          "terminology_status": {
+            "title": "Terminology Status",
+            "type": "string"
+          },
+          "trial_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Id"
+          }
+        },
+        "required": [
+          "criterion_category",
+          "criterion_type",
+          "mention_text",
+          "normalized_term",
+          "projection_status",
+          "terminology_status",
+          "review_required"
+        ],
+        "title": "CriterionFHIRProjectionResponse",
+        "type": "object"
+      },
       "CriterionResponse": {
         "additionalProperties": false,
         "properties": {
+          "allowance_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance Text"
+          },
+          "assay_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assay Context"
+          },
           "category": {
             "title": "Category",
             "type": "string"
@@ -367,6 +670,18 @@
             "title": "Confidence",
             "type": "number"
           },
+          "confidence_factors": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Factors"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -378,6 +693,47 @@
               }
             ],
             "title": "Created At"
+          },
+          "disease_subtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disease Subtype"
+          },
+          "exception_entities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exception Entities",
+            "type": "array"
+          },
+          "exception_logic": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception Logic"
+          },
+          "histology_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Histology Text"
           },
           "id": {
             "format": "uuid",
@@ -443,6 +799,17 @@
           "pipeline_version": {
             "title": "Pipeline Version",
             "type": "string"
+          },
+          "primary_semantic_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Semantic Category"
           },
           "raw_expression": {
             "anyOf": [
@@ -514,6 +881,57 @@
               }
             ],
             "title": "Reviewed By"
+          },
+          "secondary_semantic_tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secondary Semantic Tags",
+            "type": "array"
+          },
+          "source_clause_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Clause Text"
+          },
+          "source_sentence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sentence"
+          },
+          "specimen_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specimen Type"
+          },
+          "testing_modality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Testing Modality"
           },
           "timeframe_operator": {
             "anyOf": [
@@ -1336,6 +1754,17 @@
             ],
             "title": "Birth Date"
           },
+          "can_consent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Consent"
+          },
           "city": {
             "anyOf": [
               {
@@ -1346,6 +1775,17 @@
               }
             ],
             "title": "City"
+          },
+          "claustrophobic": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claustrophobic"
           },
           "conditions": {
             "items": {
@@ -1436,6 +1876,50 @@
             "title": "Medications",
             "type": "array"
           },
+          "motion_intolerant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motion Intolerant"
+          },
+          "mr_device_present": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mr Device Present"
+          },
+          "pregnant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pregnant"
+          },
+          "protocol_compliant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Compliant"
+          },
           "sex": {
             "anyOf": [
               {
@@ -1497,6 +1981,17 @@
             ],
             "title": "Birth Date"
           },
+          "can_consent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Consent"
+          },
           "city": {
             "anyOf": [
               {
@@ -1507,6 +2002,17 @@
               }
             ],
             "title": "City"
+          },
+          "claustrophobic": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claustrophobic"
           },
           "conditions": {
             "items": {
@@ -1611,6 +2117,50 @@
             },
             "title": "Medications",
             "type": "array"
+          },
+          "motion_intolerant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motion Intolerant"
+          },
+          "mr_device_present": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mr Device Present"
+          },
+          "pregnant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pregnant"
+          },
+          "protocol_compliant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Compliant"
           },
           "sex": {
             "anyOf": [
@@ -1881,6 +2431,17 @@
             ],
             "title": "Birth Date"
           },
+          "can_consent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Consent"
+          },
           "city": {
             "anyOf": [
               {
@@ -1891,6 +2452,17 @@
               }
             ],
             "title": "City"
+          },
+          "claustrophobic": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claustrophobic"
           },
           "country": {
             "anyOf": [
@@ -1974,6 +2546,50 @@
               }
             ],
             "title": "Longitude"
+          },
+          "motion_intolerant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motion Intolerant"
+          },
+          "mr_device_present": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mr Device Present"
+          },
+          "pregnant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pregnant"
+          },
+          "protocol_compliant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Compliant"
           },
           "sex": {
             "anyOf": [
@@ -2139,6 +2755,17 @@
             ],
             "title": "Birth Date"
           },
+          "can_consent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Can Consent"
+          },
           "city": {
             "anyOf": [
               {
@@ -2149,6 +2776,17 @@
               }
             ],
             "title": "City"
+          },
+          "claustrophobic": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claustrophobic"
           },
           "conditions": {
             "anyOf": [
@@ -2259,6 +2897,50 @@
               }
             ],
             "title": "Medications"
+          },
+          "motion_intolerant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motion Intolerant"
+          },
+          "mr_device_present": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mr Device Present"
+          },
+          "pregnant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pregnant"
+          },
+          "protocol_compliant": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Compliant"
           },
           "sex": {
             "anyOf": [
@@ -3175,6 +3857,76 @@
           }
         },
         "summary": "Get Criterion"
+      }
+    },
+    "/api/v1/criteria/{criterion_id}/fhir-projections": {
+      "get": {
+        "operationId": "get_criterion_fhir_projections_api_v1_criteria__criterion_id__fhir_projections_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "criterion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Criterion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionFHIRProjectionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Criterion Fhir Projections"
       }
     },
     "/api/v1/criteria/{criterion_id}/review": {
@@ -4725,6 +5477,21 @@
             },
             "description": "Successful Response"
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "external_validation_error",
+                  "detail": "ClinicalTrials.gov rejected the phase filter for this search request.",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "External request validation error"
+          },
           "401": {
             "content": {
               "application/json": {
@@ -5086,6 +5853,76 @@
           }
         },
         "summary": "Get Trial Fhir"
+      }
+    },
+    "/api/v1/trials/{trial_id}/fhir-projections": {
+      "get": {
+        "operationId": "get_trial_fhir_projections_api_v1_trials__trial_id__fhir_projections_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trial_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trial Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionFHIRProjectionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "summary": "Get Trial Fhir Projections"
       }
     },
     "/api/v1/trials/{trial_id}/re-extract": {

@@ -58,7 +58,10 @@ export default async function PipelinePage({
       />
 
       {params.error ? (
-        <Panel title="Operation Error" eyebrow="Submit failed">
+        <Panel
+          title={params.condition || params.status || params.phase ? "Search Ingest Error" : "Operation Error"}
+          eyebrow={params.condition || params.status || params.phase ? "Search request failed" : "Submit failed"}
+        >
           <p className="text-sm leading-7 text-ember">{params.error}</p>
         </Panel>
       ) : null}

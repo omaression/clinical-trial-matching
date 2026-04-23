@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.db.session import get_db
-from app.ingestion.service import SearchIngestBatchResult, SearchIngestTrialResult
+from app.ingestion.service import ExternalServiceValidationError, SearchIngestBatchResult, SearchIngestTrialResult
 from app.main import app
 from app.models.database import ExtractedCriterion, PipelineRun, Trial
 from app.scripts.seed import sync_coding_lookups
@@ -443,6 +443,28 @@ class TestSearchIngestEndpoint:
         assert data["trials"][2]["error_message"] == "boom"
         assert data["trials"][3]["nct_id"] is None
         assert data["trials"][3]["error_message"] == "Search result missing NCT ID"
+
+    def test_search_ingest_maps_external_validation_failures_to_bad_request(self, client):
+        with patch(
+            "app.api.routes.trials.IngestionService.search_and_ingest",
+            side_effect=ExternalServiceValidationError(
+                "ClinicalTrials.gov rejected the phase filter for this search request."
+            ),
+        ):
+            response = client.post(
+                "/api/v1/trials/search-ingest",
+                json={"condition": "breast cancer", "status": "RECRUITING", "phase": "PHASE2", "limit": 2},
+            )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "ClinicalTrials.gov rejected the phase filter for this search request."
+        assert response.json()["code"] == "external_validation_error"
+
+    def test_search_ingest_requires_at_least_one_search_field(self, client):
+        response = client.post("/api/v1/trials/search-ingest", json={"limit": 2})
+
+        assert response.status_code == 422
+        assert "at least one search field" in json.dumps(response.json()).lower()
 
 
 @pytestmark_docker

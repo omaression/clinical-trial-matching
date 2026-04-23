@@ -102,3 +102,24 @@ class TestSearchStudies:
         assert kwargs["params"]["pageSize"] == 5
         assert kwargs["params"]["pageToken"] == "cursor-1"
         assert kwargs["params"]["countTotal"] == "true"
+
+    def test_search_studies_translates_phase_to_supported_advanced_filter(self, client):
+        client._client.get = Mock(
+            return_value=_response(
+                200,
+                json_body={
+                    "studies": [],
+                    "totalCount": 0,
+                },
+            )
+        )
+
+        client.search_studies(condition="breast cancer", status="RECRUITING", phase="PHASE2", limit=2)
+
+        client._client.get.assert_called_once()
+        _, kwargs = client._client.get.call_args
+        params = kwargs["params"]
+        assert params["query.cond"] == "breast cancer"
+        assert params["filter.overallStatus"] == "RECRUITING"
+        assert params["filter.advanced"] == "AREA[Phase]PHASE2"
+        assert "filter.phase" not in params
