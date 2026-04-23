@@ -380,9 +380,11 @@ class TestNct07286149Signals:
         assert all(criterion.source_sentence == text for criterion in result.criteria)
 
         criteria_by_text = {criterion.original_text: criterion for criterion in result.criteria}
-        diagnosis = criteria_by_text[
-            "Participants with unresectable locally advanced or metastatic breast cancer documented by histopathology and/or cytology"
-        ]
+        diagnosis_text = (
+            "Participants with unresectable locally advanced or metastatic breast cancer "
+            "documented by histopathology and/or cytology"
+        )
+        diagnosis = criteria_by_text[diagnosis_text]
         assert diagnosis.review_required is False
         assert diagnosis.source_clause_text == diagnosis.original_text
         assert "stage_context" in diagnosis.secondary_semantic_tags
