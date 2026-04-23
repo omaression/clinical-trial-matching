@@ -26,7 +26,7 @@ def pipeline():
         ("medication_exception_logic", 3, 0, {"concomitant_medication"}),
         ("nct07084584_cyp3a4_exception", 1, 0, {"concomitant_medication"}),
         ("nct03872596_cyp3a4_washout", 1, 1, {"concomitant_medication"}),
-        ("nct05346328_stage_biomarker", 1, 1, {"disease_stage"}),
+        ("nct05346328_stage_biomarker", 2, 0, {"diagnosis", "biomarker"}),
         ("nct05346328_line_of_therapy", 2, 0, {"prior_therapy"}),
     ],
 )

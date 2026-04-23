@@ -38,6 +38,11 @@ from app.extraction.patterns import (
 from app.extraction.section_splitter import SectionSplitter
 from app.extraction.types import ClassifiedCriterion, CriterionText, Entity, PipelineResult
 
+_LABELED_SUBCRITERIA_PATTERN = re.compile(
+    r"^(?P<prefix>.+?),\s*including:\s*a\)\s*(?P<first>.+?);\s*b\)\s*(?P<second>.+?)$",
+    re.I,
+)
+
 
 class ExtractionPipeline:
     """Orchestrates the 6-stage NLP extraction pipeline."""
@@ -132,6 +137,10 @@ class ExtractionPipeline:
     def _decompose_atomic_criteria(self, criterion_texts: list[CriterionText]) -> list[CriterionText]:
         decomposed: list[CriterionText] = []
         for criterion in criterion_texts:
+            split = self._split_labeled_including_subcriteria(criterion)
+            if split:
+                decomposed.extend(split)
+                continue
             split = self._split_diagnosis_medication_clause(criterion)
             if split:
                 decomposed.extend(split)
@@ -177,6 +186,52 @@ class ExtractionPipeline:
             dynamic_abbreviations=dynamic_abbreviations,
         )
         return self._suppress_redundant_entities(entities)
+
+    def _split_labeled_including_subcriteria(self, criterion: CriterionText) -> list[CriterionText] | None:
+        match = _LABELED_SUBCRITERIA_PATTERN.match(criterion.text.strip())
+        if not match:
+            return None
+
+        prefix = match.group("prefix").strip()
+        first = match.group("first").strip().rstrip(".;")
+        second = match.group("second").strip()
+        if not re.search(r"histopathology\s+and/or\s+cytology\s+documented", prefix, re.I):
+            return None
+        if "breast cancer" not in first.casefold():
+            return None
+        if "her2-positive" not in second.casefold():
+            return None
+
+        source_sentence = criterion.source_sentence or criterion.text
+        logic_group_id = str(uuid.uuid4())
+        documentation_suffix = "documented by histopathology and/or cytology"
+        first_clause = first
+        if documentation_suffix.casefold() not in first_clause.casefold():
+            first_clause = f"{first_clause} {documentation_suffix}"
+
+        split_criteria = [
+            CriterionText(
+                text=first_clause,
+                type=criterion.type,
+                review_required=criterion.review_required,
+                review_reason=criterion.review_reason,
+                source_sentence=source_sentence,
+                source_clause_text=first_clause,
+                logic_group_id=logic_group_id,
+                logic_operator="AND",
+            ),
+            CriterionText(
+                text=second,
+                type=criterion.type,
+                review_required=criterion.review_required,
+                review_reason=criterion.review_reason,
+                source_sentence=source_sentence,
+                source_clause_text=second,
+                logic_group_id=logic_group_id,
+                logic_operator="AND",
+            ),
+        ]
+        return split_criteria
 
     def _augment_missing_entities(self, criterion_text: str, entities: list[Entity]) -> list[Entity]:
         augmented = list(entities)
