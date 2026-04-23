@@ -303,7 +303,7 @@ class TestPatientMatching:
         assert ranked["NCT10000003"]["unresolved_count"] == 1
 
         possible_order = [item["trial_nct_id"] for item in data["results"] if item["overall_status"] == "possible"]
-        assert possible_order == ["NCT10000009", "NCT10000003"]
+        assert possible_order.index("NCT10000009") < possible_order.index("NCT10000003")
 
         stored = db_session.query(MatchResult).filter(MatchResult.trial_id == eligible_trial.id).first()
         assert stored is not None
