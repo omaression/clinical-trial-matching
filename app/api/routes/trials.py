@@ -8,12 +8,14 @@ from sqlalchemy.orm import Query as SQLAlchemyQuery
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import add_request_log_context, rate_limit_dependency, require_api_key
+from app.api.errors import api_exception
 from app.api.openapi import (
     COMMON_ERROR_RESPONSES,
     PROTECTED_OPERATIONAL_RESPONSES,
     PROTECTED_READ_RESPONSES,
     PROTECTED_REVIEW_RESPONSES,
     READ_ERROR_RESPONSES,
+    SEARCH_OPERATIONAL_RESPONSES,
 )
 from app.api.schemas import (
     CriteriaListResponse,
@@ -41,7 +43,7 @@ from app.db.session import get_db
 from app.fhir.criterion_projection import CriterionProjectionMapper
 from app.fhir.mapper import FHIRMapper
 from app.fhir.models import ResearchStudy
-from app.ingestion.service import IngestionService
+from app.ingestion.service import ExternalServiceValidationError, IngestionService
 from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
 from app.time_utils import utc_now
 
@@ -98,7 +100,7 @@ def ingest_trial(
     "/trials/search-ingest",
     status_code=201,
     response_model=SearchIngestResponse,
-    responses=PROTECTED_OPERATIONAL_RESPONSES,
+    responses=SEARCH_OPERATIONAL_RESPONSES,
 )
 def search_and_ingest(
     payload: SearchIngestRequest,
@@ -107,13 +109,16 @@ def search_and_ingest(
     service: IngestionService = Depends(_get_ingestion_service),
 ):
     add_request_log_context(request)
-    results = service.search_and_ingest(
-        condition=payload.condition,
-        status=payload.status,
-        phase=payload.phase,
-        limit=payload.limit,
-        page_token=payload.page_token,
-    )
+    try:
+        results = service.search_and_ingest(
+            condition=payload.condition,
+            status=payload.status,
+            phase=payload.phase,
+            limit=payload.limit,
+            page_token=payload.page_token,
+        )
+    except ExternalServiceValidationError as exc:
+        raise api_exception(400, exc.detail, code="external_validation_error") from exc
     if isinstance(results, list):
         batch_results = results
         returned = len(results)

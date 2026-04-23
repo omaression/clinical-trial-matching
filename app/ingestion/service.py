@@ -106,6 +106,12 @@ class SearchIngestBatchResult:
     next_page_token: str | None = None
 
 
+class ExternalServiceValidationError(Exception):
+    def __init__(self, detail: str):
+        super().__init__(detail)
+        self.detail = detail
+
+
 class IngestionService:
     def __init__(self, db: Session, pipeline: ExtractionPipeline | None = None):
         self._db = db
@@ -261,9 +267,16 @@ class IngestionService:
         page_token: str | None = None,
     ) -> SearchIngestBatchResult:
         """Search ClinicalTrials.gov and ingest matching studies."""
-        search_result = self._client.search_studies(
-            condition=condition, status=status, phase=phase, limit=limit, page_token=page_token,
-        )
+        try:
+            search_result = self._client.search_studies(
+                condition=condition, status=status, phase=phase, limit=limit, page_token=page_token,
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 400:
+                raise ExternalServiceValidationError(
+                    self._external_search_validation_message(exc, phase=phase)
+                ) from exc
+            raise
         if isinstance(search_result, list):
             studies = search_result
             total_count = None
@@ -321,6 +334,12 @@ class IngestionService:
         if isinstance(exc, SQLAlchemyError):
             return "Trial ingestion persistence failed"
         return "Trial ingestion failed"
+
+    def _external_search_validation_message(self, exc: httpx.HTTPStatusError, *, phase: str | None = None) -> str:
+        response_text = exc.response.text.lower()
+        if phase and ("filter.phase" in response_text or "phase" in response_text):
+            return "ClinicalTrials.gov rejected the phase filter for this search request."
+        return "ClinicalTrials.gov rejected this search request."
 
     def _content_hash_material(self, raw_json: dict) -> dict:
         protocol = raw_json.get("protocolSection", {})

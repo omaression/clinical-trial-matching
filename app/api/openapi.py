@@ -36,6 +36,12 @@ VALIDATION_RESPONSE = _error_response(
     "nct_id: String should match pattern '^NCT\\d{8}$'",
     "validation_error",
 )
+EXTERNAL_VALIDATION_RESPONSE = _error_response(
+    400,
+    "External request validation error",
+    "ClinicalTrials.gov rejected the phase filter for this search request.",
+    "external_validation_error",
+)
 RATE_LIMIT_RESPONSE = _error_response(
     429,
     "Operational rate limit exceeded",
@@ -69,6 +75,10 @@ PROTECTED_OPERATIONAL_RESPONSES = {
     429: RATE_LIMIT_RESPONSE,
     500: INTERNAL_SERVER_ERROR_RESPONSE,
     503: SERVICE_UNAVAILABLE_RESPONSE,
+}
+SEARCH_OPERATIONAL_RESPONSES = {
+    400: EXTERNAL_VALIDATION_RESPONSE,
+    **PROTECTED_OPERATIONAL_RESPONSES,
 }
 PROTECTED_REVIEW_RESPONSES = {
     401: UNAUTHORIZED_RESPONSE,

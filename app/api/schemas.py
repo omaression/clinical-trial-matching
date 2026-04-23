@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class APIModel(BaseModel):
@@ -19,6 +19,22 @@ class SearchIngestRequest(APIModel):
     phase: str | None = None
     page_token: str | None = None
     limit: int = Field(default=25, ge=1, le=100)
+
+    @field_validator("condition", "status", "phase", mode="before")
+    @classmethod
+    def strip_optional_search_values(cls, value: str | None):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @model_validator(mode="after")
+    def validate_has_search_field(self):
+        if not (self.condition or self.status or self.phase):
+            raise ValueError("Provide at least one search field")
+        return self
 
 
 class CodedConceptUpdate(APIModel):

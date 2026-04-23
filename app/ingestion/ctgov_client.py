@@ -8,6 +8,10 @@ from app.config import settings
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
+def _phase_advanced_filter(phase: str) -> str:
+    return f"AREA[Phase]{phase}"
+
+
 @dataclass
 class SearchStudiesResult:
     studies: list[dict]
@@ -38,7 +42,7 @@ class CTGovClient:
         if status:
             params["filter.overallStatus"] = status
         if phase:
-            params["filter.phase"] = phase
+            params["filter.advanced"] = _phase_advanced_filter(phase)
         if page_token:
             params["pageToken"] = page_token
         payload = self._get_json(f"{self._base_url}/studies", params=params)
