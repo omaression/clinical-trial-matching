@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     reextract_rate_limit_requests: int = 20
     reextract_rate_limit_window_seconds: int = 60
     coding_fuzzy_similarity_threshold: float = 0.55
-    pipeline_version: str = "0.1.0"
+    pipeline_version: str = "0.1.1"
     spacy_model: str = "en_core_sci_lg"
     abbreviation_dict_path: str = "data/dictionaries/onc_abbreviations.jsonl"
     patterns_dir: str = "data/patterns"

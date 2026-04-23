@@ -39,7 +39,7 @@ def _seed_trial_with_run(db_session, *, nct_id: str, sex: str, criteria_payloads
 
     run = PipelineRun(
         trial_id=trial.id,
-        pipeline_version="0.1.0",
+        pipeline_version="0.1.1",
         input_hash=f"input-{nct_id}",
         input_snapshot=trial.raw_json,
         status="completed",
@@ -58,7 +58,7 @@ def _seed_trial_with_run(db_session, *, nct_id: str, sex: str, criteria_payloads
             "review_required": False,
             "review_status": None,
             "coded_concepts": [],
-            "pipeline_version": "0.1.0",
+            "pipeline_version": "0.1.1",
             "pipeline_run_id": run.id,
             **payload,
         }

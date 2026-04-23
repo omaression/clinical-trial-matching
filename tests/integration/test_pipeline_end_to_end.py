@@ -53,7 +53,7 @@ class TestMissingHeaders:
 class TestPipelineVersion:
     def test_version_stamped(self, pipeline):
         result = pipeline.extract("Age >= 18 years")
-        assert result.pipeline_version == "0.1.0"
+        assert result.pipeline_version == "0.1.1"
 
 
 class TestNoCriteriaDropped:

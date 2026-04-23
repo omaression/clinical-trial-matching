@@ -55,6 +55,6 @@ def test_pipeline_result_counts():
         confidence=0.0,
         review_required=True,
     )
-    result = PipelineResult(criteria=[c1, c2], pipeline_version="0.1.0")
+    result = PipelineResult(criteria=[c1, c2], pipeline_version="0.1.1")
     assert result.criteria_count == 2
     assert result.review_required_count == 1
