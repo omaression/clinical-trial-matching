@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.extraction.pipeline import ExtractionPipeline
-from app.scripts.curated_corpus_report import build_curated_corpus_report
+from app.scripts.curated_corpus_report import build_curated_corpus_report, render_markdown_report
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "sample_eligibility_texts"
 
@@ -61,8 +61,17 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
     assert report["summary"]["structurally_exportable_fhir_count"] == 2
     assert report["summary"]["medication_statement_projected_count"] == 8
     assert report["summary"]["blocked_missing_class_code_count"] == 2
+    assert report["summary"]["blocked_missing_class_code_terms"] == {
+        "agent targeting kras": 1,
+        "cyp3a4 inhibitors inducers": 1,
+    }
     assert report["summary"]["blocked_missing_rxnorm_count"] == 0
     assert report["summary"]["review_required_ambiguous_class_count"] == 0
+    rendered = render_markdown_report(report)
+    assert (
+        '- Blocked missing class code terms: {"agent targeting kras": 1, "cyp3a4 inhibitors inducers": 1}'
+        in rendered
+    )
     fixture_names = [fixture["fixture"] for fixture in report["fixtures"]]
     assert fixture_names == ["therapy_class_and_procedures", "medication_exception_logic"]
 
@@ -72,6 +81,7 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
     assert therapy_fixture["structurally_exportable_fhir_count"] == 2
     assert therapy_fixture["medication_statement_projected_count"] == 1
     assert therapy_fixture["blocked_missing_class_code_count"] == 1
+    assert therapy_fixture["blocked_missing_class_code_terms"] == {"agent targeting kras": 1}
     assert therapy_fixture["review_required_ambiguous_class_count"] == 0
 
     medication_fixture = next(
@@ -80,6 +90,7 @@ def test_curated_corpus_report_summarizes_fixture_metrics():
     assert medication_fixture["structurally_exportable_fhir_count"] == 0
     assert medication_fixture["medication_statement_projected_count"] == 7
     assert medication_fixture["blocked_missing_class_code_count"] == 1
+    assert medication_fixture["blocked_missing_class_code_terms"] == {"cyp3a4 inhibitors inducers": 1}
     assert medication_fixture["projection_status_distribution"] == {
         "blocked_missing_class_code": 1,
         "projected": 7,
@@ -91,9 +102,11 @@ def test_curated_corpus_report_keeps_cyp3a4_class_blocked_while_projecting_safe_
 
     assert report["summary"]["medication_statement_projected_count"] == 7
     assert report["summary"]["blocked_missing_class_code_count"] == 1
+    assert report["summary"]["blocked_missing_class_code_terms"] == {"cyp3a4 inhibitors inducers": 1}
 
     fixture = report["fixtures"][0]
     assert fixture["fixture"] == "medication_exception_logic"
+    assert fixture["blocked_missing_class_code_terms"] == {"cyp3a4 inhibitors inducers": 1}
     assert fixture["projection_status_distribution"] == {
         "blocked_missing_class_code": 1,
         "projected": 7,
