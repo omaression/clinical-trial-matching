@@ -365,6 +365,46 @@ class TestNct07286149Signals:
         assert tail.source_clause_text == tail.original_text
         assert tail.review_required is False
 
+    def test_stage_and_biomarker_labeled_subcriteria_split_into_atomic_clauses(self, pipeline):
+        text = (
+            "Breast cancer patients by histopathology and/or cytology documented, including: "
+            "a) Participants with unresectable locally advanced or metastatic breast cancer; "
+            "b) Evaluated or tested as HER2-positive expression."
+        )
+        result = pipeline.extract(text)
+
+        assert result.criteria_count == 2
+        assert result.review_required_count == 0
+        categories = {criterion.category for criterion in result.criteria}
+        assert categories == {"diagnosis", "biomarker"}
+        assert all(criterion.source_sentence == text for criterion in result.criteria)
+
+        criteria_by_text = {criterion.original_text: criterion for criterion in result.criteria}
+        diagnosis_text = (
+            "Participants with unresectable locally advanced or metastatic breast cancer "
+            "documented by histopathology and/or cytology"
+        )
+        diagnosis = criteria_by_text[diagnosis_text]
+        assert diagnosis.review_required is False
+        assert diagnosis.source_clause_text == diagnosis.original_text
+        assert "stage_context" in diagnosis.secondary_semantic_tags
+
+        biomarker = criteria_by_text["Evaluated or tested as HER2-positive expression."]
+        assert biomarker.category == "biomarker"
+        assert biomarker.review_required is False
+        assert biomarker.source_clause_text == biomarker.original_text
+
+    def test_generic_labeled_including_list_is_not_rewritten_without_breast_histology_and_her2_pattern(self, pipeline):
+        text = (
+            "Solid tumor participants, including: a) measurable disease by RECIST; "
+            "b) adequate organ function."
+        )
+        result = pipeline.extract(text)
+
+        assert result.criteria_count == 1
+        assert result.criteria[0].original_text == text
+        assert result.criteria[0].source_clause_text == text
+
     def test_pd_1_therapy_phrase_emits_drug_entity(self, pipeline):
         text = "Has progressed after prior PD-1 therapy"
         result = pipeline.extract(text)
