@@ -71,7 +71,9 @@ export default async function PatientDetailPage({
                   <StatusPill value={match.overall_status} />
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-semibold text-ink">{formatPercent(match.score)}</p>
+                  <p className="text-lg font-semibold text-ink">{formatPercent(match.determinate_score)}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.22em] text-ink/45">Determinate fit</p>
+                  <p className="mt-2 text-sm text-ink/68">Coverage {formatPercent(match.coverage_ratio)}</p>
                   <p className="mt-1 text-xs uppercase tracking-[0.22em] text-ink/45">{formatDate(match.created_at)}</p>
                 </div>
               </Link>

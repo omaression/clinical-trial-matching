@@ -473,6 +473,11 @@ class MatchResultSummary(APIModel):
     trial_brief_title: str
     overall_status: Literal["eligible", "possible", "ineligible"]
     score: float
+    determinate_score: float
+    coverage_ratio: float
+    evaluated_count: int
+    deterministic_count: int
+    unresolved_count: int
     favorable_count: int
     unfavorable_count: int
     unknown_count: int

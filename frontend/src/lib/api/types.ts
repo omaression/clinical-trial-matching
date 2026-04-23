@@ -246,6 +246,11 @@ export type MatchResultSummary = {
   trial_brief_title: string;
   overall_status: "eligible" | "possible" | "ineligible";
   score: number;
+  determinate_score: number;
+  coverage_ratio: number;
+  evaluated_count: number;
+  deterministic_count: number;
+  unresolved_count: number;
   favorable_count: number;
   unfavorable_count: number;
   unknown_count: number;

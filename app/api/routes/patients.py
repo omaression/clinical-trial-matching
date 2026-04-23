@@ -357,6 +357,20 @@ def _patient_detail(patient: Patient) -> PatientDetail:
     )
 
 
+def _match_metrics(match_result: MatchResult) -> dict[str, float | int]:
+    deterministic_count = match_result.favorable_count + match_result.unfavorable_count
+    unresolved_count = match_result.unknown_count + match_result.requires_review_count
+    evaluated_count = deterministic_count + unresolved_count
+    coverage_ratio = deterministic_count / evaluated_count if evaluated_count else 0.0
+    return {
+        "determinate_score": match_result.score,
+        "coverage_ratio": coverage_ratio,
+        "evaluated_count": evaluated_count,
+        "deterministic_count": deterministic_count,
+        "unresolved_count": unresolved_count,
+    }
+
+
 def _match_summary(match_result: MatchResult) -> MatchResultSummary:
     return MatchResultSummary(
         id=match_result.id,
@@ -373,6 +387,7 @@ def _match_summary(match_result: MatchResult) -> MatchResultSummary:
         requires_review_count=match_result.requires_review_count,
         summary_explanation=match_result.summary_explanation,
         created_at=match_result.created_at,
+        **_match_metrics(match_result),
     )
 
 
@@ -407,7 +422,8 @@ def _match_run_detail(match_run: MatchRun) -> MatchRunResponse:
         key=lambda result: (
             result.overall_status != "eligible",
             result.overall_status == "ineligible",
-            -result.score,
+            -_match_metrics(result)["coverage_ratio"],
+            -_match_metrics(result)["determinate_score"],
             result.trial.nct_id,
         ),
     )
