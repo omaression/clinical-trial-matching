@@ -1,10 +1,9 @@
 from app.extraction.types import (
+    ClassifiedCriterion,
     CriterionText,
     Entity,
-    QuantitativeValue,
-    TemporalModifier,
-    ClassifiedCriterion,
     PipelineResult,
+    QuantitativeValue,
 )
 
 
