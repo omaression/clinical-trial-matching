@@ -152,7 +152,7 @@ class TestIngestSingleTrial:
                     ],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
         coding_results = [
             CodingResult(
@@ -224,7 +224,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="trastuzumab", label="DRUG", start=24, end=35)],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
         coding_result = CodingResult(
             concepts=[],
@@ -435,7 +435,7 @@ class TestIngestSingleTrial:
                     ],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
         for system, code, display, synonyms in [
             ("nci_thesaurus", "C128839", "PD-L1 Positive", ["pd-l1", "pd-l1 positive"]),
@@ -481,7 +481,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="chemotherapy", label="DRUG", start=21, end=33)],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (
@@ -518,7 +518,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="agent targeting KRAS", label="DRUG", start=37, end=57)],
                 ),
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (
@@ -571,7 +571,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="PD-1 therapy", label="DRUG", start=6, end=18)],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (
@@ -615,7 +615,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="PD-1/PD-L1 inhibitor therapy", label="DRUG", start=6, end=34)],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (
@@ -650,7 +650,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="PD-L1 therapy", label="DRUG", start=6, end=19)],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (
@@ -732,7 +732,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="CYP3A4 inhibitors/inducers", label="DRUG", start=43, end=68)],
                 ),
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (
@@ -781,7 +781,7 @@ class TestIngestSingleTrial:
                     ],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
         existing = db_session.query(CodingLookup).filter_by(system="mesh", code="D017563").first()
         if existing:
@@ -829,7 +829,7 @@ class TestIngestSingleTrial:
                     entities=[Entity(text="active infection", label="DISEASE", start=7, end=23)],
                 )
             ],
-            pipeline_version="0.1.1",
+            pipeline_version="0.1.2",
         )
 
         with (

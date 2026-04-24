@@ -33,7 +33,7 @@ def seeded_criterion(db_session):
     db_session.flush()
 
     run = PipelineRun(
-        trial_id=trial.id, pipeline_version="0.1.1",
+        trial_id=trial.id, pipeline_version="0.1.2",
         input_hash="test", input_snapshot={}, status="completed",
     )
     db_session.add(run)
@@ -47,7 +47,7 @@ def seeded_criterion(db_session):
             {"system": "mesh", "code": "D000073182",
              "display": "Triple Negative Breast Neoplasms", "match_type": "fuzzy"}
         ],
-        pipeline_version="0.1.1", pipeline_run_id=run.id,
+        pipeline_version="0.1.2", pipeline_run_id=run.id,
     )
     db_session.add(criterion)
     db_session.commit()
@@ -65,7 +65,7 @@ def superseded_criterion(db_session):
     db_session.flush()
 
     old_run = PipelineRun(
-        trial_id=trial.id, pipeline_version="0.1.1",
+        trial_id=trial.id, pipeline_version="0.1.2",
         input_hash="old", input_snapshot={}, status="completed",
     )
     db_session.add(old_run)
@@ -76,13 +76,13 @@ def superseded_criterion(db_session):
         original_text="Prior TNBC diagnosis", parse_status="parsed",
         confidence=0.60, review_required=True, review_reason="fuzzy_match",
         review_status="pending", coded_concepts=[],
-        pipeline_version="0.1.1", pipeline_run_id=old_run.id,
+        pipeline_version="0.1.2", pipeline_run_id=old_run.id,
     )
     db_session.add(criterion)
     db_session.flush()
 
     latest_run = PipelineRun(
-        trial_id=trial.id, pipeline_version="0.1.1",
+        trial_id=trial.id, pipeline_version="0.1.2",
         input_hash="new", input_snapshot={}, status="completed",
     )
     db_session.add(latest_run)
@@ -101,7 +101,7 @@ def seeded_logic_group_criterion(db_session):
     db_session.flush()
 
     run = PipelineRun(
-        trial_id=trial.id, pipeline_version="0.1.1",
+        trial_id=trial.id, pipeline_version="0.1.2",
         input_hash="test", input_snapshot={}, status="completed",
     )
     db_session.add(run)
@@ -115,7 +115,7 @@ def seeded_logic_group_criterion(db_session):
         confidence=0.60, review_required=True, review_reason="fuzzy_match",
         review_status="pending", coded_concepts=[],
         original_extracted={"source_sentence": "Has melanoma or breast cancer"},
-        pipeline_version="0.1.1", pipeline_run_id=run.id,
+        pipeline_version="0.1.2", pipeline_run_id=run.id,
     )
     db_session.add(criterion)
     db_session.commit()
