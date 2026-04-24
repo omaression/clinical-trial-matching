@@ -32,7 +32,6 @@ from app.db.session import get_db
 from app.matching.service import PatientMatchService
 from app.models.database import (
     MatchResult,
-    MatchResultCriterion,
     MatchRun,
     Patient,
     PatientBiomarker,
@@ -221,9 +220,6 @@ def _load_match_run_or_404(match_run_id: UUID, db: Session) -> MatchRun:
         db.query(MatchRun)
         .options(
             selectinload(MatchRun.results).selectinload(MatchResult.trial),
-            selectinload(MatchRun.results)
-            .selectinload(MatchResult.criteria)
-            .selectinload(MatchResultCriterion.criterion),
         )
         .filter(MatchRun.id == match_run_id)
         .first()

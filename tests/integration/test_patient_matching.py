@@ -406,6 +406,109 @@ class TestPatientMatching:
         assert diagnosis["state"] == "structured_low_confidence"
         assert diagnosis["state_reason"] == "low_confidence"
 
+    def test_reviewed_low_confidence_criterion_is_treated_as_safe_for_new_matches(self, client, db_session):
+        trial = _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000013",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "confidence": 0.4,
+                    "review_required": True,
+                    "review_reason": "fuzzy_match",
+                }
+            ],
+        )
+
+        criterion_id = str(trial.criteria[0].id)
+        review_response = client.patch(
+            f"/api/v1/criteria/{criterion_id}/review",
+            json={"action": "accept", "reviewed_by": "ops-console"},
+        )
+        assert review_response.status_code == 200
+
+        criterion_response = client.get(f"/api/v1/criteria/{criterion_id}")
+        assert criterion_response.status_code == 200
+        assert criterion_response.json()["state"] == "structured_safe"
+        assert criterion_response.json()["state_reason"] is None
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-reviewed-low-confidence",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "conditions": [
+                    {
+                        "description": "Metastatic breast cancer",
+                        "coded_concepts": [{"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}],
+                    }
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000013")
+        assert result["overall_status"] == "eligible"
+        assert result["state"] == "structured_safe"
+        assert result["state_reason"] is None
+
+    def test_rejected_criteria_do_not_participate_in_future_matches(self, client, db_session):
+        trial = _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000014",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "review_required": True,
+                    "review_reason": "fuzzy_match",
+                }
+            ],
+        )
+
+        criterion_id = str(trial.criteria[0].id)
+        review_response = client.patch(
+            f"/api/v1/criteria/{criterion_id}/review",
+            json={"action": "reject", "reviewed_by": "ops-console"},
+        )
+        assert review_response.status_code == 200
+
+        criterion_response = client.get(f"/api/v1/criteria/{criterion_id}")
+        assert criterion_response.status_code == 200
+        assert criterion_response.json()["state"] == "blocked_unsupported"
+        assert criterion_response.json()["state_reason"] == "rejected"
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-rejected-criterion",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000014")
+        assert result["overall_status"] == "possible"
+        assert result["state"] == "blocked_unsupported"
+        assert result["state_reason"] == "blocked_unsupported"
+
     def test_match_state_uses_collapsed_or_group_result_instead_of_raw_member_review_flags(self, client, db_session):
         group_id = uuid.UUID("22222222-2222-2222-2222-222222222222")
         _seed_trial_with_run(

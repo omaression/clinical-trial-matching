@@ -922,6 +922,27 @@
             ],
             "title": "Specimen Type"
           },
+          "state": {
+            "enum": [
+              "structured_safe",
+              "structured_low_confidence",
+              "review_required",
+              "blocked_unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "state_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Reason"
+          },
           "testing_modality": {
             "anyOf": [
               {
@@ -1025,6 +1046,7 @@
           "trial_id",
           "type",
           "category",
+          "state",
           "parse_status",
           "original_text",
           "negated",
@@ -1280,6 +1302,27 @@
           "source_type": {
             "title": "Source Type",
             "type": "string"
+          },
+          "state": {
+            "enum": [
+              "structured_safe",
+              "structured_low_confidence",
+              "review_required",
+              "blocked_unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "state_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Reason"
           }
         },
         "required": [
@@ -1289,7 +1332,8 @@
           "criterion_type",
           "category",
           "criterion_text",
-          "outcome"
+          "outcome",
+          "state"
         ],
         "title": "MatchCriterionResultResponse",
         "type": "object"
@@ -1297,6 +1341,10 @@
       "MatchResultDetail": {
         "additionalProperties": false,
         "properties": {
+          "coverage_ratio": {
+            "title": "Coverage Ratio",
+            "type": "number"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -1315,6 +1363,18 @@
             },
             "title": "Criteria",
             "type": "array"
+          },
+          "determinate_score": {
+            "title": "Determinate Score",
+            "type": "number"
+          },
+          "deterministic_count": {
+            "title": "Deterministic Count",
+            "type": "integer"
+          },
+          "evaluated_count": {
+            "title": "Evaluated Count",
+            "type": "integer"
           },
           "favorable_count": {
             "title": "Favorable Count",
@@ -1352,6 +1412,27 @@
             "title": "Score",
             "type": "number"
           },
+          "state": {
+            "enum": [
+              "structured_safe",
+              "structured_low_confidence",
+              "review_required",
+              "blocked_unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "state_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Reason"
+          },
           "summary_explanation": {
             "anyOf": [
               {
@@ -1383,6 +1464,10 @@
           "unknown_count": {
             "title": "Unknown Count",
             "type": "integer"
+          },
+          "unresolved_count": {
+            "title": "Unresolved Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -1393,7 +1478,13 @@
           "trial_nct_id",
           "trial_brief_title",
           "overall_status",
+          "state",
           "score",
+          "determinate_score",
+          "coverage_ratio",
+          "evaluated_count",
+          "deterministic_count",
+          "unresolved_count",
           "favorable_count",
           "unfavorable_count",
           "unknown_count",
@@ -1437,6 +1528,10 @@
       "MatchResultSummary": {
         "additionalProperties": false,
         "properties": {
+          "coverage_ratio": {
+            "title": "Coverage Ratio",
+            "type": "number"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -1448,6 +1543,18 @@
               }
             ],
             "title": "Created At"
+          },
+          "determinate_score": {
+            "title": "Determinate Score",
+            "type": "number"
+          },
+          "deterministic_count": {
+            "title": "Deterministic Count",
+            "type": "integer"
+          },
+          "evaluated_count": {
+            "title": "Evaluated Count",
+            "type": "integer"
           },
           "favorable_count": {
             "title": "Favorable Count",
@@ -1485,6 +1592,27 @@
             "title": "Score",
             "type": "number"
           },
+          "state": {
+            "enum": [
+              "structured_safe",
+              "structured_low_confidence",
+              "review_required",
+              "blocked_unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "state_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Reason"
+          },
           "summary_explanation": {
             "anyOf": [
               {
@@ -1516,6 +1644,10 @@
           "unknown_count": {
             "title": "Unknown Count",
             "type": "integer"
+          },
+          "unresolved_count": {
+            "title": "Unresolved Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -1526,7 +1658,13 @@
           "trial_nct_id",
           "trial_brief_title",
           "overall_status",
+          "state",
           "score",
+          "determinate_score",
+          "coverage_ratio",
+          "evaluated_count",
+          "deterministic_count",
+          "unresolved_count",
           "favorable_count",
           "unfavorable_count",
           "unknown_count",

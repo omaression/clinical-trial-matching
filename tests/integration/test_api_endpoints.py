@@ -73,6 +73,13 @@ class TestRouteRegistration:
             assert review_operation["security"] == [{"APIKeyHeader": []}]
             assert patient_operation["security"] == [{"APIKeyHeader": []}]
 
+    def test_checked_in_openapi_artifact_matches_runtime_schema(self):
+        artifact_path = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "api" / "openapi.json"
+        with TestClient(app) as c:
+            runtime_schema = c.get("/openapi.json").json()
+        checked_in_schema = json.loads(artifact_path.read_text())
+        assert checked_in_schema == runtime_schema
+
 
 @pytestmark_docker
 class TestApiHardening:

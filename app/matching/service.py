@@ -182,7 +182,6 @@ class PatientMatchService:
             .options(
                 selectinload(MatchResult.trial),
                 selectinload(MatchResult.match_run),
-                selectinload(MatchResult.criteria).selectinload(MatchResultCriterion.criterion),
             )
             .filter(MatchResult.patient_id == patient_id)
             .order_by(MatchResult.created_at.desc(), MatchResult.id.desc())
@@ -197,7 +196,7 @@ class PatientMatchService:
             .options(
                 selectinload(MatchResult.trial),
                 selectinload(MatchResult.match_run),
-                selectinload(MatchResult.criteria).selectinload(MatchResultCriterion.criterion),
+                selectinload(MatchResult.criteria),
             )
             .filter(MatchResult.id == match_result_id)
             .first()
@@ -372,6 +371,14 @@ class PatientMatchService:
             outcome = "requires_review"
             explanation_text = "This criterion still requires manual review, so the patient match remains provisional."
             explanation_type = "review_required"
+            evidence_payload = {
+                "review_reason": criterion.review_reason,
+                "review_status": criterion.review_status,
+            }
+        elif state == "blocked_unsupported":
+            outcome = "unknown"
+            explanation_text = "This criterion was rejected during review, so it is excluded from automated matching."
+            explanation_type = "blocked_unsupported"
             evidence_payload = {
                 "review_reason": criterion.review_reason,
                 "review_status": criterion.review_status,
