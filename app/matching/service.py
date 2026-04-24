@@ -5,6 +5,7 @@ from typing import Any, Iterable
 
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.state import criterion_state_from_extracted, match_state_from_evaluations
 from app.models.database import (
     ExtractedCriterion,
     MatchResult,
@@ -49,6 +50,8 @@ class CriterionEvaluation:
     category: str
     criterion_text: str
     outcome: str
+    state: str
+    state_reason: str | None
     explanation_text: str
     explanation_type: str
     evidence_payload: dict[str, Any] | None = None
@@ -112,12 +115,15 @@ class PatientMatchService:
                 overall_status=overall_status,
                 evaluations=effective_evaluations,
             )
+            state, state_reason = match_state_from_evaluations(effective_evaluations)
 
             result = MatchResult(
                 match_run_id=match_run.id,
                 patient_id=patient.id,
                 trial_id=trial.id,
                 overall_status=overall_status,
+                state=state,
+                state_reason=state_reason,
                 score=score,
                 favorable_count=favorable_count,
                 unfavorable_count=unfavorable_count,
@@ -141,6 +147,8 @@ class PatientMatchService:
                         category=evaluation.category,
                         criterion_text=evaluation.criterion_text,
                         outcome=evaluation.outcome,
+                        state=evaluation.state,
+                        state_reason=evaluation.state_reason,
                         explanation_text=evaluation.explanation_text,
                         explanation_type=evaluation.explanation_type,
                         evidence_payload=evaluation.evidence_payload,
@@ -171,7 +179,11 @@ class PatientMatchService:
     def list_patient_matches(self, patient_id, *, page: int = 1, per_page: int = 20) -> tuple[list[MatchResult], int]:
         query = (
             self._db.query(MatchResult)
-            .options(selectinload(MatchResult.trial), selectinload(MatchResult.match_run))
+            .options(
+                selectinload(MatchResult.trial),
+                selectinload(MatchResult.match_run),
+                selectinload(MatchResult.criteria).selectinload(MatchResultCriterion.criterion),
+            )
             .filter(MatchResult.patient_id == patient_id)
             .order_by(MatchResult.created_at.desc(), MatchResult.id.desc())
         )
@@ -185,7 +197,7 @@ class PatientMatchService:
             .options(
                 selectinload(MatchResult.trial),
                 selectinload(MatchResult.match_run),
-                selectinload(MatchResult.criteria),
+                selectinload(MatchResult.criteria).selectinload(MatchResultCriterion.criterion),
             )
             .filter(MatchResult.id == match_result_id)
             .first()
@@ -215,6 +227,8 @@ class PatientMatchService:
                     category="age",
                     criterion_text="ClinicalTrials.gov structured age eligibility",
                     outcome=outcome,
+                    state="structured_safe",
+                    state_reason=None,
                     explanation_text=explanation_text,
                     explanation_type="structured_rule",
                     evidence_payload=evidence_payload,
@@ -234,6 +248,8 @@ class PatientMatchService:
                     category="sex",
                     criterion_text=f"ClinicalTrials.gov structured sex eligibility: {trial.eligible_sex}",
                     outcome=outcome,
+                    state="structured_safe",
+                    state_reason=None,
                     explanation_text=explanation_text,
                     explanation_type="structured_rule",
                     evidence_payload=evidence_payload,
@@ -253,6 +269,8 @@ class PatientMatchService:
                     category="healthy_volunteers",
                     criterion_text="ClinicalTrials.gov structured healthy volunteer restriction",
                     outcome=outcome,
+                    state="structured_safe",
+                    state_reason=None,
                     explanation_text=explanation_text,
                     explanation_type="structured_rule",
                     evidence_payload=evidence_payload,
@@ -349,6 +367,7 @@ class PatientMatchService:
         )
 
     def _evaluate_extracted_criterion(self, patient: Patient, criterion: ExtractedCriterion) -> CriterionEvaluation:
+        state, state_reason = criterion_state_from_extracted(criterion)
         if criterion.review_required and criterion.review_status == "pending":
             outcome = "requires_review"
             explanation_text = "This criterion still requires manual review, so the patient match remains provisional."
@@ -376,6 +395,8 @@ class PatientMatchService:
             category=criterion.category,
             criterion_text=criterion.original_text,
             outcome=outcome,
+            state=state,
+            state_reason=state_reason,
             explanation_text=explanation_text,
             explanation_type=explanation_type,
             evidence_payload=evidence_payload,
@@ -495,6 +516,24 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
             explanation_text = "None of the OR-linked exclusion branches are triggered."
             explanation_type = "logic_group_clear"
 
+    matching_members = [evaluation for evaluation in evaluations if evaluation.outcome == outcome] or evaluations
+    member_states = {evaluation.state for evaluation in matching_members}
+    if "structured_safe" in member_states:
+        state = "structured_safe"
+        state_reason = None
+    elif "structured_low_confidence" in member_states:
+        state = "structured_low_confidence"
+        state_reason = "low_confidence"
+    elif "review_required" in member_states:
+        state = "review_required"
+        state_reason = "review_required"
+    elif "blocked_unsupported" in member_states:
+        state = "blocked_unsupported"
+        state_reason = "blocked_unsupported"
+    else:
+        state = exemplar.state
+        state_reason = exemplar.state_reason
+
     return CriterionEvaluation(
         criterion_id=None,
         pipeline_run_id=exemplar.pipeline_run_id,
@@ -506,12 +545,15 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
         category=exemplar.category,
         criterion_text=exemplar.criterion_text,
         outcome=outcome,
+        state=state,
+        state_reason=state_reason,
         explanation_text=explanation_text,
         explanation_type=explanation_type,
         evidence_payload={
             "logic_group_id": str(exemplar.logic_group_id),
             "logic_operator": exemplar.logic_operator,
             "member_outcomes": [evaluation.outcome for evaluation in evaluations],
+            "member_states": [evaluation.state for evaluation in evaluations],
         },
     )
 

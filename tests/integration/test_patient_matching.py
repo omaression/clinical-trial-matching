@@ -294,9 +294,14 @@ class TestPatientMatching:
             ranked["NCT10000001"]["favorable_count"] + ranked["NCT10000001"]["unfavorable_count"]
         )
         assert ranked["NCT10000001"]["unresolved_count"] == 0
+        assert ranked["NCT10000001"]["state"] == "structured_safe"
+        assert ranked["NCT10000001"]["state_reason"] is None
         assert "eligible" in ranked["NCT10000001"]["summary_explanation"].casefold()
         assert ranked["NCT10000002"]["overall_status"] == "ineligible"
+        assert ranked["NCT10000002"]["state"] == "structured_safe"
         assert ranked["NCT10000003"]["overall_status"] == "possible"
+        assert ranked["NCT10000003"]["state"] == "review_required"
+        assert ranked["NCT10000003"]["state_reason"] == "review_required"
         assert ranked["NCT10000003"]["requires_review_count"] == 1
         assert ranked["NCT10000003"]["determinate_score"] == 1.0
         assert ranked["NCT10000003"]["coverage_ratio"] < 1.0
@@ -323,8 +328,26 @@ class TestPatientMatching:
             for item in detail.json()["criteria"]
             if item["source_type"] == "structured" and item["category"] == "sex"
         )
+        assert structured_sex["state"] == "structured_safe"
+        assert structured_sex["state_reason"] is None
         assert structured_sex["explanation_type"] == "structured_rule"
         assert structured_sex["evidence_payload"]["required_sex"] == "FEMALE"
+        extracted_diagnosis = next(
+            item
+            for item in detail.json()["criteria"]
+            if item["source_type"] == "extracted" and item["category"] == "diagnosis"
+        )
+        assert extracted_diagnosis["state"] == "structured_safe"
+        assert extracted_diagnosis["state_reason"] is None
+
+        review_detail = client.get(f"/api/v1/matches/{ranked['NCT10000003']['id']}")
+        assert review_detail.status_code == 200
+        review_item = next(
+            item for item in review_detail.json()["criteria"] if item["category"] == "concomitant_medication"
+        )
+        assert review_item["outcome"] == "requires_review"
+        assert review_item["state"] == "review_required"
+        assert review_item["state_reason"] == "review_required:unspecified_review_reason"
 
         listing = client.get(f"/api/v1/patients/{patient_id}/matches?per_page={total_trials}")
         assert listing.status_code == 200
@@ -334,6 +357,164 @@ class TestPatientMatching:
             "NCT10000002",
             "NCT10000003",
         }.issubset({item["trial_nct_id"] for item in listing.json()["items"]})
+
+    def test_match_patient_surfaces_low_confidence_state_separately_from_review_required(self, client, db_session):
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000010",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "confidence": 0.4,
+                }
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-low-confidence",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "conditions": [
+                    {
+                        "description": "Metastatic breast cancer",
+                        "coded_concepts": [{"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}],
+                    }
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000010")
+        assert result["overall_status"] == "eligible"
+        assert result["state"] == "structured_low_confidence"
+        assert result["state_reason"] == "low_confidence"
+
+        detail = client.get(f"/api/v1/matches/{result['id']}")
+        assert detail.status_code == 200
+        diagnosis = next(item for item in detail.json()["criteria"] if item["category"] == "diagnosis")
+        assert diagnosis["outcome"] == "matched"
+        assert diagnosis["state"] == "structured_low_confidence"
+        assert diagnosis["state_reason"] == "low_confidence"
+
+    def test_match_state_uses_collapsed_or_group_result_instead_of_raw_member_review_flags(self, client, db_session):
+        group_id = uuid.UUID("22222222-2222-2222-2222-222222222222")
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000011",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic melanoma",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D008545", "display": "Melanoma"}
+                    ],
+                    "logic_group_id": group_id,
+                    "logic_operator": "OR",
+                    "review_required": True,
+                },
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "logic_group_id": group_id,
+                    "logic_operator": "OR",
+                },
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-or-state",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+                "conditions": [
+                    {
+                        "description": "Metastatic breast cancer",
+                        "coded_concepts": [{"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}],
+                    }
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        result = next(item for item in response.json()["results"] if item["trial_nct_id"] == "NCT10000011")
+        assert result["overall_status"] == "eligible"
+        assert result["state"] == "structured_safe"
+        assert result["state_reason"] is None
+
+    def test_match_state_is_snapshotted_and_does_not_drift_after_review_resolution(self, client, db_session):
+        trial = _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000012",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": "Concurrent CYP3A4 inhibitor use",
+                    "review_required": True,
+                    "review_reason": "fuzzy_match",
+                },
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-match-snapshot",
+                "sex": "female",
+                "birth_date": str(date(1985, 1, 1)),
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        match_response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert match_response.status_code == 200
+        result = next(item for item in match_response.json()["results"] if item["trial_nct_id"] == "NCT10000012")
+        assert result["state"] == "review_required"
+
+        review_detail_before = client.get(f"/api/v1/matches/{result['id']}")
+        assert review_detail_before.status_code == 200
+        review_item_before = next(
+            item for item in review_detail_before.json()["criteria"] if item["category"] == "concomitant_medication"
+        )
+        assert review_item_before["state"] == "review_required"
+        assert review_item_before["state_reason"] == "review_required:fuzzy_match"
+
+        criterion_id = str(trial.criteria[0].id)
+        review_response = client.patch(
+            f"/api/v1/criteria/{criterion_id}/review",
+            json={"action": "accept", "reviewed_by": "ops-console"},
+        )
+        assert review_response.status_code == 200
+
+        review_detail_after = client.get(f"/api/v1/matches/{result['id']}")
+        assert review_detail_after.status_code == 200
+        review_item_after = next(
+            item for item in review_detail_after.json()["criteria"] if item["category"] == "concomitant_medication"
+        )
+        assert review_item_after["state"] == "review_required"
+        assert review_item_after["state_reason"] == "review_required:fuzzy_match"
+        assert review_detail_after.json()["state"] == "review_required"
+        assert review_detail_after.json()["state_reason"] == "review_required"
 
     def test_procedural_requirements_are_skipped_in_matching(self, client, db_session):
         _seed_trial_with_run(

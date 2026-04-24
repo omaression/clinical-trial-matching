@@ -38,6 +38,7 @@ from app.api.schemas import (
     TrialListResponse,
     TrialSummary,
 )
+from app.api.state import criterion_state_from_extracted
 from app.config import settings
 from app.db.session import get_db
 from app.fhir.criterion_projection import CriterionProjectionMapper
@@ -663,11 +664,14 @@ def _criterion_detail(criterion: ExtractedCriterion) -> CriterionResponse:
             source_sentence = criterion.original_extracted.get("source_sentence")
         if not source_clause_text:
             source_clause_text = criterion.original_extracted.get("source_clause_text")
+    state, state_reason = criterion_state_from_extracted(criterion)
     return CriterionResponse(
         id=criterion.id,
         trial_id=criterion.trial_id,
         type=criterion.type,
         category=criterion.category,
+        state=state,
+        state_reason=state_reason,
         primary_semantic_category=criterion.primary_semantic_category,
         secondary_semantic_tags=criterion.secondary_semantic_tags or [],
         parse_status=criterion.parse_status,

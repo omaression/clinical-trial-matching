@@ -27,10 +27,12 @@ from app.api.schemas import (
     PatientTherapyResponse,
     PatientUpdateRequest,
 )
+from app.api.state import criterion_state_from_match_result_criterion, match_state_from_match_result
 from app.db.session import get_db
 from app.matching.service import PatientMatchService
 from app.models.database import (
     MatchResult,
+    MatchResultCriterion,
     MatchRun,
     Patient,
     PatientBiomarker,
@@ -219,6 +221,9 @@ def _load_match_run_or_404(match_run_id: UUID, db: Session) -> MatchRun:
         db.query(MatchRun)
         .options(
             selectinload(MatchRun.results).selectinload(MatchResult.trial),
+            selectinload(MatchRun.results)
+            .selectinload(MatchResult.criteria)
+            .selectinload(MatchResultCriterion.criterion),
         )
         .filter(MatchRun.id == match_run_id)
         .first()
@@ -372,6 +377,7 @@ def _match_metrics(match_result: MatchResult) -> dict[str, float | int]:
 
 
 def _match_summary(match_result: MatchResult) -> MatchResultSummary:
+    state, state_reason = match_state_from_match_result(match_result)
     return MatchResultSummary(
         id=match_result.id,
         match_run_id=match_result.match_run_id,
@@ -380,6 +386,8 @@ def _match_summary(match_result: MatchResult) -> MatchResultSummary:
         trial_nct_id=match_result.trial.nct_id,
         trial_brief_title=match_result.trial.brief_title,
         overall_status=match_result.overall_status,
+        state=state,
+        state_reason=state_reason,
         score=match_result.score,
         favorable_count=match_result.favorable_count,
         unfavorable_count=match_result.unfavorable_count,
@@ -406,6 +414,8 @@ def _match_detail(match_result: MatchResult) -> MatchResultDetail:
                 category=criterion.category,
                 criterion_text=criterion.criterion_text,
                 outcome=criterion.outcome,
+                state=criterion_state_from_match_result_criterion(criterion)[0],
+                state_reason=criterion_state_from_match_result_criterion(criterion)[1],
                 explanation_text=criterion.explanation_text,
                 explanation_type=criterion.explanation_type,
                 evidence_payload=criterion.evidence_payload,
