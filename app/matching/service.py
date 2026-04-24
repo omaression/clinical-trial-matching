@@ -517,22 +517,40 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
             explanation_type = "logic_group_clear"
 
     matching_members = [evaluation for evaluation in evaluations if evaluation.outcome == outcome] or evaluations
-    member_states = {evaluation.state for evaluation in matching_members}
-    if "structured_safe" in member_states:
-        state = "structured_safe"
-        state_reason = None
-    elif "structured_low_confidence" in member_states:
-        state = "structured_low_confidence"
-        state_reason = "low_confidence"
-    elif "review_required" in member_states:
-        state = "review_required"
-        state_reason = "review_required"
-    elif "blocked_unsupported" in member_states:
-        state = "blocked_unsupported"
-        state_reason = "blocked_unsupported"
+    state_members = evaluations if outcome in {"not_matched", "not_triggered"} else matching_members
+    member_states = {evaluation.state for evaluation in state_members}
+    if outcome in {"not_matched", "not_triggered"}:
+        if "review_required" in member_states:
+            state = "review_required"
+            state_reason = "review_required"
+        elif "blocked_unsupported" in member_states:
+            state = "blocked_unsupported"
+            state_reason = "blocked_unsupported"
+        elif "structured_low_confidence" in member_states:
+            state = "structured_low_confidence"
+            state_reason = "low_confidence"
+        elif "structured_safe" in member_states:
+            state = "structured_safe"
+            state_reason = None
+        else:
+            state = exemplar.state
+            state_reason = exemplar.state_reason
     else:
-        state = exemplar.state
-        state_reason = exemplar.state_reason
+        if "structured_safe" in member_states:
+            state = "structured_safe"
+            state_reason = None
+        elif "structured_low_confidence" in member_states:
+            state = "structured_low_confidence"
+            state_reason = "low_confidence"
+        elif "review_required" in member_states:
+            state = "review_required"
+            state_reason = "review_required"
+        elif "blocked_unsupported" in member_states:
+            state = "blocked_unsupported"
+            state_reason = "blocked_unsupported"
+        else:
+            state = exemplar.state
+            state_reason = exemplar.state_reason
 
     return CriterionEvaluation(
         criterion_id=None,
