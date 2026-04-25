@@ -87,3 +87,57 @@ def test_collapse_or_group_propagates_low_confidence_when_all_exclusion_branches
     assert collapsed.outcome == "not_triggered"
     assert collapsed.state == "structured_low_confidence"
     assert collapsed.state_reason == "low_confidence"
+
+
+def test_collapse_or_group_propagates_blocked_state_for_unknown_outcomes():
+    collapsed = _collapse_or_group(
+        [
+            _evaluation(criterion_type="inclusion", outcome="unknown", state="structured_safe"),
+            _evaluation(
+                criterion_type="inclusion",
+                outcome="unknown",
+                state="blocked_unsupported",
+                state_reason="rejected",
+            ),
+        ]
+    )
+
+    assert collapsed.outcome == "unknown"
+    assert collapsed.state == "blocked_unsupported"
+    assert collapsed.state_reason == "blocked_unsupported"
+
+
+def test_collapse_or_group_propagates_nonwinning_low_confidence_into_unknown_state():
+    collapsed = _collapse_or_group(
+        [
+            _evaluation(criterion_type="inclusion", outcome="unknown", state="structured_safe"),
+            _evaluation(
+                criterion_type="inclusion",
+                outcome="not_matched",
+                state="structured_low_confidence",
+                state_reason="low_confidence",
+            ),
+        ]
+    )
+
+    assert collapsed.outcome == "unknown"
+    assert collapsed.state == "structured_low_confidence"
+    assert collapsed.state_reason == "low_confidence"
+
+
+def test_collapse_or_group_preserves_safe_state_for_matched_branch_despite_hidden_review_member():
+    collapsed = _collapse_or_group(
+        [
+            _evaluation(criterion_type="inclusion", outcome="matched", state="structured_safe"),
+            _evaluation(
+                criterion_type="inclusion",
+                outcome="requires_review",
+                state="review_required",
+                state_reason="review_required:fuzzy_match",
+            ),
+        ]
+    )
+
+    assert collapsed.outcome == "matched"
+    assert collapsed.state == "structured_safe"
+    assert collapsed.state_reason is None

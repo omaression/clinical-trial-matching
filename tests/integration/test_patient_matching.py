@@ -508,6 +508,7 @@ class TestPatientMatching:
         assert result["overall_status"] == "possible"
         assert result["state"] == "blocked_unsupported"
         assert result["state_reason"] == "blocked_unsupported"
+        assert "rejected or unsupported" in result["summary_explanation"].casefold()
 
     def test_match_state_uses_collapsed_or_group_result_instead_of_raw_member_review_flags(self, client, db_session):
         group_id = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -618,6 +619,7 @@ class TestPatientMatching:
         assert review_item_after["state_reason"] == "review_required:fuzzy_match"
         assert review_detail_after.json()["state"] == "review_required"
         assert review_detail_after.json()["state_reason"] == "review_required"
+        assert "manual review" in review_detail_after.json()["summary_explanation"].casefold()
 
     def test_procedural_requirements_are_skipped_in_matching(self, client, db_session):
         _seed_trial_with_run(

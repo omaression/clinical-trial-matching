@@ -11,13 +11,13 @@ UNSPECIFIED_REVIEW_REASON = "unspecified_review_reason"
 
 
 def criterion_state_from_extracted(criterion: ExtractedCriterion) -> tuple[str, str | None]:
-    if criterion.review_required:
-        reason = criterion.review_reason or UNSPECIFIED_REVIEW_REASON
-        return "review_required", f"review_required:{reason}"
     if criterion.review_status == "rejected":
         return "blocked_unsupported", "rejected"
     if criterion.review_status in {"accepted", "corrected"}:
         return "structured_safe", None
+    if criterion.review_required:
+        reason = criterion.review_reason or UNSPECIFIED_REVIEW_REASON
+        return "review_required", f"review_required:{reason}"
     if (criterion.confidence or 0.0) < LOW_CONFIDENCE_THRESHOLD:
         return "structured_low_confidence", "low_confidence"
     return "structured_safe", None

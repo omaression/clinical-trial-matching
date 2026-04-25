@@ -332,7 +332,7 @@ class MatchResult(Base):
     unknown_count = Column(Integer, nullable=False, default=0)
     requires_review_count = Column(Integer, nullable=False, default=0)
     summary_explanation = Column(Text)
-    state = Column(String, nullable=False, default="structured_safe")
+    state = Column(String, nullable=False)
     state_reason = Column(String)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
 
@@ -361,7 +361,7 @@ class MatchResultCriterion(Base):
     category = Column(String, nullable=False)
     criterion_text = Column(Text, nullable=False)
     outcome = Column(String, nullable=False)
-    state = Column(String, nullable=False, default="structured_safe")
+    state = Column(String, nullable=False)
     state_reason = Column(String)
     explanation_text = Column(Text)
     explanation_type = Column(String)

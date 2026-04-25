@@ -524,9 +524,13 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
             explanation_type = "logic_group_clear"
 
     matching_members = [evaluation for evaluation in evaluations if evaluation.outcome == outcome] or evaluations
-    state_members = evaluations if outcome in {"not_matched", "not_triggered"} else matching_members
+    state_members = (
+        evaluations
+        if outcome in {"not_matched", "not_triggered", "unknown"}
+        else matching_members
+    )
     member_states = {evaluation.state for evaluation in state_members}
-    if outcome in {"not_matched", "not_triggered"}:
+    if outcome in {"not_matched", "not_triggered", "unknown"}:
         if "review_required" in member_states:
             state = "review_required"
             state_reason = "review_required"
@@ -949,6 +953,8 @@ def _build_summary_explanation(
     unresolved = [
         evaluation.category for evaluation in evaluations if evaluation.outcome in {"unknown", "requires_review"}
     ]
+    review_required = [evaluation.category for evaluation in evaluations if evaluation.state == "review_required"]
+    blocked = [evaluation.category for evaluation in evaluations if evaluation.state == "blocked_unsupported"]
     favorable = [
         evaluation.category for evaluation in evaluations if evaluation.outcome in {"matched", "not_triggered"}
     ]
@@ -956,6 +962,15 @@ def _build_summary_explanation(
     if overall_status == "ineligible":
         blocker_text = ", ".join(blockers[:2]) if blockers else "blocking criteria"
         return f"{trial.brief_title} is ineligible because of {blocker_text}."
+    if review_required:
+        unresolved_text = ", ".join(review_required[:2]) if review_required else "review-pending criteria"
+        return f"{trial.brief_title} remains a possible match pending manual review of {unresolved_text}."
+    if blocked:
+        blocked_text = ", ".join(blocked[:2]) if blocked else "unsupported criteria"
+        return (
+            f"{trial.brief_title} remains a possible match because {blocked_text} were rejected or unsupported "
+            "and excluded from automated matching."
+        )
     if overall_status == "possible":
         unresolved_text = ", ".join(unresolved[:2]) if unresolved else "unresolved criteria"
         return f"{trial.brief_title} remains a possible match pending {unresolved_text}."
