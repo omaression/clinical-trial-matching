@@ -303,9 +303,38 @@ export type MatchExplanation = {
   review_required: MatchExplanationItem[];
 };
 
+export type MatchGapKind =
+  | "hard_blocker"
+  | "clarifiable_blocker"
+  | "missing_data"
+  | "review_required"
+  | "unsupported";
+
+export type MatchGapEntry = {
+  kind: MatchGapKind;
+  label: string;
+  category: string;
+  criterion_text: string;
+  outcome: "matched" | "not_matched" | "unknown" | "requires_review" | "not_triggered" | "triggered";
+  state: MatchConfidenceState;
+  state_reason?: string | null;
+  summary?: string | null;
+  source_snippet?: string | null;
+  evidence_payload?: Record<string, unknown> | null;
+};
+
+export type MatchGapReport = {
+  hard_blockers: MatchGapEntry[];
+  clarifiable_blockers: MatchGapEntry[];
+  missing_data: MatchGapEntry[];
+  review_required: MatchGapEntry[];
+  unsupported: MatchGapEntry[];
+};
+
 export type MatchResultDetail = MatchResultSummary & {
   criteria: MatchCriterionResult[];
   explanation: MatchExplanation;
+  gap_report: MatchGapReport;
 };
 
 export type MatchRunResponse = {
