@@ -7,6 +7,8 @@ from app.api.dependencies import require_api_key
 from app.api.openapi import PROTECTED_MUTATION_RESPONSES, PROTECTED_RESOURCE_RESPONSES
 from app.api.schemas import (
     MatchCriterionResultResponse,
+    MatchExplanationItemResponse,
+    MatchExplanationResponse,
     MatchResultDetail,
     MatchResultListResponse,
     MatchResultSummary,
@@ -395,30 +397,113 @@ def _match_summary(match_result: MatchResult) -> MatchResultSummary:
     )
 
 
+def _build_match_criterion_response(criterion) -> MatchCriterionResultResponse:
+    state, state_reason = criterion_state_from_match_result_criterion(criterion)
+    return MatchCriterionResultResponse(
+        id=criterion.id,
+        criterion_id=criterion.criterion_id,
+        pipeline_run_id=criterion.pipeline_run_id,
+        source_type=criterion.source_type,
+        source_label=criterion.source_label,
+        criterion_type=criterion.criterion_type,
+        category=criterion.category,
+        criterion_text=criterion.criterion_text,
+        outcome=criterion.outcome,
+        state=state,
+        state_reason=state_reason,
+        explanation_text=criterion.explanation_text,
+        explanation_type=criterion.explanation_type,
+        evidence_payload=criterion.evidence_payload,
+        created_at=criterion.created_at,
+    )
+
+
+def _explanation_label_for_category(category: str) -> str:
+    return category.replace("_", " ").title()
+
+
+def _first_scalar_evidence_value(value):
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, dict):
+        preferred_keys = (
+            "source_snippet",
+            "description",
+            "display",
+            "value_text",
+            "criterion_value_text",
+            "review_reason",
+            "required_sex",
+            "patient_sex",
+        )
+        for key in preferred_keys:
+            if key in value:
+                found = _first_scalar_evidence_value(value[key])
+                if found:
+                    return found
+        for nested_value in value.values():
+            found = _first_scalar_evidence_value(nested_value)
+            if found:
+                return found
+        return None
+    if isinstance(value, list):
+        for item in value:
+            found = _first_scalar_evidence_value(item)
+            if found:
+                return found
+    return None
+
+
+def _source_snippet_for_criterion(criterion) -> str | None:
+    if not isinstance(criterion.evidence_payload, dict):
+        return None
+    explicit_snippet = criterion.evidence_payload.get("source_snippet") or criterion.evidence_payload.get("source_text")
+    if isinstance(explicit_snippet, str) and explicit_snippet.strip():
+        return explicit_snippet.strip()
+    return None
+
+
+def _build_match_explanation_item(criterion) -> MatchExplanationItemResponse:
+    state, _ = criterion_state_from_match_result_criterion(criterion)
+    return MatchExplanationItemResponse(
+        label=_explanation_label_for_category(criterion.category),
+        category=criterion.category,
+        criterion_text=criterion.criterion_text,
+        outcome=criterion.outcome,
+        state=state,
+        explanation_text=criterion.explanation_text,
+        source_snippet=_source_snippet_for_criterion(criterion),
+        evidence_payload=criterion.evidence_payload,
+    )
+
+
+def _build_match_explanation(criteria) -> MatchExplanationResponse:
+    explanation = MatchExplanationResponse()
+    for criterion in criteria:
+        item = _build_match_explanation_item(criterion)
+        state, _ = criterion_state_from_match_result_criterion(criterion)
+
+        if criterion.outcome in {"matched", "not_triggered"}:
+            explanation.matched.append(item)
+        elif criterion.outcome in {"not_matched", "triggered"}:
+            explanation.blockers.append(item)
+
+        if criterion.outcome in {"unknown", "requires_review"} or state != "structured_safe":
+            explanation.review_required.append(item)
+    return explanation
+
+
 def _match_detail(match_result: MatchResult) -> MatchResultDetail:
     criteria = sorted(match_result.criteria, key=lambda criterion: (criterion.created_at, str(criterion.id)))
     return MatchResultDetail(
         **_match_summary(match_result).model_dump(),
-        criteria=[
-            MatchCriterionResultResponse(
-                id=criterion.id,
-                criterion_id=criterion.criterion_id,
-                pipeline_run_id=criterion.pipeline_run_id,
-                source_type=criterion.source_type,
-                source_label=criterion.source_label,
-                criterion_type=criterion.criterion_type,
-                category=criterion.category,
-                criterion_text=criterion.criterion_text,
-                outcome=criterion.outcome,
-                state=criterion_state_from_match_result_criterion(criterion)[0],
-                state_reason=criterion_state_from_match_result_criterion(criterion)[1],
-                explanation_text=criterion.explanation_text,
-                explanation_type=criterion.explanation_type,
-                evidence_payload=criterion.evidence_payload,
-                created_at=criterion.created_at,
-            )
-            for criterion in criteria
-        ],
+        criteria=[_build_match_criterion_response(criterion) for criterion in criteria],
+        explanation=_build_match_explanation(criteria),
     )
 
 

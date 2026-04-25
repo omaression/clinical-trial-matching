@@ -1338,6 +1338,116 @@
         "title": "MatchCriterionResultResponse",
         "type": "object"
       },
+      "MatchExplanationItemResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "criterion_text": {
+            "title": "Criterion Text",
+            "type": "string"
+          },
+          "evidence_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Payload"
+          },
+          "explanation_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation Text"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "matched",
+              "not_matched",
+              "unknown",
+              "requires_review",
+              "not_triggered",
+              "triggered"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "source_snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snippet"
+          },
+          "state": {
+            "enum": [
+              "structured_safe",
+              "structured_low_confidence",
+              "review_required",
+              "blocked_unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "category",
+          "criterion_text",
+          "outcome",
+          "state"
+        ],
+        "title": "MatchExplanationItemResponse",
+        "type": "object"
+      },
+      "MatchExplanationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/MatchExplanationItemResponse"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "matched": {
+            "items": {
+              "$ref": "#/components/schemas/MatchExplanationItemResponse"
+            },
+            "title": "Matched",
+            "type": "array"
+          },
+          "review_required": {
+            "items": {
+              "$ref": "#/components/schemas/MatchExplanationItemResponse"
+            },
+            "title": "Review Required",
+            "type": "array"
+          }
+        },
+        "title": "MatchExplanationResponse",
+        "type": "object"
+      },
       "MatchResultDetail": {
         "additionalProperties": false,
         "properties": {
@@ -1375,6 +1485,9 @@
           "evaluated_count": {
             "title": "Evaluated Count",
             "type": "integer"
+          },
+          "explanation": {
+            "$ref": "#/components/schemas/MatchExplanationResponse"
           },
           "favorable_count": {
             "title": "Favorable Count",

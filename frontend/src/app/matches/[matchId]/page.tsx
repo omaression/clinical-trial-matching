@@ -1,6 +1,7 @@
 import { StructuredDataView } from "@/components/structured-data-view";
 import Link from "next/link";
 
+import { MatchExplanationCard } from "@/components/match-explanation-card";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
@@ -60,31 +61,59 @@ export default async function MatchDetailPage({
         </div>
       </Panel>
 
-      <div className="grid gap-4">
-        {match.criteria.map((criterion) => (
-          <article key={criterion.id} className="rounded-[30px] border border-ink/10 bg-white/75 p-6 shadow-card">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <StatusPill value={criterion.outcome} />
-              <StatusPill value={criterion.state} />
-              <span className="text-xs uppercase tracking-[0.24em] text-ink/45">{criterion.category}</span>
-              <span className="text-xs uppercase tracking-[0.24em] text-ink/45">{criterion.source_type}</span>
-            </div>
-            <p className="text-base font-semibold text-ink">{criterion.criterion_text}</p>
-            {criterion.state_reason ? (
-              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ink/45">{criterion.state_reason.replaceAll("_", " ")}</p>
-            ) : null}
-            <p className="mt-3 text-sm leading-7 text-ink/72">{criterion.explanation_text}</p>
-            {criterion.evidence_payload ? (
-              <details className="mt-4 rounded-2xl bg-sand/65 p-4">
-                <summary className="cursor-pointer text-sm font-semibold text-ink">Structured evidence</summary>
-                <div className="mt-4">
-                  <StructuredDataView data={criterion.evidence_payload} emptyLabel="No structured evidence payload is available." />
-                </div>
-              </details>
-            ) : null}
-          </article>
-        ))}
-      </div>
+      <Panel title="Evidence-Grounded Explanation" eyebrow="Grouped eligibility rationale">
+        <p className="text-sm leading-7 text-ink/72">
+          These cards summarize why the trial matched, what blocked eligibility, and which criteria still need review.
+        </p>
+        <div className="mt-6 grid gap-4 xl:grid-cols-3">
+          <MatchExplanationCard
+            title="Matched criteria"
+            eyebrow="Supports fit"
+            items={match.explanation.matched}
+            emptyMessage="No matched supporting criteria were surfaced for this result."
+          />
+          <MatchExplanationCard
+            title="Blockers"
+            eyebrow="Why this may be ineligible"
+            items={match.explanation.blockers}
+            emptyMessage="No blocking criteria were recorded for this result."
+          />
+          <MatchExplanationCard
+            title="Needs review"
+            eyebrow="Unresolved criteria"
+            items={match.explanation.review_required}
+            emptyMessage="No unresolved or review-required criteria remain for this result."
+          />
+        </div>
+      </Panel>
+
+      <Panel title="Criterion Breakdown" eyebrow="Raw persisted criterion results">
+        <div className="grid gap-4">
+          {match.criteria.map((criterion) => (
+            <article key={criterion.id} className="rounded-[30px] border border-ink/10 bg-white/75 p-6 shadow-card">
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <StatusPill value={criterion.outcome} />
+                <StatusPill value={criterion.state} />
+                <span className="text-xs uppercase tracking-[0.24em] text-ink/45">{criterion.category}</span>
+                <span className="text-xs uppercase tracking-[0.24em] text-ink/45">{criterion.source_type}</span>
+              </div>
+              <p className="text-base font-semibold text-ink">{criterion.criterion_text}</p>
+              {criterion.state_reason ? (
+                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ink/45">{criterion.state_reason.replaceAll("_", " ")}</p>
+              ) : null}
+              <p className="mt-3 text-sm leading-7 text-ink/72">{criterion.explanation_text}</p>
+              {criterion.evidence_payload ? (
+                <details className="mt-4 rounded-2xl bg-sand/65 p-4">
+                  <summary className="cursor-pointer text-sm font-semibold text-ink">Structured evidence</summary>
+                  <div className="mt-4">
+                    <StructuredDataView data={criterion.evidence_payload} emptyLabel="No structured evidence payload is available." />
+                  </div>
+                </details>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </Panel>
     </>
   );
 }

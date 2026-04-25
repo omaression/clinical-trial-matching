@@ -287,8 +287,25 @@ export type MatchCriterionResult = {
   created_at?: string | null;
 };
 
+export type MatchExplanationItem = {
+  label: string;
+  category: string;
+  criterion_text: string;
+  outcome: "matched" | "not_matched" | "unknown" | "requires_review" | "not_triggered" | "triggered";
+  state: MatchConfidenceState;
+  explanation_text?: string | null;
+  source_snippet?: string | null;
+  evidence_payload?: Record<string, unknown> | null;
+};
+export type MatchExplanation = {
+  matched: MatchExplanationItem[];
+  blockers: MatchExplanationItem[];
+  review_required: MatchExplanationItem[];
+};
+
 export type MatchResultDetail = MatchResultSummary & {
   criteria: MatchCriterionResult[];
+  explanation: MatchExplanation;
 };
 
 export type MatchRunResponse = {
