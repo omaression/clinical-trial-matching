@@ -9,6 +9,14 @@ class APIModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+ConfidenceState = Literal[
+    "structured_safe",
+    "structured_low_confidence",
+    "review_required",
+    "blocked_unsupported",
+]
+
+
 class IngestRequest(APIModel):
     nct_id: str = Field(min_length=11, max_length=11, pattern=r"^NCT\d{8}$")
 
@@ -170,6 +178,8 @@ class CriterionResponse(APIModel):
     trial_id: UUID
     type: str
     category: str
+    state: ConfidenceState
+    state_reason: str | None = None
     primary_semantic_category: str | None = None
     secondary_semantic_tags: list[str] = Field(default_factory=list)
     parse_status: str
@@ -474,6 +484,8 @@ class MatchCriterionResultResponse(APIModel):
     category: str
     criterion_text: str
     outcome: CriterionMatchOutcome
+    state: ConfidenceState
+    state_reason: str | None = None
     explanation_text: str | None = None
     explanation_type: str | None = None
     evidence_payload: dict[str, Any] | None = None
@@ -488,6 +500,8 @@ class MatchResultSummary(APIModel):
     trial_nct_id: str
     trial_brief_title: str
     overall_status: Literal["eligible", "possible", "ineligible"]
+    state: ConfidenceState
+    state_reason: str | None = None
     score: float
     determinate_score: float
     coverage_ratio: float

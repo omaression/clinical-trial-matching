@@ -37,6 +37,11 @@ export default async function MatchDetailPage({
             <div className="mt-2"><StatusPill value={match.overall_status} /></div>
           </div>
           <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Confidence state</p>
+            <div className="mt-2"><StatusPill value={match.state} /></div>
+            {match.state_reason ? <p className="mt-2 text-sm text-ink/60">{match.state_reason.replaceAll("_", " ")}</p> : null}
+          </div>
+          <div>
             <p className="text-xs uppercase tracking-[0.22em] text-ink/45">Determinate fit</p>
             <p className="mt-2 text-2xl font-semibold text-ink">{formatPercent(match.determinate_score)}</p>
           </div>
@@ -60,10 +65,14 @@ export default async function MatchDetailPage({
           <article key={criterion.id} className="rounded-[30px] border border-ink/10 bg-white/75 p-6 shadow-card">
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <StatusPill value={criterion.outcome} />
+              <StatusPill value={criterion.state} />
               <span className="text-xs uppercase tracking-[0.24em] text-ink/45">{criterion.category}</span>
               <span className="text-xs uppercase tracking-[0.24em] text-ink/45">{criterion.source_type}</span>
             </div>
             <p className="text-base font-semibold text-ink">{criterion.criterion_text}</p>
+            {criterion.state_reason ? (
+              <p className="mt-2 text-xs uppercase tracking-[0.18em] text-ink/45">{criterion.state_reason.replaceAll("_", " ")}</p>
+            ) : null}
             <p className="mt-3 text-sm leading-7 text-ink/72">{criterion.explanation_text}</p>
             {criterion.evidence_payload ? (
               <details className="mt-4 rounded-2xl bg-sand/65 p-4">

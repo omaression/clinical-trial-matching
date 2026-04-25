@@ -73,6 +73,13 @@ class TestRouteRegistration:
             assert review_operation["security"] == [{"APIKeyHeader": []}]
             assert patient_operation["security"] == [{"APIKeyHeader": []}]
 
+    def test_checked_in_openapi_artifact_matches_runtime_schema(self):
+        artifact_path = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "api" / "openapi.json"
+        with TestClient(app) as c:
+            runtime_schema = c.get("/openapi.json").json()
+        checked_in_schema = json.loads(artifact_path.read_text())
+        assert checked_in_schema == runtime_schema
+
 
 @pytestmark_docker
 class TestApiHardening:
@@ -481,6 +488,12 @@ class TestGetCriteria:
         categories = {c["category"] for c in data["criteria"]}
         assert "age" in categories
         assert "cns_metastases" in categories
+        age_payload = next(c for c in data["criteria"] if c["category"] == "age")
+        assert age_payload["state"] == "structured_safe"
+        assert age_payload["state_reason"] is None
+        review_payload = next(c for c in data["criteria"] if c["category"] == "cns_metastases")
+        assert review_payload["state"] == "review_required"
+        assert review_payload["state_reason"] == "review_required:fuzzy_match"
 
     def test_get_trial_criteria_includes_expanded_semantic_fields(self, client, db_session):
         trial, _, _, _ = _seed_trial(db_session)
@@ -592,6 +605,8 @@ class TestGetCriteria:
         assert data["value_low"] == 18
         assert data["unit"] == "years"
         assert data["negated"] is False
+        assert data["state"] == "structured_safe"
+        assert data["state_reason"] is None
 
     def test_get_criterion_not_found(self, client):
         response = client.get(f"/api/v1/criteria/{uuid.uuid4()}")

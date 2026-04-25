@@ -1,3 +1,9 @@
+export type MatchConfidenceState =
+  | "structured_safe"
+  | "structured_low_confidence"
+  | "review_required"
+  | "blocked_unsupported";
+
 export type ApiError = {
   detail: string;
   code?: string | null;
@@ -89,6 +95,8 @@ export type CriterionResponse = {
   trial_id: string;
   type: string;
   category: string;
+  state: MatchConfidenceState;
+  state_reason?: string | null;
   primary_semantic_category?: string | null;
   secondary_semantic_tags: string[];
   parse_status: string;
@@ -245,6 +253,8 @@ export type MatchResultSummary = {
   trial_nct_id: string;
   trial_brief_title: string;
   overall_status: "eligible" | "possible" | "ineligible";
+  state: MatchConfidenceState;
+  state_reason?: string | null;
   score: number;
   determinate_score: number;
   coverage_ratio: number;
@@ -269,6 +279,8 @@ export type MatchCriterionResult = {
   category: string;
   criterion_text: string;
   outcome: "matched" | "not_matched" | "unknown" | "requires_review" | "not_triggered" | "triggered";
+  state: MatchConfidenceState;
+  state_reason?: string | null;
   explanation_text?: string | null;
   explanation_type?: string | null;
   evidence_payload?: Record<string, unknown> | null;
