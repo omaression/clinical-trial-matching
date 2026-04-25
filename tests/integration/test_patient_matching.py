@@ -315,7 +315,10 @@ class TestPatientMatching:
 
         detail = client.get(f"/api/v1/matches/{ranked['NCT10000001']['id']}")
         assert detail.status_code == 200
-        outcomes = {(item["source_type"], item["category"]): item["outcome"] for item in detail.json()["criteria"]}
+        detail_payload = detail.json()
+        assert "criteria" in detail_payload
+        assert "explanation" in detail_payload
+        outcomes = {(item["source_type"], item["category"]): item["outcome"] for item in detail_payload["criteria"]}
         assert outcomes[("structured", "sex")] == "matched"
         assert outcomes[("structured", "age")] == "matched"
         assert outcomes[("extracted", "diagnosis")] == "matched"
@@ -323,9 +326,16 @@ class TestPatientMatching:
         assert outcomes[("extracted", "biomarker")] == "matched"
         assert outcomes[("extracted", "lab_value")] == "matched"
         assert ("extracted", "sex") not in outcomes
+        matched_items = {(item["category"], item["outcome"]) for item in detail_payload["explanation"]["matched"]}
+        assert ("age", "matched") in matched_items
+        assert ("diagnosis", "matched") in matched_items
+        assert detail_payload["explanation"]["blockers"] == []
+        assert detail_payload["explanation"]["review_required"] == []
+        for item in detail_payload["explanation"]["matched"]:
+            assert item["source_snippet"] is None or item["source_snippet"].strip()
         structured_sex = next(
             item
-            for item in detail.json()["criteria"]
+            for item in detail_payload["criteria"]
             if item["source_type"] == "structured" and item["category"] == "sex"
         )
         assert structured_sex["state"] == "structured_safe"
@@ -340,14 +350,28 @@ class TestPatientMatching:
         assert extracted_diagnosis["state"] == "structured_safe"
         assert extracted_diagnosis["state_reason"] is None
 
+        blocker_detail = client.get(f"/api/v1/matches/{ranked['NCT10000002']['id']}")
+        assert blocker_detail.status_code == 200
+        blocker_payload = blocker_detail.json()
+        blocker_item = next(item for item in blocker_payload["explanation"]["blockers"] if item["category"] == "sex")
+        assert blocker_item["outcome"] == "not_matched"
+        assert blocker_item["state"] == "structured_safe"
+        assert blocker_item["source_snippet"] is None or blocker_item["source_snippet"].strip()
+
         review_detail = client.get(f"/api/v1/matches/{ranked['NCT10000003']['id']}")
         assert review_detail.status_code == 200
-        review_item = next(
-            item for item in review_detail.json()["criteria"] if item["category"] == "concomitant_medication"
-        )
+        review_payload = review_detail.json()
+        review_item = next(item for item in review_payload["criteria"] if item["category"] == "concomitant_medication")
         assert review_item["outcome"] == "requires_review"
         assert review_item["state"] == "review_required"
         assert review_item["state_reason"] == "review_required:unspecified_review_reason"
+        review_explanation_item = next(
+            item
+            for item in review_payload["explanation"]["review_required"]
+            if item["category"] == "concomitant_medication"
+        )
+        assert review_explanation_item["outcome"] == "requires_review"
+        assert review_explanation_item["source_snippet"] is None or review_explanation_item["source_snippet"].strip()
 
         listing = client.get(f"/api/v1/patients/{patient_id}/matches?per_page={total_trials}")
         assert listing.status_code == 200
@@ -401,10 +425,19 @@ class TestPatientMatching:
 
         detail = client.get(f"/api/v1/matches/{result['id']}")
         assert detail.status_code == 200
-        diagnosis = next(item for item in detail.json()["criteria"] if item["category"] == "diagnosis")
+        detail_payload = detail.json()
+        diagnosis = next(item for item in detail_payload["criteria"] if item["category"] == "diagnosis")
         assert diagnosis["outcome"] == "matched"
         assert diagnosis["state"] == "structured_low_confidence"
         assert diagnosis["state_reason"] == "low_confidence"
+        matched_categories = {item["category"] for item in detail_payload["explanation"]["matched"]}
+        assert "diagnosis" in matched_categories
+        low_confidence_item = next(
+            item for item in detail_payload["explanation"]["review_required"] if item["category"] == "diagnosis"
+        )
+        assert low_confidence_item["outcome"] == "matched"
+        assert low_confidence_item["state"] == "structured_low_confidence"
+        assert low_confidence_item["source_snippet"] is None
 
     def test_reviewed_low_confidence_criterion_is_treated_as_safe_for_new_matches(self, client, db_session):
         trial = _seed_trial_with_run(

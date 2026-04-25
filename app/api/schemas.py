@@ -492,6 +492,23 @@ class MatchCriterionResultResponse(APIModel):
     created_at: datetime | None = None
 
 
+class MatchExplanationItemResponse(APIModel):
+    label: str
+    category: str
+    criterion_text: str
+    outcome: CriterionMatchOutcome
+    state: ConfidenceState
+    explanation_text: str | None = None
+    source_snippet: str | None = None
+    evidence_payload: dict[str, Any] | None = None
+
+
+class MatchExplanationResponse(APIModel):
+    matched: list[MatchExplanationItemResponse] = Field(default_factory=list)
+    blockers: list[MatchExplanationItemResponse] = Field(default_factory=list)
+    review_required: list[MatchExplanationItemResponse] = Field(default_factory=list)
+
+
 class MatchResultSummary(APIModel):
     id: UUID
     match_run_id: UUID
@@ -518,6 +535,7 @@ class MatchResultSummary(APIModel):
 
 class MatchResultDetail(MatchResultSummary):
     criteria: list[MatchCriterionResultResponse] = Field(default_factory=list)
+    explanation: MatchExplanationResponse = Field(default_factory=MatchExplanationResponse)
 
 
 class MatchRunResponse(APIModel):
