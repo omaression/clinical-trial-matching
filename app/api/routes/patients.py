@@ -34,7 +34,7 @@ from app.api.schemas import (
 )
 from app.api.state import criterion_state_from_match_result_criterion, match_state_from_match_result
 from app.db.session import get_db
-from app.matching.gap_report import build_gap_report_payload
+from app.matching.gap_report import build_gap_report_payload, legacy_gap_report_payload
 from app.matching.service import CriterionEvaluation, PatientMatchService, _collapse_or_group
 from app.models.database import (
     MatchResult,
@@ -725,38 +725,7 @@ def _build_match_gap_report(criteria) -> MatchGapReportResponse:
 
 
 def _legacy_gap_report_payload(match_result: MatchResult) -> dict[str, list[dict[str, object | None]]]:
-    base_entry = {
-        "label": "Historical Snapshot",
-        "category": "historical_snapshot",
-        "criterion_text": "Gap report was not snapshotted for this historical match result.",
-        "state": match_result.state,
-        "state_reason": match_result.state_reason or "legacy_state_unverifiable",
-        "summary": match_result.summary_explanation,
-        "source_snippet": None,
-        "evidence_payload": None,
-    }
-    report = {
-        "hard_blockers": [],
-        "clarifiable_blockers": [],
-        "missing_data": [],
-        "review_required": [],
-        "unsupported": [],
-    }
-    if match_result.state == "blocked_unsupported":
-        report["unsupported"].append({**base_entry, "kind": "unsupported", "outcome": "unknown"})
-    if (
-        match_result.overall_status == "ineligible"
-        and match_result.unfavorable_count > 0
-        and match_result.state == "structured_safe"
-    ):
-        report["hard_blockers"].append({**base_entry, "kind": "hard_blocker", "outcome": "not_matched"})
-    if (
-        match_result.unknown_count > 0
-        or match_result.requires_review_count > 0
-        or (match_result.state not in {"structured_safe", "blocked_unsupported"})
-    ):
-        report["review_required"].append({**base_entry, "kind": "review_required", "outcome": "unknown"})
-    return report
+    return legacy_gap_report_payload(match_result)
 
 
 def _match_detail(match_result: MatchResult) -> MatchResultDetail:
