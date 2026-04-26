@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 
 import { ingestTrialAction, searchIngestAction } from "@/app/actions";
 import { PageHeader } from "@/components/page-header";
@@ -49,6 +50,9 @@ export default async function PipelinePage({
           <>
             <Link className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-sand" href="/review">
               Open review queue
+            </Link>
+            <Link className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink" href={"/coverage" as Route}>
+              Coverage dashboard
             </Link>
             <Link className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink" href="/trials">
               Browse trials

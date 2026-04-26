@@ -289,3 +289,41 @@ def build_gap_report_payload(items: list[Any]) -> dict[str, list[dict[str, Any]]
         if state == "structured_low_confidence" and outcome in {"matched", "not_triggered"}:
             report["review_required"].append(_build_entry(item, "review_required"))
     return report
+
+
+def legacy_gap_report_payload(match_result) -> dict[str, list[dict[str, object | None]]]:
+    unknown_count = getattr(match_result, "unknown_count", None) or 0
+    requires_review_count = getattr(match_result, "requires_review_count", None) or 0
+    unfavorable_count = getattr(match_result, "unfavorable_count", None) or 0
+    base_entry = {
+        "label": "Historical Snapshot",
+        "category": "historical_snapshot",
+        "criterion_text": "Gap report was not snapshotted for this historical match result.",
+        "state": match_result.state,
+        "state_reason": match_result.state_reason or "legacy_state_unverifiable",
+        "summary": match_result.summary_explanation,
+        "source_snippet": None,
+        "evidence_payload": None,
+    }
+    report = {
+        "hard_blockers": [],
+        "clarifiable_blockers": [],
+        "missing_data": [],
+        "review_required": [],
+        "unsupported": [],
+    }
+    if match_result.state == "blocked_unsupported":
+        report["unsupported"].append({**base_entry, "kind": "unsupported", "outcome": "unknown"})
+    if (
+        match_result.overall_status == "ineligible"
+        and unfavorable_count > 0
+        and match_result.state == "structured_safe"
+    ):
+        report["hard_blockers"].append({**base_entry, "kind": "hard_blocker", "outcome": "not_matched"})
+    if (
+        unknown_count > 0
+        or requires_review_count > 0
+        or (match_result.state not in {"structured_safe", "blocked_unsupported"})
+    ):
+        report["review_required"].append({**base_entry, "kind": "review_required", "outcome": "unknown"})
+    return report

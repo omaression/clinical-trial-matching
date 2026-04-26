@@ -270,6 +270,81 @@ class PipelineStatusResponse(APIModel):
     review_pending: int
 
 
+class PipelineCoverageExtractionOverviewResponse(APIModel):
+    latest_run_trial_count: int
+    latest_run_criteria_count: int
+    review_pending_count: int
+    structured_safe_count: int
+    structured_low_confidence_count: int
+    review_required_count: int
+    blocked_unsupported_count: int
+
+
+class PipelineCoverageGapBucketCountsResponse(APIModel):
+    hard_blockers: int
+    clarifiable_blockers: int
+    missing_data: int
+    review_required: int
+    unsupported: int
+
+
+class PipelineCoverageMatchingOverviewResponse(APIModel):
+    total_match_results: int
+    persisted_gap_report_count: int
+    legacy_match_count: int
+    status_breakdown: dict[str, int]
+    gap_bucket_counts: PipelineCoverageGapBucketCountsResponse
+
+
+class CuratedCorpusFixtureCoverageResponse(APIModel):
+    fixture: str
+    criteria_count: int
+    review_required_count: int
+    review_reasons: dict[str, int]
+    structurally_exportable_fhir_count: int
+    uncoded_but_accepted_count: int
+    medication_statement_projected_count: int
+    blocked_missing_rxnorm_count: int
+    blocked_missing_class_code_count: int
+    blocked_missing_class_code_terms: dict[str, int]
+    review_required_ambiguous_class_count: int
+    category_distribution: dict[str, int]
+    projection_status_distribution: dict[str, int]
+
+
+class CuratedCorpusSummaryCoverageResponse(APIModel):
+    fixture_count: int
+    criteria_count: int
+    review_required_count: int
+    structurally_exportable_fhir_count: int
+    medication_statement_projected_count: int
+    blocked_missing_rxnorm_count: int
+    blocked_missing_class_code_count: int
+    blocked_missing_class_code_terms: dict[str, int]
+    review_required_ambiguous_class_count: int
+    uncoded_but_accepted_count: int
+    category_distribution: dict[str, int]
+    review_reasons: dict[str, int]
+
+
+class CuratedCorpusMetadataResponse(APIModel):
+    generated_at: datetime | None = None
+    generator: str | None = None
+    fixture_names: list[str]
+    source: str
+
+
+class PipelineCoverageResponse(APIModel):
+    extraction_overview: PipelineCoverageExtractionOverviewResponse
+    review_reason_breakdown: dict[str, int]
+    blocked_criteria_breakdown: dict[str, int]
+    matching_overview: PipelineCoverageMatchingOverviewResponse
+    curated_corpus_metadata: CuratedCorpusMetadataResponse
+    curated_corpus_summary: CuratedCorpusSummaryCoverageResponse
+    curated_corpus_fixtures: list[CuratedCorpusFixtureCoverageResponse]
+    notes: list[str]
+
+
 class PipelineRunResponse(APIModel):
     id: UUID
     trial_id: UUID

@@ -25,6 +25,7 @@ from app.api.schemas import (
     CriterionResponse,
     IngestRequest,
     IngestResponse,
+    PipelineCoverageResponse,
     PipelineRunListResponse,
     PipelineRunResponse,
     PipelineStatusResponse,
@@ -46,6 +47,7 @@ from app.fhir.mapper import FHIRMapper
 from app.fhir.models import ResearchStudy
 from app.ingestion.service import ExternalServiceValidationError, IngestionService
 from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
+from app.reporting.coverage_dashboard import build_pipeline_coverage_payload
 from app.time_utils import utc_now
 
 router = APIRouter()
@@ -446,6 +448,12 @@ def pipeline_status(request: Request, _: str = Depends(require_api_key), db: Ses
         total_criteria=total_criteria,
         review_pending=review_pending,
     )
+
+
+@router.get("/pipeline/coverage", response_model=PipelineCoverageResponse, responses=PROTECTED_READ_RESPONSES)
+def pipeline_coverage(request: Request, _: str = Depends(require_api_key), db: Session = Depends(get_db)):
+    add_request_log_context(request)
+    return PipelineCoverageResponse.model_validate(build_pipeline_coverage_payload(db))
 
 
 @router.get("/pipeline/runs", response_model=PipelineRunListResponse, responses=PROTECTED_READ_RESPONSES)

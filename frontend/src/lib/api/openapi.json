@@ -1059,6 +1059,215 @@
         "title": "CriterionResponse",
         "type": "object"
       },
+      "CuratedCorpusFixtureCoverageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_missing_class_code_count": {
+            "title": "Blocked Missing Class Code Count",
+            "type": "integer"
+          },
+          "blocked_missing_class_code_terms": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Blocked Missing Class Code Terms",
+            "type": "object"
+          },
+          "blocked_missing_rxnorm_count": {
+            "title": "Blocked Missing Rxnorm Count",
+            "type": "integer"
+          },
+          "category_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Category Distribution",
+            "type": "object"
+          },
+          "criteria_count": {
+            "title": "Criteria Count",
+            "type": "integer"
+          },
+          "fixture": {
+            "title": "Fixture",
+            "type": "string"
+          },
+          "medication_statement_projected_count": {
+            "title": "Medication Statement Projected Count",
+            "type": "integer"
+          },
+          "projection_status_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Projection Status Distribution",
+            "type": "object"
+          },
+          "review_reasons": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Review Reasons",
+            "type": "object"
+          },
+          "review_required_ambiguous_class_count": {
+            "title": "Review Required Ambiguous Class Count",
+            "type": "integer"
+          },
+          "review_required_count": {
+            "title": "Review Required Count",
+            "type": "integer"
+          },
+          "structurally_exportable_fhir_count": {
+            "title": "Structurally Exportable Fhir Count",
+            "type": "integer"
+          },
+          "uncoded_but_accepted_count": {
+            "title": "Uncoded But Accepted Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fixture",
+          "criteria_count",
+          "review_required_count",
+          "review_reasons",
+          "structurally_exportable_fhir_count",
+          "uncoded_but_accepted_count",
+          "medication_statement_projected_count",
+          "blocked_missing_rxnorm_count",
+          "blocked_missing_class_code_count",
+          "blocked_missing_class_code_terms",
+          "review_required_ambiguous_class_count",
+          "category_distribution",
+          "projection_status_distribution"
+        ],
+        "title": "CuratedCorpusFixtureCoverageResponse",
+        "type": "object"
+      },
+      "CuratedCorpusMetadataResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "fixture_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fixture Names",
+            "type": "array"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "generator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fixture_names",
+          "source"
+        ],
+        "title": "CuratedCorpusMetadataResponse",
+        "type": "object"
+      },
+      "CuratedCorpusSummaryCoverageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_missing_class_code_count": {
+            "title": "Blocked Missing Class Code Count",
+            "type": "integer"
+          },
+          "blocked_missing_class_code_terms": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Blocked Missing Class Code Terms",
+            "type": "object"
+          },
+          "blocked_missing_rxnorm_count": {
+            "title": "Blocked Missing Rxnorm Count",
+            "type": "integer"
+          },
+          "category_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Category Distribution",
+            "type": "object"
+          },
+          "criteria_count": {
+            "title": "Criteria Count",
+            "type": "integer"
+          },
+          "fixture_count": {
+            "title": "Fixture Count",
+            "type": "integer"
+          },
+          "medication_statement_projected_count": {
+            "title": "Medication Statement Projected Count",
+            "type": "integer"
+          },
+          "review_reasons": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Review Reasons",
+            "type": "object"
+          },
+          "review_required_ambiguous_class_count": {
+            "title": "Review Required Ambiguous Class Count",
+            "type": "integer"
+          },
+          "review_required_count": {
+            "title": "Review Required Count",
+            "type": "integer"
+          },
+          "structurally_exportable_fhir_count": {
+            "title": "Structurally Exportable Fhir Count",
+            "type": "integer"
+          },
+          "uncoded_but_accepted_count": {
+            "title": "Uncoded But Accepted Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fixture_count",
+          "criteria_count",
+          "review_required_count",
+          "structurally_exportable_fhir_count",
+          "medication_statement_projected_count",
+          "blocked_missing_rxnorm_count",
+          "blocked_missing_class_code_count",
+          "blocked_missing_class_code_terms",
+          "review_required_ambiguous_class_count",
+          "uncoded_but_accepted_count",
+          "category_distribution",
+          "review_reasons"
+        ],
+        "title": "CuratedCorpusSummaryCoverageResponse",
+        "type": "object"
+      },
       "ErrorResponse": {
         "additionalProperties": false,
         "properties": {
@@ -3389,6 +3598,177 @@
         "title": "PatientUpdateRequest",
         "type": "object"
       },
+      "PipelineCoverageExtractionOverviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_unsupported_count": {
+            "title": "Blocked Unsupported Count",
+            "type": "integer"
+          },
+          "latest_run_criteria_count": {
+            "title": "Latest Run Criteria Count",
+            "type": "integer"
+          },
+          "latest_run_trial_count": {
+            "title": "Latest Run Trial Count",
+            "type": "integer"
+          },
+          "review_pending_count": {
+            "title": "Review Pending Count",
+            "type": "integer"
+          },
+          "review_required_count": {
+            "title": "Review Required Count",
+            "type": "integer"
+          },
+          "structured_low_confidence_count": {
+            "title": "Structured Low Confidence Count",
+            "type": "integer"
+          },
+          "structured_safe_count": {
+            "title": "Structured Safe Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "latest_run_trial_count",
+          "latest_run_criteria_count",
+          "review_pending_count",
+          "structured_safe_count",
+          "structured_low_confidence_count",
+          "review_required_count",
+          "blocked_unsupported_count"
+        ],
+        "title": "PipelineCoverageExtractionOverviewResponse",
+        "type": "object"
+      },
+      "PipelineCoverageGapBucketCountsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "clarifiable_blockers": {
+            "title": "Clarifiable Blockers",
+            "type": "integer"
+          },
+          "hard_blockers": {
+            "title": "Hard Blockers",
+            "type": "integer"
+          },
+          "missing_data": {
+            "title": "Missing Data",
+            "type": "integer"
+          },
+          "review_required": {
+            "title": "Review Required",
+            "type": "integer"
+          },
+          "unsupported": {
+            "title": "Unsupported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hard_blockers",
+          "clarifiable_blockers",
+          "missing_data",
+          "review_required",
+          "unsupported"
+        ],
+        "title": "PipelineCoverageGapBucketCountsResponse",
+        "type": "object"
+      },
+      "PipelineCoverageMatchingOverviewResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "gap_bucket_counts": {
+            "$ref": "#/components/schemas/PipelineCoverageGapBucketCountsResponse"
+          },
+          "legacy_match_count": {
+            "title": "Legacy Match Count",
+            "type": "integer"
+          },
+          "persisted_gap_report_count": {
+            "title": "Persisted Gap Report Count",
+            "type": "integer"
+          },
+          "status_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Status Breakdown",
+            "type": "object"
+          },
+          "total_match_results": {
+            "title": "Total Match Results",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_match_results",
+          "persisted_gap_report_count",
+          "legacy_match_count",
+          "status_breakdown",
+          "gap_bucket_counts"
+        ],
+        "title": "PipelineCoverageMatchingOverviewResponse",
+        "type": "object"
+      },
+      "PipelineCoverageResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_criteria_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Blocked Criteria Breakdown",
+            "type": "object"
+          },
+          "curated_corpus_fixtures": {
+            "items": {
+              "$ref": "#/components/schemas/CuratedCorpusFixtureCoverageResponse"
+            },
+            "title": "Curated Corpus Fixtures",
+            "type": "array"
+          },
+          "curated_corpus_metadata": {
+            "$ref": "#/components/schemas/CuratedCorpusMetadataResponse"
+          },
+          "curated_corpus_summary": {
+            "$ref": "#/components/schemas/CuratedCorpusSummaryCoverageResponse"
+          },
+          "extraction_overview": {
+            "$ref": "#/components/schemas/PipelineCoverageExtractionOverviewResponse"
+          },
+          "matching_overview": {
+            "$ref": "#/components/schemas/PipelineCoverageMatchingOverviewResponse"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "review_reason_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Review Reason Breakdown",
+            "type": "object"
+          }
+        },
+        "required": [
+          "extraction_overview",
+          "review_reason_breakdown",
+          "blocked_criteria_breakdown",
+          "matching_overview",
+          "curated_corpus_metadata",
+          "curated_corpus_summary",
+          "curated_corpus_fixtures",
+          "notes"
+        ],
+        "title": "PipelineCoverageResponse",
+        "type": "object"
+      },
       "PipelineRunListResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5153,6 +5533,59 @@
           }
         ],
         "summary": "List Patient Matches"
+      }
+    },
+    "/api/v1/pipeline/coverage": {
+      "get": {
+        "operationId": "pipeline_coverage_api_v1_pipeline_coverage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineCoverageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Pipeline Coverage"
       }
     },
     "/api/v1/pipeline/runs": {

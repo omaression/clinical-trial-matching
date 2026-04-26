@@ -163,6 +163,81 @@ export type PipelineStatusResponse = {
   review_pending: number;
 };
 
+export type PipelineCoverageExtractionOverview = {
+  latest_run_trial_count: number;
+  latest_run_criteria_count: number;
+  review_pending_count: number;
+  structured_safe_count: number;
+  structured_low_confidence_count: number;
+  review_required_count: number;
+  blocked_unsupported_count: number;
+};
+
+export type PipelineCoverageGapBucketCounts = {
+  hard_blockers: number;
+  clarifiable_blockers: number;
+  missing_data: number;
+  review_required: number;
+  unsupported: number;
+};
+
+export type PipelineCoverageMatchingOverview = {
+  total_match_results: number;
+  persisted_gap_report_count: number;
+  legacy_match_count: number;
+  status_breakdown: Record<string, number>;
+  gap_bucket_counts: PipelineCoverageGapBucketCounts;
+};
+
+export type CuratedCorpusFixtureCoverage = {
+  fixture: string;
+  criteria_count: number;
+  review_required_count: number;
+  review_reasons: Record<string, number>;
+  structurally_exportable_fhir_count: number;
+  uncoded_but_accepted_count: number;
+  medication_statement_projected_count: number;
+  blocked_missing_rxnorm_count: number;
+  blocked_missing_class_code_count: number;
+  blocked_missing_class_code_terms: Record<string, number>;
+  review_required_ambiguous_class_count: number;
+  category_distribution: Record<string, number>;
+  projection_status_distribution: Record<string, number>;
+};
+
+export type CuratedCorpusSummaryCoverage = {
+  fixture_count: number;
+  criteria_count: number;
+  review_required_count: number;
+  structurally_exportable_fhir_count: number;
+  medication_statement_projected_count: number;
+  blocked_missing_rxnorm_count: number;
+  blocked_missing_class_code_count: number;
+  blocked_missing_class_code_terms: Record<string, number>;
+  review_required_ambiguous_class_count: number;
+  uncoded_but_accepted_count: number;
+  category_distribution: Record<string, number>;
+  review_reasons: Record<string, number>;
+};
+
+export type CuratedCorpusMetadata = {
+  generated_at?: string | null;
+  generator?: string | null;
+  fixture_names: string[];
+  source: string;
+};
+
+export type PipelineCoverageResponse = {
+  extraction_overview: PipelineCoverageExtractionOverview;
+  review_reason_breakdown: Record<string, number>;
+  blocked_criteria_breakdown: Record<string, number>;
+  matching_overview: PipelineCoverageMatchingOverview;
+  curated_corpus_metadata: CuratedCorpusMetadata;
+  curated_corpus_summary: CuratedCorpusSummaryCoverage;
+  curated_corpus_fixtures: CuratedCorpusFixtureCoverage[];
+  notes: string[];
+};
+
 export type PipelineRunResponse = {
   id: string;
   trial_id: string;

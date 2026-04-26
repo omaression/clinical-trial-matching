@@ -13,7 +13,7 @@ from app.config import settings
 from app.db.session import get_db
 from app.ingestion.service import ExternalServiceValidationError, SearchIngestBatchResult, SearchIngestTrialResult
 from app.main import app
-from app.models.database import ExtractedCriterion, PipelineRun, Trial
+from app.models.database import ExtractedCriterion, MatchResult, MatchRun, Patient, PipelineRun, Trial
 from app.scripts.seed import sync_coding_lookups
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
@@ -53,6 +53,7 @@ class TestRouteRegistration:
             assert "/api/v1/review" in paths
             assert "/api/v1/criteria/{criterion_id}/review" in paths
             assert "/api/v1/pipeline/status" in paths
+            assert "/api/v1/pipeline/coverage" in paths
             assert "/api/v1/pipeline/runs" in paths
             assert "/api/v1/pipeline/runs/{run_id}" in paths
             assert "/api/v1/trials/{trial_id}/re-extract" in paths
@@ -266,6 +267,119 @@ def _add_completed_run(db_session, trial, criteria_payloads):
 
     db_session.commit()
     return run, created
+
+
+def _seed_match_results_for_coverage(db_session, primary_trial):
+    secondary_trial, _, _, _ = _seed_trial(db_session, conditions=["Melanoma"])
+    tertiary_trial, _, _, _ = _seed_trial(db_session, conditions=["Lung Cancer"])
+
+    patient = Patient(external_id=f"coverage-patient-{uuid.uuid4().hex[:8]}")
+    db_session.add(patient)
+    db_session.flush()
+
+    match_run = MatchRun(
+        patient_id=patient.id,
+        status="completed",
+        total_trials_evaluated=3,
+        eligible_trials=1,
+        possible_trials=1,
+        ineligible_trials=1,
+    )
+    db_session.add(match_run)
+    db_session.flush()
+
+    db_session.add_all(
+        [
+            MatchResult(
+                match_run_id=match_run.id,
+                patient_id=patient.id,
+                trial_id=primary_trial.id,
+                overall_status="eligible",
+                score=0.91,
+                favorable_count=2,
+                unfavorable_count=0,
+                unknown_count=0,
+                requires_review_count=0,
+                summary_explanation="Eligible match",
+                gap_report_payload={
+                    "hard_blockers": [],
+                    "clarifiable_blockers": [],
+                    "missing_data": [],
+                    "review_required": [],
+                    "unsupported": [],
+                },
+                state="structured_safe",
+            ),
+            MatchResult(
+                match_run_id=match_run.id,
+                patient_id=patient.id,
+                trial_id=secondary_trial.id,
+                overall_status="possible",
+                score=0.42,
+                favorable_count=1,
+                unfavorable_count=0,
+                unknown_count=1,
+                requires_review_count=1,
+                summary_explanation="Possible match",
+                gap_report_payload={
+                    "hard_blockers": [],
+                    "clarifiable_blockers": [],
+                    "missing_data": [
+                        {
+                            "kind": "missing_data",
+                            "label": "Age",
+                            "category": "age",
+                            "criterion_text": "Age >= 18 years",
+                            "outcome": "unknown",
+                            "state": "review_required",
+                            "state_reason": "review_required:missing_age",
+                            "summary": "Missing age",
+                            "source_snippet": None,
+                            "evidence_payload": {"snapshot_missing_data": True},
+                        }
+                    ],
+                    "review_required": [
+                        {
+                            "kind": "review_required",
+                            "label": "Diagnosis",
+                            "category": "diagnosis",
+                            "criterion_text": "Histologically confirmed melanoma",
+                            "outcome": "unknown",
+                            "state": "review_required",
+                            "state_reason": "legacy_state_unverifiable",
+                            "summary": "Historical uncertainty",
+                            "source_snippet": None,
+                            "evidence_payload": {},
+                        }
+                    ],
+                    "unsupported": [],
+                },
+                state="review_required",
+                state_reason="review_required",
+            ),
+            MatchResult(
+                match_run_id=match_run.id,
+                patient_id=patient.id,
+                trial_id=tertiary_trial.id,
+                overall_status="ineligible",
+                score=0.11,
+                favorable_count=0,
+                unfavorable_count=2,
+                unknown_count=0,
+                requires_review_count=0,
+                summary_explanation="Ineligible match",
+                gap_report_payload=None,
+                state="blocked_unsupported",
+                state_reason="blocked_unsupported",
+            ),
+        ]
+    )
+    db_session.commit()
+    return {
+        "patient": patient,
+        "secondary_trial": secondary_trial,
+        "tertiary_trial": tertiary_trial,
+    }
 
 
 @pytestmark_docker
@@ -951,6 +1065,187 @@ class TestPipelineEndpoints:
         assert data["total_trials"] == baseline_data["total_trials"]
         assert data["total_criteria"] == baseline_data["total_criteria"] - 1
         assert data["review_pending"] == baseline_data["review_pending"] - 1
+
+    def test_pipeline_coverage_summarizes_extraction_and_matching_metrics(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        baseline = client.get("/api/v1/pipeline/coverage")
+        assert baseline.status_code == 200
+        baseline_data = baseline.json()
+        no_completed_trial = Trial(
+            nct_id=f"NCT{uuid.uuid4().hex[:8].upper()}",
+            raw_json={"protocolSection": {"eligibilityModule": {"eligibilityCriteria": "Age >= 18"}}},
+            content_hash="no_completed_run_hash",
+            brief_title="Trial without completed run",
+            status="RECRUITING",
+        )
+        db_session.add(no_completed_trial)
+        db_session.commit()
+        _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Histologically confirmed melanoma",
+                    "review_required": True,
+                    "review_reason": "manual_review_needed",
+                    "review_status": "pending",
+                    "confidence": 0.88,
+                },
+                {
+                    "type": "exclusion",
+                    "category": "biomarker",
+                    "original_text": "No EGFR exon 19 deletion",
+                    "review_required": False,
+                    "review_status": "rejected",
+                    "confidence": 0.97,
+                },
+                {
+                    "type": "inclusion",
+                    "category": "age",
+                    "original_text": "Age >= 18 years",
+                    "review_required": False,
+                    "confidence": 0.2,
+                },
+            ],
+        )
+        seeded_match_resources = _seed_match_results_for_coverage(db_session, trial)
+
+        response = client.get("/api/v1/pipeline/coverage")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["extraction_overview"]["latest_run_trial_count"] == (
+            baseline_data["extraction_overview"]["latest_run_trial_count"] + 2
+        )
+        assert data["extraction_overview"]["structured_safe_count"] >= 1
+        assert data["extraction_overview"]["structured_low_confidence_count"] >= 1
+        assert data["extraction_overview"]["review_required_count"] >= 1
+        assert data["extraction_overview"]["blocked_unsupported_count"] >= 1
+        assert data["review_reason_breakdown"]["manual_review_needed"] >= 1
+        assert data["blocked_criteria_breakdown"]["biomarker"] >= 1
+        assert data["matching_overview"]["total_match_results"] >= 3
+        assert data["matching_overview"]["status_breakdown"]["eligible"] >= 1
+        assert data["matching_overview"]["status_breakdown"]["possible"] >= 1
+        assert data["matching_overview"]["status_breakdown"]["ineligible"] >= 1
+        assert data["matching_overview"]["persisted_gap_report_count"] >= 2
+        assert data["matching_overview"]["legacy_match_count"] >= 1
+        assert data["matching_overview"]["gap_bucket_counts"]["missing_data"] >= 1
+        assert data["matching_overview"]["gap_bucket_counts"]["review_required"] >= 1
+        assert data["curated_corpus_metadata"]["source"] == "checked_in_snapshot"
+        assert data["curated_corpus_summary"]["fixture_count"] >= 1
+        assert "coverage metrics" in data["notes"][0].lower()
+
+        db_session.delete(seeded_match_resources["patient"])
+        db_session.delete(seeded_match_resources["secondary_trial"])
+        db_session.delete(seeded_match_resources["tertiary_trial"])
+        db_session.delete(no_completed_trial)
+        db_session.commit()
+
+    def test_pipeline_coverage_uses_latest_match_run_per_patient_snapshot(self, client, db_session):
+        baseline = client.get("/api/v1/pipeline/coverage")
+        assert baseline.status_code == 200
+        baseline_data = baseline.json()
+        trial, _, _, _ = _seed_trial(db_session)
+        patient = Patient(external_id=f"snapshot-patient-{uuid.uuid4().hex[:8]}")
+        db_session.add(patient)
+        db_session.flush()
+
+        older_run = MatchRun(
+            patient_id=patient.id,
+            status="completed",
+            total_trials_evaluated=1,
+            eligible_trials=1,
+            possible_trials=0,
+            ineligible_trials=0,
+        )
+        db_session.add(older_run)
+        db_session.flush()
+        db_session.add(
+            MatchResult(
+                match_run_id=older_run.id,
+                patient_id=patient.id,
+                trial_id=trial.id,
+                overall_status="eligible",
+                score=0.9,
+                favorable_count=1,
+                unfavorable_count=0,
+                unknown_count=0,
+                requires_review_count=0,
+                gap_report_payload={
+                    "hard_blockers": [],
+                    "clarifiable_blockers": [],
+                    "missing_data": [],
+                    "review_required": [],
+                    "unsupported": [],
+                },
+                state="structured_safe",
+            )
+        )
+        db_session.flush()
+
+        latest_run = MatchRun(
+            patient_id=patient.id,
+            status="completed",
+            total_trials_evaluated=1,
+            eligible_trials=0,
+            possible_trials=1,
+            ineligible_trials=0,
+        )
+        db_session.add(latest_run)
+        db_session.flush()
+        db_session.add(
+            MatchResult(
+                match_run_id=latest_run.id,
+                patient_id=patient.id,
+                trial_id=trial.id,
+                overall_status="possible",
+                score=0.4,
+                favorable_count=0,
+                unfavorable_count=0,
+                unknown_count=1,
+                requires_review_count=1,
+                gap_report_payload={
+                    "hard_blockers": [],
+                    "clarifiable_blockers": [],
+                    "missing_data": [],
+                    "review_required": [
+                        {
+                            "kind": "review_required",
+                            "label": "Diagnosis",
+                            "category": "diagnosis",
+                            "criterion_text": "Metastatic breast cancer",
+                            "outcome": "unknown",
+                            "state": "review_required",
+                            "state_reason": "review_required:manual_review_needed",
+                            "summary": "Needs review",
+                            "source_snippet": None,
+                            "evidence_payload": {},
+                        }
+                    ],
+                    "unsupported": [],
+                },
+                state="review_required",
+                state_reason="review_required",
+            )
+        )
+        db_session.commit()
+
+        response = client.get("/api/v1/pipeline/coverage")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["matching_overview"]["total_match_results"] == (
+            baseline_data["matching_overview"]["total_match_results"] + 1
+        )
+        assert data["matching_overview"]["status_breakdown"]["possible"] >= (
+            baseline_data["matching_overview"]["status_breakdown"].get("possible", 0) + 1
+        )
+
+        db_session.delete(patient)
+        db_session.delete(trial)
+        db_session.commit()
 
     def test_list_pipeline_runs(self, client, db_session):
         _seed_trial(db_session)
