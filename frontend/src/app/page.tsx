@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
@@ -28,6 +29,9 @@ export default async function HomePage() {
           <>
             <Link className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-sand" href="/pipeline">
               Start in pipeline
+            </Link>
+            <Link className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink" href={"/coverage" as Route}>
+              View coverage
             </Link>
             <Link className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold text-ink" href="/patients">
               Intake patient

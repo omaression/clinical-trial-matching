@@ -1,0 +1,172 @@
+{
+  "fixtures": [
+    {
+      "blocked_missing_class_code_count": 1,
+      "blocked_missing_class_code_terms": {
+        "agent targeting kras": 1
+      },
+      "blocked_missing_rxnorm_count": 0,
+      "category_distribution": {
+        "cns_metastases": 1,
+        "diagnosis": 4,
+        "prior_therapy": 2,
+        "procedural_requirement": 2
+      },
+      "criteria_count": 9,
+      "fixture": "therapy_class_and_procedures",
+      "medication_statement_projected_count": 1,
+      "projection_status_distribution": {
+        "blocked_missing_class_code": 1,
+        "projected": 1
+      },
+      "review_reasons": {},
+      "review_required_ambiguous_class_count": 0,
+      "review_required_count": 0,
+      "structurally_exportable_fhir_count": 2,
+      "uncoded_but_accepted_count": 9
+    },
+    {
+      "blocked_missing_class_code_count": 1,
+      "blocked_missing_class_code_terms": {
+        "cyp3a4 inhibitors inducers": 1
+      },
+      "blocked_missing_rxnorm_count": 0,
+      "category_distribution": {
+        "concomitant_medication": 3
+      },
+      "criteria_count": 3,
+      "fixture": "medication_exception_logic",
+      "medication_statement_projected_count": 7,
+      "projection_status_distribution": {
+        "blocked_missing_class_code": 1,
+        "projected": 7
+      },
+      "review_reasons": {},
+      "review_required_ambiguous_class_count": 0,
+      "review_required_count": 0,
+      "structurally_exportable_fhir_count": 0,
+      "uncoded_but_accepted_count": 3
+    },
+    {
+      "blocked_missing_class_code_count": 1,
+      "blocked_missing_class_code_terms": {
+        "cyp3a4 inhibitors inducers": 1
+      },
+      "blocked_missing_rxnorm_count": 0,
+      "category_distribution": {
+        "concomitant_medication": 1
+      },
+      "criteria_count": 1,
+      "fixture": "nct07084584_cyp3a4_exception",
+      "medication_statement_projected_count": 4,
+      "projection_status_distribution": {
+        "blocked_missing_class_code": 1,
+        "projected": 4
+      },
+      "review_reasons": {},
+      "review_required_ambiguous_class_count": 0,
+      "review_required_count": 0,
+      "structurally_exportable_fhir_count": 0,
+      "uncoded_but_accepted_count": 1
+    },
+    {
+      "blocked_missing_class_code_count": 1,
+      "blocked_missing_class_code_terms": {
+        "cyp3a4 inhibitors inducers": 1
+      },
+      "blocked_missing_rxnorm_count": 0,
+      "category_distribution": {
+        "concomitant_medication": 1
+      },
+      "criteria_count": 1,
+      "fixture": "nct03872596_cyp3a4_washout",
+      "medication_statement_projected_count": 0,
+      "projection_status_distribution": {
+        "blocked_missing_class_code": 1
+      },
+      "review_reasons": {
+        "complex_criteria": 1
+      },
+      "review_required_ambiguous_class_count": 0,
+      "review_required_count": 1,
+      "structurally_exportable_fhir_count": 0,
+      "uncoded_but_accepted_count": 0
+    },
+    {
+      "blocked_missing_class_code_count": 0,
+      "blocked_missing_class_code_terms": {},
+      "blocked_missing_rxnorm_count": 0,
+      "category_distribution": {
+        "biomarker": 1,
+        "diagnosis": 1
+      },
+      "criteria_count": 2,
+      "fixture": "nct05346328_stage_biomarker",
+      "medication_statement_projected_count": 0,
+      "projection_status_distribution": {},
+      "review_reasons": {},
+      "review_required_ambiguous_class_count": 0,
+      "review_required_count": 0,
+      "structurally_exportable_fhir_count": 1,
+      "uncoded_but_accepted_count": 2
+    },
+    {
+      "blocked_missing_class_code_count": 0,
+      "blocked_missing_class_code_terms": {},
+      "blocked_missing_rxnorm_count": 0,
+      "category_distribution": {
+        "prior_therapy": 2
+      },
+      "criteria_count": 2,
+      "fixture": "nct05346328_line_of_therapy",
+      "medication_statement_projected_count": 2,
+      "projection_status_distribution": {
+        "projected": 2
+      },
+      "review_reasons": {},
+      "review_required_ambiguous_class_count": 0,
+      "review_required_count": 0,
+      "structurally_exportable_fhir_count": 2,
+      "uncoded_but_accepted_count": 2
+    }
+  ],
+  "metadata": {
+    "fixture_names": [
+      "therapy_class_and_procedures",
+      "medication_exception_logic",
+      "nct07084584_cyp3a4_exception",
+      "nct03872596_cyp3a4_washout",
+      "nct05346328_stage_biomarker",
+      "nct05346328_line_of_therapy"
+    ],
+    "generated_at": "2026-04-26T04:21:18.312594Z",
+    "generator": "app.scripts.curated_corpus_report.build_curated_corpus_report",
+    "source": "checked_in_snapshot"
+  },
+  "summary": {
+    "blocked_missing_class_code_count": 4,
+    "blocked_missing_class_code_terms": {
+      "agent targeting kras": 1,
+      "cyp3a4 inhibitors inducers": 3
+    },
+    "blocked_missing_rxnorm_count": 0,
+    "category_distribution": {
+      "biomarker": 1,
+      "cns_metastases": 1,
+      "concomitant_medication": 5,
+      "diagnosis": 5,
+      "prior_therapy": 4,
+      "procedural_requirement": 2
+    },
+    "criteria_count": 18,
+    "fixture_count": 6,
+    "medication_statement_projected_count": 14,
+    "review_reasons": {
+      "complex_criteria": 1
+    },
+    "review_required_ambiguous_class_count": 0,
+    "review_required_count": 1,
+    "structurally_exportable_fhir_count": 5,
+    "uncoded_but_accepted_count": 17
+  }
+}

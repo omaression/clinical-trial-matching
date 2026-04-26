@@ -13,6 +13,7 @@ import type {
   PatientCreatePayload,
   PatientDetail,
   PatientListResponse,
+  PipelineCoverageResponse,
   PipelineRunListResponse,
   PipelineStatusResponse,
   ReviewQueueResponse,
@@ -82,6 +83,7 @@ export const ctmApi = {
     }),
   getReviewQueue: (query = "") => apiRequest<ReviewQueueResponse>(`/review${query}`, { auth: true }),
   getPipelineStatus: () => apiRequest<PipelineStatusResponse>("/pipeline/status", { auth: true }),
+  getPipelineCoverage: () => apiRequest<PipelineCoverageResponse>("/pipeline/coverage", { auth: true }),
   listPipelineRuns: (query = "") =>
     apiRequest<PipelineRunListResponse>(`/pipeline/runs${query}`, { auth: true }),
   listPatients: (query = "") => apiRequest<PatientListResponse>(`/patients${query}`, { auth: true }),
