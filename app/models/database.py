@@ -332,6 +332,7 @@ class MatchResult(Base):
     unknown_count = Column(Integer, nullable=False, default=0)
     requires_review_count = Column(Integer, nullable=False, default=0)
     summary_explanation = Column(Text)
+    gap_report_payload = Column(JSONB)
     state = Column(String, nullable=False)
     state_reason = Column(String)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)

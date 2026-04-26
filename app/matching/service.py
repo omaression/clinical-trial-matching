@@ -6,6 +6,7 @@ from typing import Any, Iterable
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.state import criterion_state_from_extracted, match_state_from_evaluations
+from app.matching.gap_report import build_gap_report_payload
 from app.models.database import (
     ExtractedCriterion,
     MatchResult,
@@ -130,12 +131,24 @@ class PatientMatchService:
                 unknown_count=unknown_count,
                 requires_review_count=requires_review_count,
                 summary_explanation=summary_explanation,
+                gap_report_payload=build_gap_report_payload(effective_evaluations),
                 created_at=utc_now(),
             )
             self._db.add(result)
             self._db.flush()
 
             for evaluation in evaluations:
+                evidence_payload = evaluation.evidence_payload
+                if isinstance(evidence_payload, dict):
+                    evidence_payload = {
+                        **evidence_payload,
+                        "snapshot_match_metadata": {
+                            "logic_group_id": (
+                                str(evaluation.logic_group_id) if evaluation.logic_group_id is not None else None
+                            ),
+                            "logic_operator": evaluation.logic_operator,
+                        },
+                    }
                 self._db.add(
                     MatchResultCriterion(
                         match_result_id=result.id,
@@ -151,7 +164,7 @@ class PatientMatchService:
                         state_reason=evaluation.state_reason,
                         explanation_text=evaluation.explanation_text,
                         explanation_type=evaluation.explanation_type,
-                        evidence_payload=evaluation.evidence_payload,
+                        evidence_payload=evidence_payload,
                     )
                 )
 
@@ -468,6 +481,59 @@ def _latest_completed_run(trial: Trial) -> PipelineRun | None:
     )[0]
 
 
+def _evaluation_has_explicit_missing_patient_data(evaluation: CriterionEvaluation) -> bool:
+    evidence = evaluation.evidence_payload
+    if not isinstance(evidence, dict):
+        return False
+
+    scalar_patient_keys = (
+        "patient_age_years",
+        "patient_sex",
+        "patient_is_healthy_volunteer",
+        "patient_ecog_status",
+    )
+    if any(key in evidence and evidence[key] is None for key in scalar_patient_keys):
+        return True
+
+    list_patient_keys = (
+        "patient_conditions",
+        "patient_biomarkers",
+        "patient_labs",
+        "patient_therapies",
+    )
+    if any(key in evidence and isinstance(evidence[key], list) and not evidence[key] for key in list_patient_keys):
+        return True
+
+    if evaluation.category == "lab_value":
+        labs = evidence.get("patient_labs")
+        if (
+            isinstance(labs, list)
+            and labs
+            and all(lab.get("value_numeric") is None for lab in labs if isinstance(lab, dict))
+        ):
+            return True
+
+    if evaluation.category in {"prior_therapy", "line_of_therapy"}:
+        therapies = evidence.get("patient_therapies")
+        if isinstance(therapies, list) and therapies and all(
+            therapy.get("line_of_therapy") is None for therapy in therapies if isinstance(therapy, dict)
+        ):
+            return True
+
+    patient_flags = evidence.get("patient_flags")
+    patient_flag_field = evidence.get("patient_flag_field")
+    if isinstance(patient_flags, dict) and isinstance(patient_flag_field, str):
+        if patient_flags.get(patient_flag_field) is None:
+            return True
+
+    if evaluation.category == "concomitant_medication":
+        medications = evidence.get("patient_medications")
+        if not isinstance(medications, list) or not medications:
+            return True
+
+    return False
+
+
 def _collapse_logic_group_evaluations(evaluations: list[CriterionEvaluation]) -> list[CriterionEvaluation]:
     collapsed: list[CriterionEvaluation] = []
     grouped: dict[tuple[object, str], list[CriterionEvaluation]] = {}
@@ -530,6 +596,7 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
         else matching_members
     )
     member_states = {evaluation.state for evaluation in state_members}
+    member_texts = [evaluation.criterion_text for evaluation in evaluations]
     if outcome in {"not_matched", "not_triggered", "unknown"}:
         if "review_required" in member_states:
             state = "review_required"
@@ -563,6 +630,7 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
             state = exemplar.state
             state_reason = exemplar.state_reason
 
+    member_texts = [evaluation.criterion_text for evaluation in evaluations]
     return CriterionEvaluation(
         criterion_id=None,
         pipeline_run_id=exemplar.pipeline_run_id,
@@ -572,7 +640,7 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
         source_label=exemplar.source_label,
         criterion_type=exemplar.criterion_type,
         category=exemplar.category,
-        criterion_text=exemplar.criterion_text,
+        criterion_text=" OR ".join(dict.fromkeys(member_texts)),
         outcome=outcome,
         state=state,
         state_reason=state_reason,
@@ -583,6 +651,11 @@ def _collapse_or_group(evaluations: list[CriterionEvaluation]) -> CriterionEvalu
             "logic_operator": exemplar.logic_operator,
             "member_outcomes": [evaluation.outcome for evaluation in evaluations],
             "member_states": [evaluation.state for evaluation in evaluations],
+            "member_criterion_texts": member_texts,
+            "member_categories": [evaluation.category for evaluation in evaluations],
+            "snapshot_missing_data": any(
+                _evaluation_has_explicit_missing_patient_data(evaluation) for evaluation in evaluations
+            ),
         },
     )
 
@@ -899,6 +972,8 @@ def _build_extracted_explanation(
             "pregnant": patient.pregnant,
             "mr_device_present": patient.mr_device_present,
         }
+        parsed_flag = _parse_patient_flag_expression(criterion.value_text)
+        evidence["patient_flag_field"] = parsed_flag[0] if parsed_flag is not None else None
     elif criterion.category in {"performance_status"}:
         evidence["patient_ecog_status"] = patient.ecog_status
     else:

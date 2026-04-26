@@ -509,6 +509,33 @@ class MatchExplanationResponse(APIModel):
     review_required: list[MatchExplanationItemResponse] = Field(default_factory=list)
 
 
+class MatchGapEntryResponse(APIModel):
+    kind: Literal[
+        "hard_blocker",
+        "clarifiable_blocker",
+        "missing_data",
+        "review_required",
+        "unsupported",
+    ]
+    label: str
+    category: str
+    criterion_text: str
+    outcome: CriterionMatchOutcome
+    state: ConfidenceState
+    state_reason: str | None = None
+    summary: str | None = None
+    source_snippet: str | None = None
+    evidence_payload: dict[str, Any] | None = None
+
+
+class MatchGapReportResponse(APIModel):
+    hard_blockers: list[MatchGapEntryResponse] = Field(default_factory=list)
+    clarifiable_blockers: list[MatchGapEntryResponse] = Field(default_factory=list)
+    missing_data: list[MatchGapEntryResponse] = Field(default_factory=list)
+    review_required: list[MatchGapEntryResponse] = Field(default_factory=list)
+    unsupported: list[MatchGapEntryResponse] = Field(default_factory=list)
+
+
 class MatchResultSummary(APIModel):
     id: UUID
     match_run_id: UUID
@@ -536,6 +563,7 @@ class MatchResultSummary(APIModel):
 class MatchResultDetail(MatchResultSummary):
     criteria: list[MatchCriterionResultResponse] = Field(default_factory=list)
     explanation: MatchExplanationResponse = Field(default_factory=MatchExplanationResponse)
+    gap_report: MatchGapReportResponse = Field(default_factory=MatchGapReportResponse)
 
 
 class MatchRunResponse(APIModel):

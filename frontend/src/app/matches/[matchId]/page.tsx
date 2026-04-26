@@ -2,6 +2,7 @@ import { StructuredDataView } from "@/components/structured-data-view";
 import Link from "next/link";
 
 import { MatchExplanationCard } from "@/components/match-explanation-card";
+import { MatchGapReportCard } from "@/components/match-gap-report-card";
 import { PageHeader } from "@/components/page-header";
 import { Panel } from "@/components/panel";
 import { StatusPill } from "@/components/status-pill";
@@ -83,6 +84,44 @@ export default async function MatchDetailPage({
             eyebrow="Unresolved criteria"
             items={match.explanation.review_required}
             emptyMessage="No unresolved or review-required criteria remain for this result."
+          />
+        </div>
+      </Panel>
+
+      <Panel title="Match-Gap Report" eyebrow="Why this result is not yet fully actionable">
+        <p className="text-sm leading-7 text-ink/72">
+          The gap report separates hard blockers from clarifiable blockers, missing patient data, review-required criteria, and unsupported logic.
+        </p>
+        <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          <MatchGapReportCard
+            title="Hard blockers"
+            eyebrow="Likely incompatible"
+            items={match.gap_report.hard_blockers}
+            emptyMessage="No hard blockers were detected for this result."
+          />
+          <MatchGapReportCard
+            title="Clarifiable blockers"
+            eyebrow="Could change with better evidence"
+            items={match.gap_report.clarifiable_blockers}
+            emptyMessage="No clarifiable blockers were detected for this result."
+          />
+          <MatchGapReportCard
+            title="Missing data"
+            eyebrow="Need more patient information"
+            items={match.gap_report.missing_data}
+            emptyMessage="No missing-data gaps were detected for this result."
+          />
+          <MatchGapReportCard
+            title="Review required"
+            eyebrow="Needs human confirmation"
+            items={match.gap_report.review_required}
+            emptyMessage="No review-required gaps remain for this result."
+          />
+          <MatchGapReportCard
+            title="Unsupported"
+            eyebrow="Not safely automated"
+            items={match.gap_report.unsupported}
+            emptyMessage="No unsupported gaps were detected for this result."
           />
         </div>
       </Panel>

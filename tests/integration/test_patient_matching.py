@@ -382,6 +382,158 @@ class TestPatientMatching:
             "NCT10000003",
         }.issubset({item["trial_nct_id"] for item in listing.json()["items"]})
 
+    def test_match_detail_surfaces_structured_gap_report_buckets(self, client, db_session):
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000020",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "confidence": 0.4,
+                }
+            ],
+        )
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000021",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "exclusion",
+                    "category": "concomitant_medication",
+                    "original_text": "Concurrent warfarin use requires review",
+                    "review_required": True,
+                    "review_reason": "unspecified_review_reason",
+                }
+            ],
+        )
+        unsupported_trial = _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000022",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "diagnosis",
+                    "original_text": "Metastatic breast cancer",
+                    "coded_concepts": [
+                        {"system": "mesh", "code": "D001943", "display": "Breast Neoplasms"}
+                    ],
+                    "review_required": True,
+                    "review_reason": "fuzzy_match",
+                }
+            ],
+        )
+        unsupported_criterion_id = str(unsupported_trial.criteria[0].id)
+        reject_response = client.patch(
+            f"/api/v1/criteria/{unsupported_criterion_id}/review",
+            json={"action": "reject", "reviewed_by": "ops-console"},
+        )
+        assert reject_response.status_code == 200
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000023",
+            sex="MALE",
+            criteria_payloads=[],
+        )
+        _seed_trial_with_run(
+            db_session,
+            nct_id="NCT10000024",
+            sex="ALL",
+            criteria_payloads=[
+                {
+                    "type": "inclusion",
+                    "category": "sex",
+                    "original_text": "Male patients only",
+                    "value_text": "male",
+                    "confidence": 0.4,
+                }
+            ],
+        )
+
+        patient = client.post(
+            "/api/v1/patients",
+            json={
+                "external_id": "pt-gap-report-001",
+                "sex": "female",
+                "conditions": [
+                    {
+                        "description": "Glioblastoma",
+                        "coded_concepts": [{"system": "mesh", "code": "D005909", "display": "Glioblastoma"}],
+                    }
+                ],
+            },
+        )
+        patient_id = patient.json()["id"]
+
+        response = client.post(f"/api/v1/patients/{patient_id}/match")
+        assert response.status_code == 200
+        results = {item["trial_nct_id"]: item for item in response.json()["results"]}
+
+        clarifiable_detail = client.get(f"/api/v1/matches/{results['NCT10000020']['id']}")
+        assert clarifiable_detail.status_code == 200
+        clarifiable_payload = clarifiable_detail.json()
+        assert "gap_report" in clarifiable_payload
+        clarifiable_items = [
+            item
+            for item in clarifiable_payload["gap_report"]["clarifiable_blockers"]
+            if item["category"] == "diagnosis"
+        ]
+        assert len(clarifiable_items) == 1
+        clarifiable_item = clarifiable_items[0]
+        assert clarifiable_item["kind"] == "clarifiable_blocker"
+
+        review_detail = client.get(f"/api/v1/matches/{results['NCT10000021']['id']}")
+        assert review_detail.status_code == 200
+        review_payload = review_detail.json()
+        review_item = next(
+            item
+            for item in review_payload["gap_report"]["review_required"]
+            if item["category"] == "concomitant_medication"
+        )
+        assert review_item["kind"] == "review_required"
+
+        unsupported_detail = client.get(f"/api/v1/matches/{results['NCT10000022']['id']}")
+        assert unsupported_detail.status_code == 200
+        unsupported_payload = unsupported_detail.json()
+        unsupported_item = next(
+            item for item in unsupported_payload["gap_report"]["unsupported"] if item["category"] == "diagnosis"
+        )
+        assert unsupported_item["kind"] == "unsupported"
+
+        hard_blocker_detail = client.get(f"/api/v1/matches/{results['NCT10000023']['id']}")
+        assert hard_blocker_detail.status_code == 200
+        hard_blocker_payload = hard_blocker_detail.json()
+        hard_blocker_item = next(
+            item
+            for item in hard_blocker_payload["gap_report"]["hard_blockers"]
+            if item["category"] == "sex"
+        )
+        assert hard_blocker_item["kind"] == "hard_blocker"
+        missing_data_item = next(
+            item
+            for item in hard_blocker_payload["gap_report"]["missing_data"]
+            if item["category"] == "age"
+        )
+        assert missing_data_item["kind"] == "missing_data"
+
+        low_confidence_sex_detail = client.get(f"/api/v1/matches/{results['NCT10000024']['id']}")
+        assert low_confidence_sex_detail.status_code == 200
+        low_confidence_sex_payload = low_confidence_sex_detail.json()
+        low_confidence_sex_items = [
+            item
+            for item in low_confidence_sex_payload["gap_report"]["clarifiable_blockers"]
+            if item["category"] == "sex"
+        ]
+        assert len(low_confidence_sex_items) == 1
+        assert low_confidence_sex_payload["gap_report"]["hard_blockers"] == []
+
     def test_match_patient_surfaces_low_confidence_state_separately_from_review_required(self, client, db_session):
         _seed_trial_with_run(
             db_session,
@@ -438,6 +590,11 @@ class TestPatientMatching:
         assert low_confidence_item["outcome"] == "matched"
         assert low_confidence_item["state"] == "structured_low_confidence"
         assert low_confidence_item["source_snippet"] is None
+        low_confidence_gap_item = next(
+            item for item in detail_payload["gap_report"]["review_required"] if item["category"] == "diagnosis"
+        )
+        assert low_confidence_gap_item["kind"] == "review_required"
+        assert detail_payload["gap_report"]["clarifiable_blockers"] == []
 
     def test_reviewed_low_confidence_criterion_is_treated_as_safe_for_new_matches(self, client, db_session):
         trial = _seed_trial_with_run(
@@ -596,6 +753,17 @@ class TestPatientMatching:
         assert result["overall_status"] == "eligible"
         assert result["state"] == "structured_safe"
         assert result["state_reason"] is None
+
+        detail = client.get(f"/api/v1/matches/{result['id']}")
+        assert detail.status_code == 200
+        gap_report = detail.json()["gap_report"]
+        assert gap_report == {
+            "hard_blockers": [],
+            "clarifiable_blockers": [],
+            "missing_data": [],
+            "review_required": [],
+            "unsupported": [],
+        }
 
     def test_match_state_is_snapshotted_and_does_not_drift_after_review_resolution(self, client, db_session):
         trial = _seed_trial_with_run(
@@ -818,15 +986,22 @@ class TestPatientMatching:
 
         detail = client.get(f"/api/v1/matches/{result['id']}")
         assert detail.status_code == 200
+        payload = detail.json()
         outcomes = {
             item["criterion_text"]: item["outcome"]
-            for item in detail.json()["criteria"]
+            for item in payload["criteria"]
             if item["source_type"] == "extracted"
         }
         assert outcomes["Able to provide informed consent"] == "matched"
         assert outcomes["Claustrophobia preventing MRI"] == "not_triggered"
         assert outcomes["Pregnant women are excluded"] == "not_triggered"
         assert outcomes["Presence of an MR-incompatible pacemaker"] == "unknown"
+        pacemaker_gap = next(
+            item
+            for item in payload["gap_report"]["missing_data"]
+            if item["criterion_text"] == "Presence of an MR-incompatible pacemaker"
+        )
+        assert pacemaker_gap["kind"] == "missing_data"
 
     def test_medication_exception_logic_uses_unknowns_and_explicit_allowances(self, client, db_session):
         _seed_trial_with_run(
@@ -886,10 +1061,17 @@ class TestPatientMatching:
 
         detail = client.get(f"/api/v1/matches/{result['id']}")
         assert detail.status_code == 200
+        payload = detail.json()
         outcomes = {
             item["criterion_text"]: item["outcome"]
-            for item in detail.json()["criteria"]
+            for item in payload["criteria"]
             if item["source_type"] == "extracted"
         }
         assert outcomes["Live-attenuated vaccine within 30 days before enrollment"] == "unknown"
         assert outcomes["Systemic corticosteroids except physiologic replacement doses"] == "not_triggered"
+        medication_gap = next(
+            item
+            for item in payload["gap_report"]["review_required"]
+            if item["criterion_text"] == "Live-attenuated vaccine within 30 days before enrollment"
+        )
+        assert medication_gap["kind"] == "review_required"

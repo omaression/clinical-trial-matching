@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,6 +10,8 @@ from app.api.schemas import (
     MatchCriterionResultResponse,
     MatchExplanationItemResponse,
     MatchExplanationResponse,
+    MatchGapEntryResponse,
+    MatchGapReportResponse,
     MatchResultDetail,
     MatchResultListResponse,
     MatchResultSummary,
@@ -31,7 +34,8 @@ from app.api.schemas import (
 )
 from app.api.state import criterion_state_from_match_result_criterion, match_state_from_match_result
 from app.db.session import get_db
-from app.matching.service import PatientMatchService
+from app.matching.gap_report import build_gap_report_payload
+from app.matching.service import CriterionEvaluation, PatientMatchService, _collapse_or_group
 from app.models.database import (
     MatchResult,
     MatchRun,
@@ -498,12 +502,271 @@ def _build_match_explanation(criteria) -> MatchExplanationResponse:
     return explanation
 
 
+def _patient_flag_field_name(criterion) -> str | None:
+    evidence = criterion.evidence_payload
+    if not isinstance(evidence, dict):
+        return None
+    patient_flag_field = evidence.get("patient_flag_field")
+    if isinstance(patient_flag_field, str) and patient_flag_field:
+        return patient_flag_field
+    return None
+
+
+def _has_missing_patient_data(criterion) -> bool:
+    state_reason = getattr(criterion, "state_reason", None)
+    if state_reason == "legacy_state_unverifiable":
+        return False
+
+    evidence = criterion.evidence_payload
+    if not isinstance(evidence, dict):
+        return False
+
+    scalar_patient_keys = (
+        "patient_age_years",
+        "patient_sex",
+        "patient_is_healthy_volunteer",
+        "patient_ecog_status",
+    )
+    snapshot_missing_data = evidence.get("snapshot_missing_data")
+    if snapshot_missing_data is True:
+        return True
+    if any(key in evidence and evidence[key] is None for key in scalar_patient_keys):
+        return True
+
+    list_patient_keys = (
+        "patient_conditions",
+        "patient_biomarkers",
+        "patient_labs",
+        "patient_therapies",
+    )
+    if any(key in evidence and isinstance(evidence[key], list) and not evidence[key] for key in list_patient_keys):
+        return True
+
+    if criterion.category == "lab_value":
+        labs = evidence.get("patient_labs")
+        if (
+            isinstance(labs, list)
+            and labs
+            and all(lab.get("value_numeric") is None for lab in labs if isinstance(lab, dict))
+        ):
+            return True
+
+    if criterion.category in {"prior_therapy", "line_of_therapy"}:
+        therapies = evidence.get("patient_therapies")
+        if isinstance(therapies, list) and therapies and all(
+            therapy.get("line_of_therapy") is None for therapy in therapies if isinstance(therapy, dict)
+        ):
+            return True
+
+    patient_flags = evidence.get("patient_flags")
+    if isinstance(patient_flags, dict):
+        field_name = _patient_flag_field_name(criterion)
+        if field_name and patient_flags.get(field_name) is None:
+            return True
+
+    if criterion.category == "concomitant_medication":
+        medications = evidence.get("patient_medications")
+        if not isinstance(medications, list) or not medications:
+            return True
+        if evidence.get("exception_logic") or evidence.get("allowance_text"):
+            return False
+        if any(
+            evidence.get(key) is not None
+            for key in ("timeframe_operator", "timeframe_value", "timeframe_unit")
+        ):
+            return False
+        return False
+
+    return False
+
+
+def _is_hard_blocker(criterion, *, state: str | None = None) -> bool:
+    criterion_state = state
+    if criterion_state is None:
+        criterion_state, _ = criterion_state_from_match_result_criterion(criterion)
+    return criterion_state == "structured_safe"
+
+
+def _criterion_logic_group_key(criterion) -> tuple[object, str] | None:
+    evidence = criterion.evidence_payload
+    if not isinstance(evidence, dict):
+        return None
+    snapshot_metadata = evidence.get("snapshot_match_metadata")
+    if not isinstance(snapshot_metadata, dict):
+        return None
+    logic_group_id = snapshot_metadata.get("logic_group_id")
+    logic_operator = snapshot_metadata.get("logic_operator")
+    if logic_group_id and logic_operator == "OR":
+        return logic_group_id, logic_operator
+    return None
+
+
+def _criterion_to_evaluation(criterion) -> CriterionEvaluation:
+    logic_group_id = None
+    logic_operator = None
+    evidence = criterion.evidence_payload
+    if isinstance(evidence, dict):
+        snapshot_metadata = evidence.get("snapshot_match_metadata")
+        if isinstance(snapshot_metadata, dict):
+            logic_group_id = snapshot_metadata.get("logic_group_id")
+            logic_operator = snapshot_metadata.get("logic_operator")
+    return CriterionEvaluation(
+        criterion_id=criterion.criterion_id,
+        pipeline_run_id=criterion.pipeline_run_id,
+        logic_group_id=logic_group_id,
+        logic_operator=logic_operator,
+        source_type=criterion.source_type,
+        source_label=criterion.source_label,
+        criterion_type=criterion.criterion_type,
+        category=criterion.category,
+        criterion_text=criterion.criterion_text,
+        outcome=criterion.outcome,
+        state=criterion.state,
+        state_reason=criterion.state_reason,
+        explanation_text=criterion.explanation_text,
+        explanation_type=criterion.explanation_type,
+        evidence_payload=criterion.evidence_payload,
+    )
+
+
+def _evaluation_to_gap_criterion(evaluation: CriterionEvaluation):
+    return SimpleNamespace(
+        criterion_id=evaluation.criterion_id,
+        pipeline_run_id=evaluation.pipeline_run_id,
+        source_type=evaluation.source_type,
+        source_label=evaluation.source_label,
+        criterion_type=evaluation.criterion_type,
+        category=evaluation.category,
+        criterion_text=evaluation.criterion_text,
+        outcome=evaluation.outcome,
+        state=evaluation.state,
+        state_reason=evaluation.state_reason,
+        explanation_text=evaluation.explanation_text,
+        explanation_type=evaluation.explanation_type,
+        evidence_payload=evaluation.evidence_payload,
+        criterion=None,
+    )
+
+
+def _grouped_gap_criterion(members: list[object]):
+    collapsed = _collapse_or_group([_criterion_to_evaluation(member) for member in members])
+    member_texts = []
+    for member in members:
+        text = member.criterion_text.strip()
+        if text and text not in member_texts:
+            member_texts.append(text)
+    evidence_payload = collapsed.evidence_payload if isinstance(collapsed.evidence_payload, dict) else {}
+    return SimpleNamespace(
+        criterion_id=collapsed.criterion_id,
+        pipeline_run_id=collapsed.pipeline_run_id,
+        source_type=collapsed.source_type,
+        source_label=collapsed.source_label,
+        criterion_type=collapsed.criterion_type,
+        category=collapsed.category,
+        criterion_text=" OR ".join(member_texts) if member_texts else collapsed.criterion_text,
+        outcome=collapsed.outcome,
+        state=collapsed.state,
+        state_reason=collapsed.state_reason,
+        explanation_text=collapsed.explanation_text,
+        explanation_type=collapsed.explanation_type,
+        evidence_payload={
+            **evidence_payload,
+            "snapshot_match_metadata": {
+                "logic_group_id": str(collapsed.logic_group_id) if collapsed.logic_group_id is not None else None,
+                "logic_operator": collapsed.logic_operator,
+            },
+            "member_criterion_texts": member_texts,
+            "snapshot_missing_data": any(_has_missing_patient_data(member) for member in members),
+        },
+        criterion=None,
+    )
+
+
+def _effective_gap_report_criteria(criteria):
+    effective = []
+    grouped_members: dict[tuple[object, str], list[object]] = {}
+    grouped_order: list[tuple[object, str]] = []
+
+    for criterion in criteria:
+        key = _criterion_logic_group_key(criterion)
+        if key is not None:
+            if key not in grouped_members:
+                grouped_order.append(key)
+                grouped_members[key] = []
+            grouped_members[key].append(criterion)
+            continue
+
+        effective.append(criterion)
+
+    for key in grouped_order:
+        effective.append(_grouped_gap_criterion(grouped_members[key]))
+
+    return effective
+
+
+def _build_match_gap_entry(criterion, kind: str) -> MatchGapEntryResponse:
+    state, state_reason = criterion_state_from_match_result_criterion(criterion)
+    return MatchGapEntryResponse(
+        kind=kind,
+        label=_explanation_label_for_category(criterion.category),
+        category=criterion.category,
+        criterion_text=criterion.criterion_text,
+        outcome=criterion.outcome,
+        state=state,
+        state_reason=state_reason,
+        summary=criterion.explanation_text,
+        source_snippet=_source_snippet_for_criterion(criterion),
+        evidence_payload=criterion.evidence_payload,
+    )
+
+
+def _build_match_gap_report(criteria) -> MatchGapReportResponse:
+    return MatchGapReportResponse.model_validate(build_gap_report_payload(criteria))
+
+
+def _legacy_gap_report_payload(match_result: MatchResult) -> dict[str, list[dict[str, object | None]]]:
+    base_entry = {
+        "label": "Historical Snapshot",
+        "category": "historical_snapshot",
+        "criterion_text": "Gap report was not snapshotted for this historical match result.",
+        "state": match_result.state,
+        "state_reason": match_result.state_reason or "legacy_state_unverifiable",
+        "summary": match_result.summary_explanation,
+        "source_snippet": None,
+        "evidence_payload": None,
+    }
+    report = {
+        "hard_blockers": [],
+        "clarifiable_blockers": [],
+        "missing_data": [],
+        "review_required": [],
+        "unsupported": [],
+    }
+    if match_result.state == "blocked_unsupported":
+        report["unsupported"].append({**base_entry, "kind": "unsupported", "outcome": "unknown"})
+    if (
+        match_result.overall_status == "ineligible"
+        and match_result.unfavorable_count > 0
+        and match_result.state == "structured_safe"
+    ):
+        report["hard_blockers"].append({**base_entry, "kind": "hard_blocker", "outcome": "not_matched"})
+    if (
+        match_result.unknown_count > 0
+        or match_result.requires_review_count > 0
+        or (match_result.state not in {"structured_safe", "blocked_unsupported"})
+    ):
+        report["review_required"].append({**base_entry, "kind": "review_required", "outcome": "unknown"})
+    return report
+
+
 def _match_detail(match_result: MatchResult) -> MatchResultDetail:
     criteria = sorted(match_result.criteria, key=lambda criterion: (criterion.created_at, str(criterion.id)))
+    gap_report_payload = match_result.gap_report_payload or _legacy_gap_report_payload(match_result)
     return MatchResultDetail(
         **_match_summary(match_result).model_dump(),
         criteria=[_build_match_criterion_response(criterion) for criterion in criteria],
         explanation=_build_match_explanation(criteria),
+        gap_report=MatchGapReportResponse.model_validate(gap_report_payload),
     )
 
 
