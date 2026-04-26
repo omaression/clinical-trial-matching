@@ -29,7 +29,7 @@ def _make_criterion(**kwargs):
         "original_text": "",
         "parse_status": "parsed",
         "confidence": 0.95,
-        "pipeline_version": "0.1.2",
+        "pipeline_version": "0.2.0",
         "coded_concepts": [],
         "review_required": False,
         "review_status": None,
