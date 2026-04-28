@@ -42,7 +42,7 @@ def test_create_pipeline_run_and_criterion(db_session):
 
     run = PipelineRun(
         trial_id=trial.id,
-        pipeline_version="0.1.2",
+        pipeline_version="0.2.0",
         input_hash="hash123",
         input_snapshot={"test": True},
     )
@@ -58,7 +58,7 @@ def test_create_pipeline_run_and_criterion(db_session):
         value_low=18,
         unit="years",
         confidence=0.95,
-        pipeline_version="0.1.2",
+        pipeline_version="0.2.0",
         pipeline_run_id=run.id,
     )
     db_session.add(criterion)

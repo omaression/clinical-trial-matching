@@ -187,7 +187,7 @@ def _seed_trial(db_session, nct_id=None, status="RECRUITING", phase="PHASE3", co
 
     run = PipelineRun(
         trial_id=trial.id,
-        pipeline_version="0.1.2",
+        pipeline_version="0.2.0",
         input_hash="test_input_hash",
         input_snapshot=trial.raw_json,
         status="completed",
@@ -210,7 +210,7 @@ def _seed_trial(db_session, nct_id=None, status="RECRUITING", phase="PHASE3", co
         confidence=0.95,
         review_required=False,
         coded_concepts=[],
-        pipeline_version="0.1.2",
+        pipeline_version="0.2.0",
         pipeline_run_id=run.id,
     )
     c2 = ExtractedCriterion(
@@ -225,7 +225,7 @@ def _seed_trial(db_session, nct_id=None, status="RECRUITING", phase="PHASE3", co
         review_reason="fuzzy_match",
         review_status="pending",
         coded_concepts=[{"system": "mesh", "code": "D001859", "display": "Brain Neoplasms", "match_type": "fuzzy"}],
-        pipeline_version="0.1.2",
+        pipeline_version="0.2.0",
         pipeline_run_id=run.id,
     )
     db_session.add_all([c1, c2])
@@ -236,7 +236,7 @@ def _seed_trial(db_session, nct_id=None, status="RECRUITING", phase="PHASE3", co
 def _add_completed_run(db_session, trial, criteria_payloads):
     run = PipelineRun(
         trial_id=trial.id,
-        pipeline_version="0.1.2",
+        pipeline_version="0.2.0",
         input_hash=f"rehash-{uuid.uuid4().hex}",
         input_snapshot=trial.raw_json,
         status="completed",
@@ -255,7 +255,7 @@ def _add_completed_run(db_session, trial, criteria_payloads):
             "confidence": 0.95,
             "review_required": False,
             "coded_concepts": [],
-            "pipeline_version": "0.1.2",
+            "pipeline_version": "0.2.0",
             "pipeline_run_id": run.id,
             **payload,
         }
@@ -1277,10 +1277,10 @@ class TestPipelineEndpoints:
 
     def test_list_pipeline_runs_filter_by_version(self, client, db_session):
         _seed_trial(db_session)
-        response = client.get("/api/v1/pipeline/runs?pipeline_version=0.1.2")
+        response = client.get("/api/v1/pipeline/runs?pipeline_version=0.2.0")
         assert response.status_code == 200
         for item in response.json()["items"]:
-            assert item["pipeline_version"] == "0.1.2"
+            assert item["pipeline_version"] == "0.2.0"
 
     def test_get_pipeline_run(self, client, db_session):
         _, run, _, _ = _seed_trial(db_session)
@@ -1288,7 +1288,7 @@ class TestPipelineEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "completed"
-        assert data["pipeline_version"] == "0.1.2"
+        assert data["pipeline_version"] == "0.2.0"
 
     def test_get_pipeline_run_not_found(self, client):
         response = client.get(f"/api/v1/pipeline/runs/{uuid.uuid4()}")
