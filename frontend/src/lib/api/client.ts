@@ -9,6 +9,7 @@ import type {
   IngestResponse,
   MatchResultDetail,
   MatchResultListResponse,
+  MatchReviewQueueResponse,
   MatchRunResponse,
   PatientCreatePayload,
   PatientDetail,
@@ -82,6 +83,7 @@ export const ctmApi = {
       accept: "application/fhir+json"
     }),
   getReviewQueue: (query = "") => apiRequest<ReviewQueueResponse>(`/review${query}`, { auth: true }),
+  getMatchReviewQueue: (query = "") => apiRequest<MatchReviewQueueResponse>(`/review/matches${query}`, { auth: true }),
   getPipelineStatus: () => apiRequest<PipelineStatusResponse>("/pipeline/status", { auth: true }),
   getPipelineCoverage: () => apiRequest<PipelineCoverageResponse>("/pipeline/coverage", { auth: true }),
   listPipelineRuns: (query = "") =>

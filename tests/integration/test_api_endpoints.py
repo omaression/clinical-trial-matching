@@ -11,9 +11,23 @@ from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.db.session import get_db
-from app.ingestion.service import ExternalServiceValidationError, SearchIngestBatchResult, SearchIngestTrialResult
+from app.ingestion.service import (
+    ExternalServiceValidationError,
+    SearchIngestBatchResult,
+    SearchIngestTrialResult,
+)
 from app.main import app
-from app.models.database import ExtractedCriterion, MatchResult, MatchRun, Patient, PipelineRun, Trial
+from app.matching.review_items import build_match_review_item_snapshots
+from app.models.database import (
+    ExtractedCriterion,
+    MatchResult,
+    MatchResultCriterion,
+    MatchReviewItem,
+    MatchRun,
+    Patient,
+    PipelineRun,
+    Trial,
+)
 from app.scripts.seed import sync_coding_lookups
 
 MOCK_DIR = Path(__file__).parent.parent / "fixtures" / "mock_ctgov_responses"
@@ -379,6 +393,111 @@ def _seed_match_results_for_coverage(db_session, primary_trial):
         "patient": patient,
         "secondary_trial": secondary_trial,
         "tertiary_trial": tertiary_trial,
+    }
+
+
+def _seed_match_review_queue_item(db_session):
+    trial, run, _, review_criterion = _seed_trial(db_session)
+
+    patient = Patient(external_id=f"review-queue-patient-{uuid.uuid4().hex[:8]}")
+    db_session.add(patient)
+    db_session.flush()
+
+    match_run = MatchRun(
+        patient_id=patient.id,
+        status="completed",
+        total_trials_evaluated=1,
+        eligible_trials=0,
+        possible_trials=1,
+        ineligible_trials=0,
+    )
+    db_session.add(match_run)
+    db_session.flush()
+
+    match_result = MatchResult(
+        match_run_id=match_run.id,
+        patient_id=patient.id,
+        trial_id=trial.id,
+        overall_status="possible",
+        score=0.41,
+        favorable_count=0,
+        unfavorable_count=0,
+        unknown_count=1,
+        requires_review_count=1,
+        summary_explanation="Needs human review",
+        gap_report_payload={
+            "hard_blockers": [],
+            "clarifiable_blockers": [],
+            "missing_data": [],
+            "review_required": [
+                {
+                    "kind": "review_required",
+                    "label": "Metastases",
+                    "category": review_criterion.category,
+                    "criterion_text": review_criterion.original_text,
+                    "outcome": "unknown",
+                    "state": "review_required",
+                    "state_reason": "review_required:manual_review_needed",
+                    "summary": "Criterion outcome remains unresolved and needs adjudication.",
+                    "source_snippet": "No active brain metastases",
+                    "evidence_payload": {"source_snippet": "No active brain metastases"},
+                }
+            ],
+            "unsupported": [],
+        },
+        state="review_required",
+        state_reason="review_required:manual_review_needed",
+    )
+    db_session.add(match_result)
+    db_session.flush()
+
+    review_item = None
+    for snapshot in build_match_review_item_snapshots(match_result.gap_report_payload):
+        review_item = MatchReviewItem(
+            match_result_id=match_result.id,
+            match_run_id=match_run.id,
+            patient_id=patient.id,
+            trial_id=trial.id,
+            item_key=snapshot.item_key,
+            bucket=snapshot.bucket,
+            reason_code=snapshot.reason_code,
+            category=snapshot.category,
+            criterion_text=snapshot.criterion_text,
+            outcome=snapshot.outcome,
+            state=snapshot.state,
+            state_reason=snapshot.state_reason,
+            source_snippet=snapshot.source_snippet,
+            evidence_payload=snapshot.evidence_payload,
+            summary=snapshot.summary,
+            created_at=match_result.created_at,
+        )
+        db_session.add(review_item)
+
+    match_result_criterion = MatchResultCriterion(
+        match_result_id=match_result.id,
+        criterion_id=review_criterion.id,
+        pipeline_run_id=run.id,
+        source_type="criterion",
+        source_label="Trial criterion",
+        criterion_type=review_criterion.type,
+        category=review_criterion.category,
+        criterion_text=review_criterion.original_text,
+        outcome="unknown",
+        state="review_required",
+        state_reason="review_required:manual_review_needed",
+        explanation_text="Criterion outcome remains unresolved and needs adjudication.",
+        explanation_type="review_required",
+        evidence_payload={"source_snippet": "No active brain metastases", "review_hint": "manual_review_needed"},
+    )
+    db_session.add(match_result_criterion)
+    db_session.commit()
+    return {
+        "trial": trial,
+        "patient": patient,
+        "match_run": match_run,
+        "match_result": match_result,
+        "match_result_criterion": match_result_criterion,
+        "review_item": review_item,
     }
 
 
@@ -995,6 +1114,70 @@ class TestReviewQueue:
         data = response.json()
         assert "fuzzy_match" in data["breakdown_by_reason"]
         assert data["breakdown_by_reason"]["fuzzy_match"] >= 1
+
+    def test_review_queue_includes_match_result_criteria_requiring_review(self, client, db_session):
+        seeded = _seed_match_review_queue_item(db_session)
+
+        response = client.get("/api/v1/review/matches")
+
+        assert response.status_code == 200
+        data = response.json()
+        match_items = [item for item in data["items"] if item.get("kind") == "match_review_item"]
+        assert match_items, data
+        match_item = next(item for item in match_items if item["match_result_id"] == str(seeded["match_result"].id))
+        assert match_item["patient_id"] == str(seeded["patient"].id)
+        assert match_item["match_run_id"] == str(seeded["match_run"].id)
+        assert match_item["match_result_id"] == str(seeded["match_result"].id)
+        assert match_item["trial_id"] == str(seeded["trial"].id)
+        assert match_item["bucket"] == "review_required"
+        assert match_item["review_required"] is True
+        assert match_item["state"] == "review_required"
+        assert match_item["reason_code"] == "review_required:manual_review_needed"
+
+    def test_match_review_queue_filters_by_reason_and_patient(self, client, db_session):
+        seeded = _seed_match_review_queue_item(db_session)
+
+        response = client.get(
+            "/api/v1/review/matches"
+            f"?reason=review_required:manual_review_needed&patient_id={seeded['patient'].id}"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        assert data["breakdown_by_reason"] == {"review_required:manual_review_needed": data["total"]}
+        for item in data["items"]:
+            assert item["patient_id"] == str(seeded["patient"].id)
+            assert item["reason_code"] == "review_required:manual_review_needed"
+
+    def test_match_review_queue_marks_unsupported_items_as_follow_up_not_pending_review(self, client, db_session):
+        seeded = _seed_match_review_queue_item(db_session)
+        unsupported = MatchReviewItem(
+            match_result_id=seeded["match_result"].id,
+            match_run_id=seeded["match_run"].id,
+            patient_id=seeded["patient"].id,
+            trial_id=seeded["trial"].id,
+            item_key="unsupported:0:test",
+            bucket="unsupported",
+            reason_code="blocked_unsupported",
+            category="concomitant_medication",
+            criterion_text="No strong CYP3A inhibitors",
+            outcome="unknown",
+            state="blocked_unsupported",
+            state_reason="blocked_unsupported",
+            summary="Medication logic is unsupported.",
+        )
+        db_session.add(unsupported)
+        db_session.commit()
+
+        response = client.get("/api/v1/review/matches?reason=blocked_unsupported")
+
+        assert response.status_code == 200
+        data = response.json()
+        item = next(item for item in data["items"] if item["id"] == str(unsupported.id))
+        assert item["bucket"] == "unsupported"
+        assert item["review_required"] is False
+        assert item["review_status"] is None
 
     def test_review_queue_ignores_pending_items_from_superseded_runs(self, client, db_session):
         trial, _, _, _ = _seed_trial(db_session)

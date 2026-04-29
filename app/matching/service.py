@@ -7,10 +7,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.state import criterion_state_from_extracted, match_state_from_evaluations
 from app.matching.gap_report import build_gap_report_payload
+from app.matching.review_items import build_match_review_item_snapshots
 from app.models.database import (
     ExtractedCriterion,
     MatchResult,
     MatchResultCriterion,
+    MatchReviewItem,
     MatchRun,
     Patient,
     PatientBiomarker,
@@ -117,6 +119,7 @@ class PatientMatchService:
                 evaluations=effective_evaluations,
             )
             state, state_reason = match_state_from_evaluations(effective_evaluations)
+            gap_report_payload = build_gap_report_payload(effective_evaluations)
 
             result = MatchResult(
                 match_run_id=match_run.id,
@@ -131,11 +134,33 @@ class PatientMatchService:
                 unknown_count=unknown_count,
                 requires_review_count=requires_review_count,
                 summary_explanation=summary_explanation,
-                gap_report_payload=build_gap_report_payload(effective_evaluations),
+                gap_report_payload=gap_report_payload,
                 created_at=utc_now(),
             )
             self._db.add(result)
             self._db.flush()
+
+            for snapshot in build_match_review_item_snapshots(gap_report_payload):
+                self._db.add(
+                    MatchReviewItem(
+                        match_result_id=result.id,
+                        match_run_id=match_run.id,
+                        patient_id=patient.id,
+                        trial_id=trial.id,
+                        item_key=snapshot.item_key,
+                        bucket=snapshot.bucket,
+                        reason_code=snapshot.reason_code,
+                        category=snapshot.category,
+                        criterion_text=snapshot.criterion_text,
+                        outcome=snapshot.outcome,
+                        state=snapshot.state,
+                        state_reason=snapshot.state_reason,
+                        source_snippet=snapshot.source_snippet,
+                        evidence_payload=snapshot.evidence_payload,
+                        summary=snapshot.summary,
+                        created_at=result.created_at,
+                    )
+                )
 
             for evaluation in evaluations:
                 evidence_payload = evaluation.evidence_payload

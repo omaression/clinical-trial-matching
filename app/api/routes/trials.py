@@ -25,6 +25,8 @@ from app.api.schemas import (
     CriterionResponse,
     IngestRequest,
     IngestResponse,
+    MatchReviewQueueItemResponse,
+    MatchReviewQueueResponse,
     PipelineCoverageResponse,
     PipelineRunListResponse,
     PipelineRunResponse,
@@ -46,7 +48,7 @@ from app.fhir.criterion_projection import CriterionProjectionMapper
 from app.fhir.mapper import FHIRMapper
 from app.fhir.models import ResearchStudy
 from app.ingestion.service import ExternalServiceValidationError, IngestionService
-from app.models.database import ExtractedCriterion, FHIRResearchStudy, PipelineRun, Trial
+from app.models.database import ExtractedCriterion, FHIRResearchStudy, MatchReviewItem, MatchRun, PipelineRun, Trial
 from app.reporting.coverage_dashboard import build_pipeline_coverage_payload
 from app.time_utils import utc_now
 
@@ -67,7 +69,6 @@ reextract_rate_limit = rate_limit_dependency(
     limit_setting="reextract_rate_limit_requests",
     window_setting="reextract_rate_limit_window_seconds",
 )
-
 
 def _get_ingestion_service(request: Request, db: Session = Depends(get_db)) -> IngestionService:
     pipeline = getattr(request.app.state, "extraction_pipeline", None)
@@ -352,7 +353,12 @@ def get_review_queue(
         query = query.filter(ExtractedCriterion.trial_id == trial_id)
 
     total = query.count()
-    criteria = query.order_by(ExtractedCriterion.created_at.asc()).offset((page - 1) * per_page).limit(per_page).all()
+    criteria = (
+        query.order_by(ExtractedCriterion.created_at.asc(), ExtractedCriterion.id.asc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
 
     breakdown_query = (
         db.query(ExtractedCriterion.review_reason, func.count(ExtractedCriterion.id))
@@ -366,8 +372,10 @@ def get_review_queue(
         breakdown_query = breakdown_query.filter(ExtractedCriterion.review_reason == reason)
     if trial_id:
         breakdown_query = breakdown_query.filter(ExtractedCriterion.trial_id == trial_id)
-    breakdown_query = breakdown_query.group_by(ExtractedCriterion.review_reason)
-    breakdown_by_reason = {row[0] or "unknown": row[1] for row in breakdown_query.all()}
+    breakdown_by_reason = {
+        (row[0] or "unknown"): row[1]
+        for row in breakdown_query.group_by(ExtractedCriterion.review_reason).all()
+    }
 
     return ReviewQueueResponse(
         items=[_criterion_detail(c) for c in criteria],
@@ -375,6 +383,65 @@ def get_review_queue(
         page=page,
         per_page=per_page,
         breakdown_by_reason=breakdown_by_reason,
+    )
+
+
+@router.get("/review/matches", response_model=MatchReviewQueueResponse, responses=PROTECTED_READ_RESPONSES)
+def get_match_review_queue(
+    request: Request,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    reason: str | None = None,
+    trial_id: UUID | None = None,
+    patient_id: UUID | None = None,
+    _: str = Depends(require_api_key),
+    db: Session = Depends(get_db),
+):
+    add_request_log_context(request, trial_id=trial_id)
+    latest_runs = _latest_completed_match_run_ids_subquery().subquery()
+    query = (
+        db.query(MatchReviewItem, Trial)
+        .join(Trial, Trial.id == MatchReviewItem.trial_id)
+        .filter(MatchReviewItem.match_run_id.in_(select(latest_runs.c.id)))
+    )
+    if reason:
+        query = query.filter(MatchReviewItem.reason_code == reason)
+    if trial_id:
+        query = query.filter(MatchReviewItem.trial_id == trial_id)
+    if patient_id:
+        query = query.filter(MatchReviewItem.patient_id == patient_id)
+
+    total = query.count()
+    rows = (
+        query.order_by(MatchReviewItem.created_at.asc(), MatchReviewItem.id.asc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    breakdown_query = (
+        db.query(MatchReviewItem.reason_code, func.count(MatchReviewItem.id))
+        .filter(MatchReviewItem.match_run_id.in_(select(latest_runs.c.id)))
+    )
+    if reason:
+        breakdown_query = breakdown_query.filter(MatchReviewItem.reason_code == reason)
+    if trial_id:
+        breakdown_query = breakdown_query.filter(MatchReviewItem.trial_id == trial_id)
+    if patient_id:
+        breakdown_query = breakdown_query.filter(MatchReviewItem.patient_id == patient_id)
+    breakdown_rows = (
+        breakdown_query.group_by(MatchReviewItem.reason_code)
+        .order_by(MatchReviewItem.reason_code.asc())
+        .all()
+    )
+
+    return MatchReviewQueueResponse(
+        items=[_match_review_queue_item_from_model(item, trial) for item, trial in rows],
+        total=total,
+        page=page,
+        per_page=per_page,
+        breakdown_by_reason={str(reason_code or "unknown"): count for reason_code, count in breakdown_rows},
+        breakdown_scope="filtered",
     )
 
 
@@ -520,6 +587,55 @@ def re_extract_trial(
         review_count=result.review_count,
         diff_summary=result.diff_summary,
     )
+
+
+def _match_review_queue_item_from_model(item: MatchReviewItem, trial: Trial) -> MatchReviewQueueItemResponse:
+    return MatchReviewQueueItemResponse(
+        id=str(item.id),
+        kind="match_review_item",
+        reason_code=item.reason_code,
+        reason_codes=[item.reason_code],
+        trial_id=item.trial_id,
+        trial_nct_id=trial.nct_id,
+        trial_brief_title=trial.brief_title,
+        patient_id=item.patient_id,
+        match_run_id=item.match_run_id,
+        match_result_id=item.match_result_id,
+        bucket=item.bucket,
+        category=item.category,
+        original_text=item.criterion_text,
+        outcome=item.outcome,
+        state=item.state,
+        state_reason=item.state_reason,
+        review_required=item.bucket == "review_required",
+        review_reason=item.reason_code,
+        review_status="pending" if item.bucket == "review_required" else None,
+        source_snippet=item.source_snippet,
+        evidence_payload=item.evidence_payload,
+        created_at=item.created_at,
+    )
+
+
+def _latest_completed_match_run_ids_subquery():
+    ranked_runs = (
+        select(
+            MatchRun.id.label("id"),
+            MatchRun.patient_id.label("patient_id"),
+            func.row_number()
+            .over(
+                partition_by=MatchRun.patient_id,
+                order_by=(
+                    MatchRun.completed_at.desc(),
+                    MatchRun.created_at.desc(),
+                    MatchRun.id.desc(),
+                ),
+            )
+            .label("run_rank"),
+        )
+        .where(MatchRun.status == "completed")
+        .subquery()
+    )
+    return select(ranked_runs.c.id, ranked_runs.c.patient_id).where(ranked_runs.c.run_rank == 1)
 
 
 def _get_trial_or_404(trial_id: UUID, db: Session) -> Trial:

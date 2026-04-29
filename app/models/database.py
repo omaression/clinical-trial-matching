@@ -341,9 +341,47 @@ class MatchResult(Base):
     patient = relationship("Patient", back_populates="match_results")
     trial = relationship("Trial", back_populates="match_results")
     criteria = relationship("MatchResultCriterion", back_populates="match_result", cascade="all, delete-orphan")
+    review_items = relationship("MatchReviewItem", back_populates="match_result", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("match_run_id", "trial_id", name="uq_match_run_trial"),
+    )
+
+
+class MatchReviewItem(Base):
+    __tablename__ = "match_review_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    match_result_id = Column(
+        UUID(as_uuid=True), ForeignKey("match_results.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    match_run_id = Column(
+        UUID(as_uuid=True), ForeignKey("match_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    patient_id = Column(
+        UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    trial_id = Column(
+        UUID(as_uuid=True), ForeignKey("trials.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    item_key = Column(String, nullable=False)
+    bucket = Column(String, nullable=False, index=True)
+    reason_code = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False)
+    criterion_text = Column(Text, nullable=False)
+    outcome = Column(String)
+    state = Column(String, nullable=False)
+    state_reason = Column(String)
+    source_snippet = Column(Text)
+    evidence_payload = Column(JSONB)
+    summary = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+    match_result = relationship("MatchResult", back_populates="review_items")
+
+    __table_args__ = (
+        UniqueConstraint("match_result_id", "item_key", name="uq_match_review_item_result_key"),
+        Index("ix_match_review_items_queue", "bucket", "reason_code", "created_at"),
     )
 
 
