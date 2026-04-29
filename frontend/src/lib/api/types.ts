@@ -145,12 +145,46 @@ export type CriteriaListResponse = {
   per_page: number;
 };
 
+export type MatchReviewQueueItem = {
+  id: string;
+  kind: "match_review_item";
+  reason_code?: string | null;
+  reason_codes: string[];
+  trial_id: string;
+  trial_nct_id: string;
+  trial_brief_title: string;
+  patient_id: string;
+  match_run_id: string;
+  match_result_id: string;
+  bucket: "review_required" | "missing_data" | "clarifiable_blockers" | "unsupported";
+  category: string;
+  original_text: string;
+  outcome?: string | null;
+  state: MatchConfidenceState;
+  state_reason?: string | null;
+  review_required: boolean;
+  review_reason?: string | null;
+  review_status?: string | null;
+  source_snippet?: string | null;
+  evidence_payload?: Record<string, unknown> | null;
+  created_at?: string | null;
+};
+
 export type ReviewQueueResponse = {
   items: CriterionResponse[];
   total: number;
   page: number;
   per_page: number;
   breakdown_by_reason: Record<string, number>;
+};
+
+export type MatchReviewQueueResponse = {
+  items: MatchReviewQueueItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  breakdown_by_reason: Record<string, number>;
+  breakdown_scope: "filtered";
 };
 
 export type PipelineStatusResponse = {

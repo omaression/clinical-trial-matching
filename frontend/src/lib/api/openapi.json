@@ -2145,6 +2145,240 @@
         "title": "MatchResultSummary",
         "type": "object"
       },
+      "MatchReviewQueueItemResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "bucket": {
+            "enum": [
+              "review_required",
+              "missing_data",
+              "clarifiable_blockers",
+              "unsupported"
+            ],
+            "title": "Bucket",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "evidence_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Payload"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "match_review_item",
+            "default": "match_review_item",
+            "title": "Kind",
+            "type": "string"
+          },
+          "match_result_id": {
+            "format": "uuid",
+            "title": "Match Result Id",
+            "type": "string"
+          },
+          "match_run_id": {
+            "format": "uuid",
+            "title": "Match Run Id",
+            "type": "string"
+          },
+          "original_text": {
+            "title": "Original Text",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "review_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Reason"
+          },
+          "review_required": {
+            "title": "Review Required",
+            "type": "boolean"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "source_snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Snippet"
+          },
+          "state": {
+            "enum": [
+              "structured_safe",
+              "structured_low_confidence",
+              "review_required",
+              "blocked_unsupported"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "state_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State Reason"
+          },
+          "trial_brief_title": {
+            "title": "Trial Brief Title",
+            "type": "string"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          },
+          "trial_nct_id": {
+            "title": "Trial Nct Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trial_id",
+          "trial_nct_id",
+          "trial_brief_title",
+          "patient_id",
+          "match_run_id",
+          "match_result_id",
+          "bucket",
+          "category",
+          "original_text",
+          "state",
+          "review_required"
+        ],
+        "title": "MatchReviewQueueItemResponse",
+        "type": "object"
+      },
+      "MatchReviewQueueResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdown_by_reason": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Breakdown By Reason",
+            "type": "object"
+          },
+          "breakdown_scope": {
+            "const": "filtered",
+            "default": "filtered",
+            "title": "Breakdown Scope",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MatchReviewQueueItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page",
+          "breakdown_by_reason"
+        ],
+        "title": "MatchReviewQueueResponse",
+        "type": "object"
+      },
       "MatchRunResponse": {
         "additionalProperties": false,
         "properties": {
@@ -5987,6 +6221,144 @@
           }
         ],
         "summary": "Get Review Queue"
+      }
+    },
+    "/api/v1/review/matches": {
+      "get": {
+        "operationId": "get_match_review_queue_api_v1_review_matches_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          },
+          {
+            "in": "query",
+            "name": "trial_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trial Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchReviewQueueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Match Review Queue"
       }
     },
     "/api/v1/trials": {

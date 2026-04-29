@@ -228,12 +228,46 @@ class CriteriaListResponse(APIModel):
     per_page: int
 
 
+class MatchReviewQueueItemResponse(APIModel):
+    id: str
+    kind: Literal["match_review_item"] = "match_review_item"
+    reason_code: str | None = None
+    reason_codes: list[str] = Field(default_factory=list)
+    trial_id: UUID
+    trial_nct_id: str
+    trial_brief_title: str
+    patient_id: UUID
+    match_run_id: UUID
+    match_result_id: UUID
+    bucket: Literal["review_required", "missing_data", "clarifiable_blockers", "unsupported"]
+    category: str
+    original_text: str
+    outcome: str | None = None
+    state: ConfidenceState
+    state_reason: str | None = None
+    review_required: bool
+    review_reason: str | None = None
+    review_status: str | None = None
+    source_snippet: str | None = None
+    evidence_payload: dict[str, Any] | None = None
+    created_at: datetime | None = None
+
+
 class ReviewQueueResponse(APIModel):
     items: list[CriterionResponse]
     total: int
     page: int
     per_page: int
     breakdown_by_reason: dict[str, int]
+
+
+class MatchReviewQueueResponse(APIModel):
+    items: list[MatchReviewQueueItemResponse]
+    total: int
+    page: int
+    per_page: int
+    breakdown_by_reason: dict[str, int]
+    breakdown_scope: Literal["filtered"] = "filtered"
 
 
 class CriterionFHIRProjectionResponse(APIModel):
