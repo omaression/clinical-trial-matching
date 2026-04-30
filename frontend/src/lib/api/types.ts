@@ -466,6 +466,95 @@ export type MatchResultListResponse = {
   per_page: number;
 };
 
+
+export type PatientBiomarkerInput = {
+  description: string;
+  value_text?: string | null;
+  coded_concepts?: CodedConcept[];
+};
+
+export type PatientLabInput = {
+  description: string;
+  value_numeric?: number | null;
+  value_text?: string | null;
+  unit?: string | null;
+  coded_concepts?: CodedConcept[];
+};
+
+export type PatientTherapyInput = {
+  description: string;
+  line_of_therapy?: number | null;
+  completed?: boolean | null;
+  coded_concepts?: CodedConcept[];
+};
+
+export type PatientMedicationInput = {
+  description: string;
+  active?: boolean;
+  coded_concepts?: CodedConcept[];
+};
+
+export type MatchSimulationRequest = {
+  ecog_status?: number;
+  biomarkers?: PatientBiomarkerInput[];
+  therapies?: PatientTherapyInput[];
+  medications?: PatientMedicationInput[];
+  labs?: PatientLabInput[];
+};
+
+export type MatchSimulationAppliedChanges = {
+  ecog_status?: number | null;
+  biomarkers?: PatientBiomarkerInput[] | null;
+  therapies?: PatientTherapyInput[] | null;
+  medications?: PatientMedicationInput[] | null;
+  labs?: PatientLabInput[] | null;
+};
+
+export type MatchSimulationSummary = {
+  total_trials: number;
+  eligible: number;
+  possible: number;
+  ineligible: number;
+  newly_eligible: number;
+  newly_blocked: number;
+  status_changed: number;
+  unchanged: number;
+  review_required: number;
+  source: "persisted" | "computed" | "simulated";
+};
+
+export type MatchSimulationResultDelta = {
+  trial_id: string;
+  trial_nct_id: string;
+  trial_brief_title: string;
+  baseline_status?: "eligible" | "possible" | "ineligible" | null;
+  scenario_status?: "eligible" | "possible" | "ineligible" | null;
+  status_changed: boolean;
+  blockers_removed: string[];
+  blockers_added: string[];
+  missing_data_removed: string[];
+  missing_data_added: string[];
+  clarifiable_blockers_removed: string[];
+  clarifiable_blockers_added: string[];
+  unsupported_removed: string[];
+  unsupported_added: string[];
+  review_required_removed: string[];
+  review_required_added: string[];
+  baseline_summary_explanation?: string | null;
+  scenario_summary_explanation?: string | null;
+};
+
+export type MatchSimulationResponse = {
+  patient_id: string;
+  scenario_source: "simulated";
+  baseline_source: "persisted" | "computed";
+  applied_changes: MatchSimulationAppliedChanges;
+  baseline_summary: MatchSimulationSummary;
+  scenario_summary: MatchSimulationSummary;
+  deltas: MatchSimulationSummary;
+  results: MatchSimulationResultDelta[];
+};
+
 export type HealthResponse = {
   status: "healthy" | "degraded";
   pipeline_version: string;

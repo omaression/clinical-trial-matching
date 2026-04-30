@@ -2456,6 +2456,392 @@
         "title": "MatchRunResponse",
         "type": "object"
       },
+      "MatchSimulationAppliedChanges": {
+        "additionalProperties": false,
+        "properties": {
+          "biomarkers": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientBiomarkerInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Biomarkers"
+          },
+          "ecog_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecog Status"
+          },
+          "labs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientLabInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labs"
+          },
+          "medications": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientMedicationInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medications"
+          },
+          "therapies": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PatientTherapyInput"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Therapies"
+          }
+        },
+        "title": "MatchSimulationAppliedChanges",
+        "type": "object"
+      },
+      "MatchSimulationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "biomarkers": {
+            "items": {
+              "$ref": "#/components/schemas/PatientBiomarkerInput"
+            },
+            "title": "Biomarkers",
+            "type": "array"
+          },
+          "ecog_status": {
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Ecog Status",
+            "type": "integer"
+          },
+          "labs": {
+            "items": {
+              "$ref": "#/components/schemas/PatientLabInput"
+            },
+            "title": "Labs",
+            "type": "array"
+          },
+          "medications": {
+            "items": {
+              "$ref": "#/components/schemas/PatientMedicationInput"
+            },
+            "title": "Medications",
+            "type": "array"
+          },
+          "therapies": {
+            "items": {
+              "$ref": "#/components/schemas/PatientTherapyInput"
+            },
+            "title": "Therapies",
+            "type": "array"
+          }
+        },
+        "title": "MatchSimulationRequest",
+        "type": "object"
+      },
+      "MatchSimulationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "applied_changes": {
+            "$ref": "#/components/schemas/MatchSimulationAppliedChanges"
+          },
+          "baseline_source": {
+            "enum": [
+              "persisted",
+              "computed"
+            ],
+            "title": "Baseline Source",
+            "type": "string"
+          },
+          "baseline_summary": {
+            "$ref": "#/components/schemas/MatchSimulationSummary"
+          },
+          "deltas": {
+            "$ref": "#/components/schemas/MatchSimulationSummary"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/MatchSimulationResultDelta"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "scenario_source": {
+            "const": "simulated",
+            "default": "simulated",
+            "title": "Scenario Source",
+            "type": "string"
+          },
+          "scenario_summary": {
+            "$ref": "#/components/schemas/MatchSimulationSummary"
+          }
+        },
+        "required": [
+          "patient_id",
+          "baseline_source",
+          "applied_changes",
+          "baseline_summary",
+          "scenario_summary",
+          "deltas"
+        ],
+        "title": "MatchSimulationResponse",
+        "type": "object"
+      },
+      "MatchSimulationResultDelta": {
+        "additionalProperties": false,
+        "properties": {
+          "baseline_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "eligible",
+                  "possible",
+                  "ineligible"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Status"
+          },
+          "baseline_summary_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Summary Explanation"
+          },
+          "blockers_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers Added",
+            "type": "array"
+          },
+          "blockers_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers Removed",
+            "type": "array"
+          },
+          "clarifiable_blockers_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clarifiable Blockers Added",
+            "type": "array"
+          },
+          "clarifiable_blockers_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clarifiable Blockers Removed",
+            "type": "array"
+          },
+          "missing_data_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Data Added",
+            "type": "array"
+          },
+          "missing_data_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Data Removed",
+            "type": "array"
+          },
+          "review_required_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Review Required Added",
+            "type": "array"
+          },
+          "review_required_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Review Required Removed",
+            "type": "array"
+          },
+          "scenario_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "eligible",
+                  "possible",
+                  "ineligible"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Status"
+          },
+          "scenario_summary_explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Summary Explanation"
+          },
+          "status_changed": {
+            "title": "Status Changed",
+            "type": "boolean"
+          },
+          "trial_brief_title": {
+            "title": "Trial Brief Title",
+            "type": "string"
+          },
+          "trial_id": {
+            "format": "uuid",
+            "title": "Trial Id",
+            "type": "string"
+          },
+          "trial_nct_id": {
+            "title": "Trial Nct Id",
+            "type": "string"
+          },
+          "unsupported_added": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unsupported Added",
+            "type": "array"
+          },
+          "unsupported_removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unsupported Removed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "trial_id",
+          "trial_nct_id",
+          "trial_brief_title",
+          "status_changed"
+        ],
+        "title": "MatchSimulationResultDelta",
+        "type": "object"
+      },
+      "MatchSimulationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "integer"
+          },
+          "ineligible": {
+            "title": "Ineligible",
+            "type": "integer"
+          },
+          "newly_blocked": {
+            "default": 0,
+            "title": "Newly Blocked",
+            "type": "integer"
+          },
+          "newly_eligible": {
+            "default": 0,
+            "title": "Newly Eligible",
+            "type": "integer"
+          },
+          "possible": {
+            "title": "Possible",
+            "type": "integer"
+          },
+          "review_required": {
+            "default": 0,
+            "title": "Review Required",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "persisted",
+              "computed",
+              "simulated"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status_changed": {
+            "default": 0,
+            "title": "Status Changed",
+            "type": "integer"
+          },
+          "total_trials": {
+            "title": "Total Trials",
+            "type": "integer"
+          },
+          "unchanged": {
+            "default": 0,
+            "title": "Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_trials",
+          "eligible",
+          "possible",
+          "ineligible",
+          "source"
+        ],
+        "title": "MatchSimulationSummary",
+        "type": "object"
+      },
       "PatientBiomarkerInput": {
         "additionalProperties": false,
         "properties": {
@@ -5767,6 +6153,111 @@
           }
         ],
         "summary": "List Patient Matches"
+      }
+    },
+    "/api/v1/patients/{patient_id}/simulate-match": {
+      "post": {
+        "operationId": "simulate_patient_match_api_v1_patients__patient_id__simulate_match_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchSimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchSimulationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "invalid_api_key",
+                  "detail": "Valid X-API-Key header required",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_found",
+                  "detail": "Trial not found",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Requested resource was not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "validation_error",
+                  "detail": "nct_id: String should match pattern '^NCT\\d{8}$'",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "internal_server_error",
+                  "detail": "Internal server error",
+                  "request_id": "7d3f998a-865f-4adf-a1b9-4cd34a6f70ef"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unhandled server error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Simulate Patient Match"
       }
     },
     "/api/v1/pipeline/coverage": {

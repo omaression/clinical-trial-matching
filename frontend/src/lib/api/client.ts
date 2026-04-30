@@ -11,6 +11,8 @@ import type {
   MatchResultListResponse,
   MatchReviewQueueResponse,
   MatchRunResponse,
+  MatchSimulationRequest,
+  MatchSimulationResponse,
   PatientCreatePayload,
   PatientDetail,
   PatientListResponse,
@@ -96,6 +98,12 @@ export const ctmApi = {
     apiRequest<PatientDetail>(`/patients/${patientId}`, { method: "PATCH", auth: true, body: payload }),
   matchPatient: (patientId: string) =>
     apiRequest<MatchRunResponse>(`/patients/${patientId}/match`, { method: "POST", auth: true }),
+  simulatePatientMatch: (patientId: string, payload: MatchSimulationRequest) =>
+    apiRequest<MatchSimulationResponse>(`/patients/${patientId}/simulate-match`, {
+      method: "POST",
+      auth: true,
+      body: payload
+    }),
   listPatientMatches: (patientId: string, query = "") =>
     apiRequest<MatchResultListResponse>(`/patients/${patientId}/matches${query}`, { auth: true }),
   getMatch: (matchId: string) => apiRequest<MatchResultDetail>(`/matches/${matchId}`, { auth: true }),
