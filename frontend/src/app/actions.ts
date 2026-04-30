@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { ctmApi } from "@/lib/api/client";
+import { saveSimulationScenario } from "@/lib/simulation-store";
 
 const booleanStringSchema = z.enum(["true", "false"]);
 const numericStringSchema = z.string().trim().refine(
@@ -51,6 +52,21 @@ const searchIngestSchema = z.object({
   (value) => Boolean(value.condition || value.status || value.phase),
   { message: "Provide at least one search field." }
 );
+
+const simulateMatchSchema = z.object({
+  patient_id: z.string().uuid(),
+  ecog_status: ecogStringSchema.optional(),
+  biomarkers: z.string().trim().optional(),
+  biomarkers_replace: z.enum(["true"]).optional(),
+  medications: z.string().trim().optional(),
+  medications_replace: z.enum(["true"]).optional(),
+  therapies: z.string().trim().optional(),
+  therapies_replace: z.enum(["true"]).optional(),
+  lab_name: z.string().trim().optional(),
+  lab_value: numericStringSchema.optional(),
+  lab_unit: z.string().trim().optional(),
+  labs_replace: z.enum(["true"]).optional()
+});
 
 function splitLines(value?: string): string[] {
   if (!value) {
@@ -121,6 +137,16 @@ function redirectToPipelineWithError(error: string, values?: Record<string, stri
     }
   }
   redirect(`/pipeline?${query.toString()}`);
+}
+
+function redirectToPatientWithError(patientId: string, error: string, values?: Record<string, string | undefined>): never {
+  const query = new URLSearchParams({ error });
+  for (const [key, value] of Object.entries(values ?? {})) {
+    if (value && key !== "patient_id") {
+      query.set(key, value);
+    }
+  }
+  redirect(`/patients/${patientId}?${query.toString()}`);
 }
 
 function redirectToPatientsWithError(error: string, values?: Record<string, string | undefined>): never {
@@ -278,6 +304,53 @@ export async function matchPatientAction(formData: FormData) {
   revalidatePath("/patients");
   const topResult = run.results[0];
   redirect(topResult ? `/matches/${topResult.id}` : `/patients/${patientId}`);
+}
+
+export async function simulateMatchAction(formData: FormData) {
+  const submitted = normalizedFormEntries(formData);
+  const parsed = simulateMatchSchema.safeParse(submitted);
+  if (!parsed.success) {
+    const patientId = submitted.patient_id ?? "";
+    if (z.string().uuid().safeParse(patientId).success) {
+      redirectToPatientWithError(patientId, actionErrorMessage(parsed.error, "Simulation failed validation."), submitted);
+    }
+    redirectToPatientsWithError(actionErrorMessage(parsed.error, "Simulation failed validation."), submitted);
+  }
+
+  const data = parsed.data;
+  const payload = {
+    ...(data.ecog_status !== undefined ? { ecog_status: safeNumber(data.ecog_status) } : {}),
+    ...(data.biomarkers_replace === "true"
+      ? { biomarkers: splitLines(data.biomarkers).map((description) => ({ description })) }
+      : {}),
+    ...(data.medications_replace === "true"
+      ? { medications: splitLines(data.medications).map((description) => ({ description, active: true })) }
+      : {}),
+    ...(data.therapies_replace === "true"
+      ? { therapies: splitLines(data.therapies).map((description) => ({ description })) }
+      : {}),
+    ...(data.labs_replace === "true"
+      ? {
+          labs: data.lab_name
+            ? [
+                {
+                  description: data.lab_name,
+                  value_numeric: safeNumber(data.lab_value),
+                  unit: data.lab_unit || undefined
+                }
+              ]
+            : []
+        }
+      : {})
+  };
+  let token;
+  try {
+    token = await saveSimulationScenario(data.patient_id, payload);
+  } catch (error) {
+    redirectToPatientWithError(data.patient_id, actionErrorMessage(error, "Simulation scenario could not be saved."), submitted);
+  }
+
+  redirect(`/patients/${data.patient_id}/simulate?scenario=${token}`);
 }
 
 export async function reviewCriterionAction(formData: FormData) {

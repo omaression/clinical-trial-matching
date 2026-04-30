@@ -16,6 +16,8 @@ from app.api.schemas import (
     MatchResultListResponse,
     MatchResultSummary,
     MatchRunResponse,
+    MatchSimulationRequest,
+    MatchSimulationResponse,
     PatientBiomarkerInput,
     PatientBiomarkerResponse,
     PatientConditionInput,
@@ -36,6 +38,13 @@ from app.api.state import criterion_state_from_match_result_criterion, match_sta
 from app.db.session import get_db
 from app.matching.gap_report import build_gap_report_payload, legacy_gap_report_payload
 from app.matching.service import CriterionEvaluation, PatientMatchService, _collapse_or_group
+from app.matching.simulation import (
+    applied_changes_from_request,
+    build_result_deltas,
+    build_simulated_patient,
+    summarize_simulation_results,
+    summarize_source_results,
+)
 from app.models.database import (
     MatchResult,
     MatchRun,
@@ -167,6 +176,42 @@ def match_patient(
     return _match_run_detail(match_run)
 
 
+@router.post(
+    "/patients/{patient_id}/simulate-match",
+    response_model=MatchSimulationResponse,
+    responses=PROTECTED_RESOURCE_RESPONSES,
+)
+def simulate_patient_match(
+    patient_id: UUID,
+    payload: MatchSimulationRequest,
+    _: str = Depends(require_api_key),
+    service: PatientMatchService = Depends(_get_match_service),
+    db: Session = Depends(get_db),
+):
+    patient = service.get_patient(patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    # Recompute the baseline against the same current trial/criterion corpus used for
+    # the scenario. Comparing against an older persisted match run would mix patient
+    # edits with unrelated trial/pipeline drift and produce misleading deltas.
+    baseline_source = "computed"
+    baseline_results = service.evaluate_patient_matches(patient)
+
+    simulated_patient = build_simulated_patient(patient, payload)
+    scenario_results = service.evaluate_patient_matches(simulated_patient)
+
+    return MatchSimulationResponse(
+        patient_id=patient.id,
+        baseline_source=baseline_source,
+        applied_changes=applied_changes_from_request(payload),
+        baseline_summary=summarize_source_results(baseline_results, baseline_source),
+        scenario_summary=summarize_source_results(scenario_results, "simulated"),
+        deltas=summarize_simulation_results(baseline_results, scenario_results),
+        results=build_result_deltas(baseline_results, scenario_results),
+    )
+
+
 @router.get(
     "/patients/{patient_id}/matches",
     response_model=MatchResultListResponse,
@@ -233,6 +278,16 @@ def _load_match_run_or_404(match_run_id: UUID, db: Session) -> MatchRun:
     if not match_run:
         raise HTTPException(status_code=404, detail="Match run not found")
     return match_run
+
+
+def _latest_completed_match_run(patient_id: UUID, db: Session) -> MatchRun | None:
+    return (
+        db.query(MatchRun)
+        .options(selectinload(MatchRun.results).selectinload(MatchResult.trial))
+        .filter(MatchRun.patient_id == patient_id, MatchRun.status == "completed")
+        .order_by(MatchRun.completed_at.desc().nullslast(), MatchRun.created_at.desc(), MatchRun.id.desc())
+        .first()
+    )
 
 
 def _replace_patient_facts(patient: Patient, payload: PatientCreateRequest | PatientUpdateRequest) -> None:

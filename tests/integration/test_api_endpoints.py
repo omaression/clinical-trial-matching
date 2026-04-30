@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -75,6 +75,7 @@ class TestRouteRegistration:
             assert "/api/v1/patients" in paths
             assert "/api/v1/patients/{patient_id}" in paths
             assert "/api/v1/patients/{patient_id}/match" in paths
+            assert "/api/v1/patients/{patient_id}/simulate-match" in paths
             assert "/api/v1/patients/{patient_id}/matches" in paths
             assert "/api/v1/matches/{match_id}" in paths
 
@@ -869,6 +870,48 @@ class TestGetCriteria:
         assert data["criteria"][0]["category"] == "line_of_therapy"
         assert "pipeline_run_id" in data["criteria"][0]
         assert "raw_expression" in data["criteria"][0]
+
+
+@pytestmark_docker
+class TestPatientMatchSimulation:
+    def test_simulate_match_changes_outcome_without_persisting_match_run(self, client, db_session):
+        trial, _, _, _ = _seed_trial(db_session)
+        _add_completed_run(
+            db_session,
+            trial,
+            [
+                {
+                    "type": "inclusion",
+                    "category": "performance_status",
+                    "original_text": "ECOG performance status must be 0 to 1",
+                    "operator": "lte",
+                    "value_low": 1,
+                }
+            ],
+        )
+        patient = Patient(
+            external_id=f"simulation-patient-{uuid.uuid4().hex[:8]}",
+            birth_date=date(1980, 1, 1),
+            ecog_status=2,
+        )
+        db_session.add(patient)
+        db_session.commit()
+        baseline_run_count = db_session.query(MatchRun).count()
+
+        response = client.post(f"/api/v1/patients/{patient.id}/simulate-match", json={"ecog_status": 1})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["patient_id"] == str(patient.id)
+        assert data["scenario_source"] == "simulated"
+        assert data["baseline_source"] == "computed"
+        assert data["deltas"]["newly_eligible"] >= 1
+        target_delta = next(item for item in data["results"] if item["trial_id"] == str(trial.id))
+        assert target_delta["baseline_status"] == "ineligible"
+        assert target_delta["scenario_status"] == "eligible"
+        assert target_delta["status_changed"] is True
+        assert db_session.get(Patient, patient.id).ecog_status == 2
+        assert db_session.query(MatchRun).count() == baseline_run_count
 
 
 @pytestmark_docker

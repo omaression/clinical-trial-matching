@@ -60,6 +60,24 @@ class CriterionEvaluation:
     evidence_payload: dict[str, Any] | None = None
 
 
+@dataclass
+class EvaluatedTrialMatch:
+    trial: Trial
+    trial_id: object
+    overall_status: str
+    state: str
+    state_reason: str | None
+    score: float
+    favorable_count: int
+    unfavorable_count: int
+    unknown_count: int
+    requires_review_count: int
+    summary_explanation: str
+    gap_report_payload: dict[str, Any]
+    evaluations: list[CriterionEvaluation]
+    effective_evaluations: list[CriterionEvaluation]
+
+
 class PatientMatchService:
     def __init__(self, db: Session):
         self._db = db
@@ -73,19 +91,14 @@ class PatientMatchService:
             selectinload(Patient.medications),
         ).filter(Patient.id == patient_id).first()
 
-    def run_match(self, patient: Patient) -> MatchRun:
+    def evaluate_patient_matches(self, patient: Patient) -> list[EvaluatedTrialMatch]:
         trials = (
             self._db.query(Trial)
             .options(selectinload(Trial.criteria), selectinload(Trial.pipeline_runs))
             .order_by(Trial.nct_id.asc())
             .all()
         )
-
-        match_run = MatchRun(patient_id=patient.id, status="running", created_at=utc_now())
-        self._db.add(match_run)
-        self._db.flush()
-
-        summaries: list[MatchResult] = []
+        summaries: list[EvaluatedTrialMatch] = []
         for trial in trials:
             latest_run = _latest_completed_run(trial)
             evaluations = self._evaluate_trial(patient, trial, latest_run)
@@ -120,33 +133,69 @@ class PatientMatchService:
             )
             state, state_reason = match_state_from_evaluations(effective_evaluations)
             gap_report_payload = build_gap_report_payload(effective_evaluations)
+            summaries.append(
+                EvaluatedTrialMatch(
+                    trial=trial,
+                    trial_id=trial.id,
+                    overall_status=overall_status,
+                    state=state,
+                    state_reason=state_reason,
+                    score=score,
+                    favorable_count=favorable_count,
+                    unfavorable_count=unfavorable_count,
+                    unknown_count=unknown_count,
+                    requires_review_count=requires_review_count,
+                    summary_explanation=summary_explanation,
+                    gap_report_payload=gap_report_payload,
+                    evaluations=evaluations,
+                    effective_evaluations=effective_evaluations,
+                )
+            )
 
+        summaries.sort(
+            key=lambda result: (
+                _STATUS_ORDER[result.overall_status],
+                -_ranking_metrics(result)[0],
+                -_ranking_metrics(result)[1],
+                str(result.trial_id),
+            )
+        )
+        return summaries
+
+    def run_match(self, patient: Patient) -> MatchRun:
+        match_run = MatchRun(patient_id=patient.id, status="running", created_at=utc_now())
+        self._db.add(match_run)
+        self._db.flush()
+
+        evaluated_matches = self.evaluate_patient_matches(patient)
+        persisted_results: list[MatchResult] = []
+        for evaluated in evaluated_matches:
             result = MatchResult(
                 match_run_id=match_run.id,
                 patient_id=patient.id,
-                trial_id=trial.id,
-                overall_status=overall_status,
-                state=state,
-                state_reason=state_reason,
-                score=score,
-                favorable_count=favorable_count,
-                unfavorable_count=unfavorable_count,
-                unknown_count=unknown_count,
-                requires_review_count=requires_review_count,
-                summary_explanation=summary_explanation,
-                gap_report_payload=gap_report_payload,
+                trial_id=evaluated.trial_id,
+                overall_status=evaluated.overall_status,
+                state=evaluated.state,
+                state_reason=evaluated.state_reason,
+                score=evaluated.score,
+                favorable_count=evaluated.favorable_count,
+                unfavorable_count=evaluated.unfavorable_count,
+                unknown_count=evaluated.unknown_count,
+                requires_review_count=evaluated.requires_review_count,
+                summary_explanation=evaluated.summary_explanation,
+                gap_report_payload=evaluated.gap_report_payload,
                 created_at=utc_now(),
             )
             self._db.add(result)
             self._db.flush()
 
-            for snapshot in build_match_review_item_snapshots(gap_report_payload):
+            for snapshot in build_match_review_item_snapshots(evaluated.gap_report_payload):
                 self._db.add(
                     MatchReviewItem(
                         match_result_id=result.id,
                         match_run_id=match_run.id,
                         patient_id=patient.id,
-                        trial_id=trial.id,
+                        trial_id=evaluated.trial_id,
                         item_key=snapshot.item_key,
                         bucket=snapshot.bucket,
                         reason_code=snapshot.reason_code,
@@ -162,7 +211,7 @@ class PatientMatchService:
                     )
                 )
 
-            for evaluation in evaluations:
+            for evaluation in evaluated.evaluations:
                 evidence_payload = evaluation.evidence_payload
                 if isinstance(evidence_payload, dict):
                     evidence_payload = {
@@ -192,21 +241,12 @@ class PatientMatchService:
                         evidence_payload=evidence_payload,
                     )
                 )
+            persisted_results.append(result)
 
-            summaries.append(result)
-
-        summaries.sort(
-            key=lambda result: (
-                _STATUS_ORDER[result.overall_status],
-                -_ranking_metrics(result)[0],
-                -_ranking_metrics(result)[1],
-                str(result.trial_id),
-            )
-        )
-        match_run.total_trials_evaluated = len(summaries)
-        match_run.eligible_trials = sum(1 for result in summaries if result.overall_status == "eligible")
-        match_run.possible_trials = sum(1 for result in summaries if result.overall_status == "possible")
-        match_run.ineligible_trials = sum(1 for result in summaries if result.overall_status == "ineligible")
+        match_run.total_trials_evaluated = len(persisted_results)
+        match_run.eligible_trials = sum(1 for result in persisted_results if result.overall_status == "eligible")
+        match_run.possible_trials = sum(1 for result in persisted_results if result.overall_status == "possible")
+        match_run.ineligible_trials = sum(1 for result in persisted_results if result.overall_status == "ineligible")
         match_run.status = "completed"
         match_run.completed_at = utc_now()
 

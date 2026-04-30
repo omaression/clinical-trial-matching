@@ -1,8 +1,9 @@
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 
 class APIModel(BaseModel):
@@ -693,6 +694,78 @@ class MatchResultListResponse(APIModel):
     total: int
     page: int
     per_page: int
+
+
+class MatchSimulationRequest(APIModel):
+    ecog_status: Annotated[int, Field(ge=0, le=5)] | SkipJsonSchema[None] = None
+    biomarkers: list[PatientBiomarkerInput] | SkipJsonSchema[None] = None
+    therapies: list[PatientTherapyInput] | SkipJsonSchema[None] = None
+    medications: list[PatientMedicationInput] | SkipJsonSchema[None] = None
+    labs: list[PatientLabInput] | SkipJsonSchema[None] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_no_explicit_null_fields(cls, data):
+        if isinstance(data, dict):
+            null_fields = [field for field, value in data.items() if value is None]
+            if null_fields:
+                raise ValueError(
+                    "Omit fields to preserve baseline values; use empty lists to clear simulated fact lists."
+                )
+        return data
+
+
+class MatchSimulationAppliedChanges(APIModel):
+    ecog_status: int | None = None
+    biomarkers: list[PatientBiomarkerInput] | None = None
+    therapies: list[PatientTherapyInput] | None = None
+    medications: list[PatientMedicationInput] | None = None
+    labs: list[PatientLabInput] | None = None
+
+
+class MatchSimulationSummary(APIModel):
+    total_trials: int
+    eligible: int
+    possible: int
+    ineligible: int
+    newly_eligible: int = 0
+    newly_blocked: int = 0
+    status_changed: int = 0
+    unchanged: int = 0
+    review_required: int = 0
+    source: Literal["persisted", "computed", "simulated"]
+
+
+class MatchSimulationResultDelta(APIModel):
+    trial_id: UUID
+    trial_nct_id: str
+    trial_brief_title: str
+    baseline_status: Literal["eligible", "possible", "ineligible"] | None = None
+    scenario_status: Literal["eligible", "possible", "ineligible"] | None = None
+    status_changed: bool
+    blockers_removed: list[str] = Field(default_factory=list)
+    blockers_added: list[str] = Field(default_factory=list)
+    missing_data_removed: list[str] = Field(default_factory=list)
+    missing_data_added: list[str] = Field(default_factory=list)
+    clarifiable_blockers_removed: list[str] = Field(default_factory=list)
+    clarifiable_blockers_added: list[str] = Field(default_factory=list)
+    unsupported_removed: list[str] = Field(default_factory=list)
+    unsupported_added: list[str] = Field(default_factory=list)
+    review_required_removed: list[str] = Field(default_factory=list)
+    review_required_added: list[str] = Field(default_factory=list)
+    baseline_summary_explanation: str | None = None
+    scenario_summary_explanation: str | None = None
+
+
+class MatchSimulationResponse(APIModel):
+    patient_id: UUID
+    scenario_source: Literal["simulated"] = "simulated"
+    baseline_source: Literal["persisted", "computed"]
+    applied_changes: MatchSimulationAppliedChanges
+    baseline_summary: MatchSimulationSummary
+    scenario_summary: MatchSimulationSummary
+    deltas: MatchSimulationSummary
+    results: list[MatchSimulationResultDelta] = Field(default_factory=list)
 
 
 class ErrorResponse(APIModel):
