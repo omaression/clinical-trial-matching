@@ -1,0 +1,28 @@
+version: governors/v3
+
+defaults:
+  max_open_tasks_per_project: 25
+  max_child_tasks_per_task: 5
+  max_delegation_depth: 4
+  max_retries_per_task: 3
+  max_wall_minutes_per_task: 45
+  max_tool_calls_per_task: 30
+  max_browser_sessions_per_task: 1
+  max_tokens_per_task: 60000
+
+profiles:
+  coder:
+    max_wall_minutes_per_task: 60
+    max_browser_sessions_per_task: 0
+
+  debugger:
+    max_wall_minutes_per_task: 60
+    max_browser_sessions_per_task: 1
+
+  reviewer:
+    max_wall_minutes_per_task: 30
+    max_browser_sessions_per_task: 0
+
+  symphony:
+    max_wall_minutes_per_task: 20
+    max_browser_sessions_per_task: 0

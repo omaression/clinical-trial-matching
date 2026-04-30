@@ -1,0 +1,45 @@
+version: roster/v2
+portal_profile: engineer
+
+profiles:
+  engineer:
+    owns: [triage, planning, policy, synthesis, bootstrap]
+    may_create_tasks: true
+    may_finalize_user_response: true
+    default_workspace: scratch
+
+  coder:
+    owns: [implementation, tests, patch_notes]
+    may_create_tasks: false
+    may_finalize_user_response: false
+    default_workspace: worktree
+
+  debugger:
+    owns: [reproduction, root_cause, validation]
+    may_create_tasks: false
+    may_finalize_user_response: false
+    default_workspace: worktree
+
+  researcher:
+    owns: [source_research, options_analysis, implementation_implications]
+    may_create_tasks: false
+    may_finalize_user_response: false
+    default_workspace: scratch
+
+  reviewer:
+    owns: [criteria_audit, diff_review, residual_risk]
+    may_create_tasks: false
+    may_finalize_user_response: false
+    default_workspace: scratch
+
+  jobhunter:
+    owns: [role_research, tailoring, outreach]
+    may_create_tasks: false
+    may_finalize_user_response: false
+    default_workspace: scratch
+
+  symphony:
+    owns: [monitoring, drift_detection, retry_alerts, reporting]
+    may_create_tasks: true
+    may_finalize_user_response: false
+    default_workspace: scratch

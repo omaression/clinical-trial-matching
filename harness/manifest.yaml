@@ -1,0 +1,26 @@
+version: harness-manifest/v1
+harness_version: "3.1.0"
+hermes_requires: ">=0.13.0"
+project:
+  slug: "clinical-trial-matching"
+  title: "clinical-trial-matching"
+  repo_root: "/home/hermes/workspace/clinical-trial-matching"
+profiles:
+  portal: engineer
+  workers:
+    - coder
+    - debugger
+    - researcher
+    - reviewer
+    - jobhunter
+    - symphony
+kanban:
+  board: "clinical-trial-matching"
+  dispatcher: gateway_embedded
+  coding_workspace: worktree
+  debugging_workspace: worktree
+runtime:
+  terminal_backend_required: docker
+  worktree_required_for:
+    - coder
+    - debugger

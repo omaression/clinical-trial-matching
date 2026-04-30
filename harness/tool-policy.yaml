@@ -1,0 +1,44 @@
+version: tool-policy/v3
+
+global:
+  approvals_mode: manual
+  yolo_allowed: false
+  require_worktree_for_code_changes: true
+  require_structured_kanban_completion: true
+
+profiles:
+  engineer:
+    allow: [kanban, file, web, browser, terminal]
+    terminal_mode: read_mostly
+
+  coder:
+    allow: [kanban, file, terminal]
+    deny: [web, browser]
+    terminal_mode: patch_and_test
+    workspace: worktree
+
+  debugger:
+    allow: [kanban, file, terminal, browser]
+    terminal_mode: reproduce_and_verify
+    workspace: worktree
+
+  researcher:
+    allow: [kanban, file, web, browser]
+    deny: [terminal]
+    workspace: scratch
+
+  reviewer:
+    allow: [kanban, file, terminal, web]
+    terminal_mode: verify_only
+    workspace: scratch
+
+  jobhunter:
+    allow: [kanban, file, web, browser]
+    deny: [terminal]
+    workspace: scratch
+
+  symphony:
+    allow: [kanban, file, terminal]
+    deny: [web, browser]
+    terminal_mode: monitoring_only
+    workspace: scratch
