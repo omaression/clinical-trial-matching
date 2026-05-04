@@ -17,6 +17,7 @@ _MOLECULAR_PATTERN = re.compile(
 )
 _PRIOR_THERAPY_TEXT_PATTERN = re.compile(
     r"\b(?:prior\s+treatment|prior\s+therapy|chemotherap(?:y|ies)|radiation(?:\s+therapy)?|immunotherap(?:y|ies)|"
+    r"checkpoint\s+inhibitor\s+therapy|anti[-\s]+pd[-\s]*1(?:\s+inhibitor)?\s+therapy|"
     r"endocrine\s+therapy|hormonal\s+therapy|targeted\s+therap(?:y|ies)|systemic\s+therapy|"
     r"biologic(?:al)?\s+therapy)\b",
     re.I,
@@ -855,7 +856,9 @@ class RuleBasedClassifier:
                     return normalized
 
         therapy_match = re.search(
-            r"\b(?:pd-1(?:/pd-l1)?(?:\s+inhibitor)?\s+therapy|pd-l1\s+therapy|"
+            r"\b(?:anti[-\s]+pd[-\s]*1(?:\s+inhibitor)?\s+therapy|"
+            r"pd-1(?:/pd-l1)?(?:\s+inhibitor)?\s+therapy|pd-l1\s+therapy|"
+            r"checkpoint\s+inhibitor\s+therapy|immunotherap(?:y|ies)|"
             r"platinum-based chemotherapy|chemotherapy|kras-targeted therapy|agent targeting kras)\b",
             text,
             re.I,
