@@ -580,6 +580,10 @@ class RuleBasedClassifier:
             return "disease_status"
         if _CURRENT_CONDITION_PATTERN.search(text):
             return "diagnosis"
+        if _LINE_PATTERN.search(text):
+            return "line_of_therapy"
+        if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
+            return "prior_therapy"
         if _STAGE_PATTERN.search(text):
             return "disease_stage"
         if _HISTOLOGY_PATTERN.search(text):
@@ -592,10 +596,6 @@ class RuleBasedClassifier:
             return "molecular_alteration"
         if _CONCOMITANT_PATTERN.search(text) or _CYP_RESTRICTION_PATTERN.search(text):
             return "concomitant_medication"
-        if _LINE_PATTERN.search(text):
-            return "line_of_therapy"
-        if _PRIOR_THERAPY_TEXT_PATTERN.search(text):
-            return "prior_therapy"
         if _ORGAN_FUNCTION_PATTERN.search(text):
             return "organ_function"
         return "other"
@@ -623,6 +623,8 @@ class RuleBasedClassifier:
                 or _CYP_RESTRICTION_PATTERN.search(text)
             ):
                 return category, "partial", 0.3, True, "complex_criteria"
+            return category, "parsed", 0.6, False, None
+        if category in {"prior_therapy", "line_of_therapy"}:
             return category, "parsed", 0.6, False, None
         if category == "organ_function" and not _ORGAN_FUNCTION_COMPLEXITY_PATTERN.search(text):
             return category, "parsed", 0.6, False, None
