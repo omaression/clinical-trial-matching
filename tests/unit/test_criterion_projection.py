@@ -146,6 +146,30 @@ def test_safe_pd_1_therapy_class_projects_to_medication_statement():
     )
 
 
+def test_safe_anti_pd_1_therapy_class_projects_to_medication_statement():
+    mapper = CriterionProjectionMapper()
+    criterion = _make_criterion(
+        category="prior_therapy",
+        type="inclusion",
+        original_text="Prior anti-PD-1 therapy for metastatic disease",
+        value_text="anti-PD-1 therapy",
+        entities=[Entity(text="anti-PD-1 therapy", label="DRUG", start=6, end=22)],
+        allowance_text=None,
+    )
+
+    projections = mapper.project_criterion(criterion)
+
+    assert len(projections) == 1
+    assert projections[0].projection_status == "projected"
+    assert projections[0].terminology_status == "nci_thesaurus_grounded"
+    assert projections[0].review_required is False
+    assert projections[0].code == "C178320"
+    assert projections[0].resource_type == "MedicationStatement"
+    assert projections[0].resource["medicationCodeableConcept"]["coding"][0]["system"] == (
+        "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl"
+    )
+
+
 def test_named_drug_wrapper_projects_via_embedded_rxnorm_drug():
     mapper = CriterionProjectionMapper()
     criterion = _make_criterion(
@@ -233,6 +257,28 @@ def test_cyp3a4_inducer_inhibitor_class_remains_blocked_pending_safe_source():
     assert projections[0].normalized_term == "cyp3a4 inhibitors inducers"
     assert projections[0].projection_status == "blocked_missing_class_code"
     assert projections[0].terminology_status == "recognized_class_missing_safe_code"
+    assert projections[0].review_required is True
+    assert projections[0].resource is None
+
+
+@pytest.mark.parametrize("mention_text", ["checkpoint inhibitor therapy", "immunotherapy"])
+def test_broad_therapy_class_parent_phrasing_remains_review_required_for_safety(mention_text: str):
+    mapper = CriterionProjectionMapper()
+    criterion = _make_criterion(
+        category="prior_therapy",
+        type="inclusion",
+        original_text=f"Prior {mention_text} for metastatic disease",
+        value_text=mention_text,
+        entities=[Entity(text=mention_text, label="DRUG", start=6, end=6 + len(mention_text))],
+        allowance_text=None,
+    )
+
+    projections = mapper.project_criterion(criterion)
+
+    assert len(projections) == 1
+    assert projections[0].normalized_term == mention_text
+    assert projections[0].projection_status == "review_required_ambiguous_class"
+    assert projections[0].terminology_status == "ambiguous_class_no_safe_code"
     assert projections[0].review_required is True
     assert projections[0].resource is None
 
