@@ -154,6 +154,21 @@ class TestCategoryAssignment:
         )
         assert result.category == "prior_therapy"
 
+    @pytest.mark.parametrize(
+        ("text", "expected_value_text"),
+        [
+            ("Prior anti-PD-1 therapy for metastatic disease", "anti-pd-1 therapy"),
+            ("Prior checkpoint inhibitor therapy for metastatic disease", "checkpoint inhibitor therapy"),
+            ("Prior immunotherapy for metastatic disease", "immunotherapy"),
+        ],
+    )
+    def test_therapy_class_parent_phrasing_stays_prior_therapy(self, classifier, text, expected_value_text):
+        result = classifier.classify(text, [])
+        assert result.category == "prior_therapy"
+        assert result.parse_status == "parsed"
+        assert result.review_required is False
+        assert result.value_text == expected_value_text
+
     def test_disease_with_stage_modifier_stays_diagnosis_primary(self, classifier):
         result = classifier.classify(
             "Has histologically confirmed diagnosis of metastatic non-small cell lung cancer",

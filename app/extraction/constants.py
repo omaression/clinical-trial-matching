@@ -1,6 +1,10 @@
 """Shared terminology constants used by extraction-adjacent modules."""
 
 PD_1_THERAPY_SYNONYMS = (
+    "anti-pd-1 therapy",
+    "anti pd 1 therapy",
+    "anti-pd-1 inhibitor therapy",
+    "anti pd 1 inhibitor therapy",
     "pd-1 therapy",
     "pd 1 therapy",
     "pd-1 inhibitor therapy",
